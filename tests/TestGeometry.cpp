@@ -3,6 +3,8 @@
 
 #include "Geometry.h"
 
+#include <cstdlib>
+
 using namespace crisp::geom;
 
 namespace {
@@ -295,4 +297,86 @@ CRISP_TEST(Zoom, ZoomAnchoredOrigin_bozuk_eski_boyut_guvenli) {
     const POINT origin = ZoomAnchoredOrigin(POINT{10, 20}, POINT{50, 60},
                                             SIZE{0, 0}, SIZE{100, 100});
     CHECK_POINT(origin, 10, 20);
+}
+
+// --- Yakınlaştırma ve kaydırma -----------------------------------------------
+
+CRISP_TEST(Geometry, FitScale_kucultur_ama_buyutmez) {
+    // 1000x500 görüntü 500x500 alana: yatayda 0,5 sığar, dikeyde 1,0.
+    CHECK(FitScale(1000, 500, 500, 500) > 0.49);
+    CHECK(FitScale(1000, 500, 500, 500) < 0.51);
+    // Alandan küçük görüntü BÜYÜTÜLMEZ.
+    CHECK_EQ(static_cast<int>(FitScale(100, 50, 800, 600) * 100), 100);
+    // Bozuk ölçüler çökertmemeli.
+    CHECK_EQ(static_cast<int>(FitScale(0, 50, 800, 600) * 100), 100);
+    CHECK_EQ(static_cast<int>(FitScale(100, 50, 0, 600) * 100), 100);
+}
+
+CRISP_TEST(Geometry, ClampZoom_araliga_ceker) {
+    CHECK(ClampZoom(0.01, 0.1, 8.0) > 0.099);
+    CHECK(ClampZoom(99.0, 0.1, 8.0) < 8.001);
+    CHECK(ClampZoom(2.0, 0.1, 8.0) > 1.999);
+}
+
+CRISP_TEST(Geometry, ClampPan_kucuk_goruntuyu_ortalar) {
+    // Görüntü görünür alandan küçükse kaydırma yoktur.
+    CHECK_POINT(ClampPan(POINT{300, -200}, 100, 100, 800, 600), 0, 0);
+}
+
+CRISP_TEST(Geometry, ClampPan_buyuk_goruntude_sinir) {
+    // 1200 genişlik, 800 görünür: taşma 400, sınır ±200.
+    CHECK_POINT(ClampPan(POINT{999, 0}, 1200, 600, 800, 600), 200, 0);
+    CHECK_POINT(ClampPan(POINT{-999, 0}, 1200, 600, 800, 600), -200, 0);
+    CHECK_POINT(ClampPan(POINT{50, 0}, 1200, 600, 800, 600), 50, 0);
+}
+
+CRISP_TEST(Geometry, CanvasRect_ortalar_ve_pan_ekler) {
+    const RECT viewport{0, 0, 800, 600};
+    const RECT canvas = CanvasRect(viewport, 400, 300, 1.0, POINT{0, 0});
+    CHECK_RECT(canvas, 200, 150, 600, 450);
+
+    const RECT shifted = CanvasRect(viewport, 400, 300, 1.0, POINT{20, -10});
+    CHECK_RECT(shifted, 220, 140, 620, 440);
+}
+
+CRISP_TEST(Geometry, ViewToImage_ve_geri_donusur) {
+    const POINT origin{100, 50};
+    const POINT image = ViewToImage(POINT{300, 250}, origin, 2.0);
+    CHECK_POINT(image, 100, 100);
+    CHECK_POINT(ImageToView(image, origin, 2.0), 300, 250);
+
+    // Sıfır ölçek bölme hatası vermemeli.
+    CHECK_POINT(ViewToImage(POINT{300, 250}, origin, 0.0), 0, 0);
+}
+
+CRISP_TEST(Geometry, PanForZoomAnchor_cipayi_yerinde_tutar) {
+    // GERÇEK DAVRANIŞ SINAMASI: yakınlaştırdıktan sonra çıpanın altındaki
+    // GÖRÜNTÜ NOKTASI aynı kalmalı. Elle denemek yerine ölçülebilen tek şey bu.
+    const RECT viewport{0, 0, 800, 600};
+    const POINT anchor{600, 200};
+
+    const POINT before = ViewToImage(
+        anchor,
+        POINT{CanvasRect(viewport, 1000, 800, 1.0, POINT{0, 0}).left,
+              CanvasRect(viewport, 1000, 800, 1.0, POINT{0, 0}).top},
+        1.0);
+
+    const POINT pan = PanForZoomAnchor(anchor, viewport, 1000, 800, 1.0,
+                                             POINT{0, 0}, 2.0);
+    const RECT after = CanvasRect(viewport, 1000, 800, 2.0, pan);
+    const POINT nowAt =
+        ViewToImage(anchor, POINT{after.left, after.top}, 2.0);
+
+    // Tamsayı yuvarlaması yüzünden bir piksel sapma kabul edilebilir; iki
+    // piksel, ölçek değiştikçe biriken bir kayma demektir.
+    CHECK(std::abs(nowAt.x - before.x) <= 1);
+    CHECK(std::abs(nowAt.y - before.y) <= 1);
+}
+
+CRISP_TEST(Geometry, PanForZoomAnchor_sinirlarda_kalir) {
+    const RECT viewport{0, 0, 800, 600};
+    // Uzaklaştırırken görüntü görünür alandan küçülürse kaydırma sıfırlanmalı.
+    const POINT pan = PanForZoomAnchor(POINT{790, 590}, viewport, 1000, 800,
+                                             1.0, POINT{100, 100}, 0.25);
+    CHECK_POINT(pan, 0, 0);
 }

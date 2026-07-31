@@ -301,6 +301,9 @@ void Paint(HWND window, State& state) {
     }
 
     DrawStatusBar(memory, state, client);
+    // İPUCU EN SON: araç çubuğunun altına taştığı için tuvalin ve durum
+    // çubuğunun üstünde kalmalı.
+    DrawTooltip(memory, state, client);
 
     ::BitBlt(dc, 0, 0, geom::Width(client), geom::Height(client), memory, 0, 0,
              SRCCOPY);

@@ -82,5 +82,50 @@ inline constexpr int kZoomMax = 800;
 [[nodiscard]] POINT ZoomAnchoredOrigin(POINT windowTopLeft, POINT anchorScreen,
                                        SIZE oldSize, SIZE newSize) noexcept;
 
+
+// ---------------------------------------------------------------------------
+// Yakınlaştırma ve kaydırma
+// ---------------------------------------------------------------------------
+// BURADA OLMASININ SEBEBİ: bu dört fonksiyon düzenleyicinin tuval matematiğinin
+// tamamı ve hiçbiri pencereye dokunmuyor. Uygulama katmanında dururken projenin
+// tek sınanamayan saf geometrisiydi — "yakınlaştırınca imlecin altındaki piksel
+// kayıyor mu" sorusunun cevabı ancak elle deneyerek bulunabiliyordu.
+
+// Görüntüyü görünür alana sığdıran ölçek. BÜYÜTMEZ: küçük bir yakalamayı
+// pencereye yaymak pikselleri bulanıklaştırır ve kullanıcı çizdiği şeyin
+// gerçek boyutunu yanlış tahmin eder. Geçersiz ölçülerde 1.0 döner.
+[[nodiscard]] double FitScale(int imageWidth, int imageHeight, int viewWidth,
+                              int viewHeight) noexcept;
+
+// Ölçeği [minimum, maximum] aralığına çeker.
+[[nodiscard]] double ClampZoom(double zoom, double minimum,
+                               double maximum) noexcept;
+
+// Görüntüyü görünür alandan tamamen çıkaracak kaydırmaları engeller.
+// Görüntü görünür alandan KÜÇÜKSE kaydırma sıfırlanır: serbest bırakmak,
+// kullanıcının resmi köşeye itip "kayboldu" sanması demek olurdu.
+[[nodiscard]] POINT ClampPan(POINT pan, int scaledWidth, int scaledHeight,
+                             int viewWidth, int viewHeight) noexcept;
+
+// Ölçeklenmiş görüntünün görünür alandaki yeri: ortalanır, sonra pan eklenir.
+[[nodiscard]] RECT CanvasRect(const RECT& viewport, int imageWidth,
+                              int imageHeight, double scale, POINT pan) noexcept;
+
+// İstemci ⇄ görüntü koordinatı. scale sıfır ya da negatifse başnokta döner.
+[[nodiscard]] POINT ViewToImage(POINT client, POINT canvasOrigin,
+                                double scale) noexcept;
+[[nodiscard]] POINT ImageToView(POINT image, POINT canvasOrigin,
+                                double scale) noexcept;
+
+// Yakınlaştırmadan sonra ÇIPANIN ALTINDAKİ PİKSELİ yerinde tutan yeni pan.
+//
+// Sıra önemli: çıpanın altındaki görüntü noktası ESKİ ölçekle bulunur, o nokta
+// YENİ ölçekle nereye düşeceği hesaplanır, fark kaydırmaya eklenir. Ekranın
+// ortasına yakınlaştırmak, kullanıcının baktığı yeri her adımda kaybetmesi
+// olurdu.
+[[nodiscard]] POINT PanForZoomAnchor(POINT anchor, const RECT& viewport,
+                                     int imageWidth, int imageHeight,
+                                     double oldScale, POINT oldPan,
+                                     double newScale) noexcept;
 }  // namespace geom
 }  // namespace crisp

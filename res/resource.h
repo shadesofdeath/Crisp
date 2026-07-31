@@ -154,3 +154,33 @@
 #define IDS_ACCEL_SAVE          1110
 #define IDS_ACCEL_ESC           1111
 #define IDS_ACCEL_DBLCLICK      1112
+
+// --- Düzenleyici ipuçları (1120+) --------------------------------------------
+// AYRI BLOK: 1120, RT_STRING blok sınırına hizalıdır (16'nın katı) ve bu
+// yüzden dilden bağımsız kısayol bloğuyla (1104-1119) aynı kümeyi paylaşmaz.
+// Paylaşsalardı, çevrilmemiş blok çevrilmiş olanı gölgelerdi.
+#define IDS_TIP_ARROW           1120
+#define IDS_TIP_RECTANGLE       1121
+#define IDS_TIP_ELLIPSE         1122
+#define IDS_TIP_PEN             1123
+#define IDS_TIP_HIGHLIGHTER     1124
+#define IDS_TIP_TEXT            1125
+#define IDS_TIP_STEP            1126
+#define IDS_TIP_BLUR            1127
+#define IDS_TIP_MOSAIC          1128
+#define IDS_TIP_CROP            1129
+#define IDS_TIP_ZOOM_OUT        1130
+#define IDS_TIP_ZOOM_IN         1131
+#define IDS_TIP_ZOOM_FIT        1132
+#define IDS_TIP_OCR             1133
+#define IDS_TIP_ROTATE_LEFT     1134
+#define IDS_TIP_ROTATE_RIGHT    1135
+#define IDS_TIP_SCALE           1136
+#define IDS_TIP_UNDO            1137
+#define IDS_TIP_REDO            1138
+#define IDS_TIP_CLEAR           1139
+#define IDS_TIP_COPY            1140
+#define IDS_TIP_SAVE            1141
+#define IDS_TIP_CLOSE           1142
+#define IDS_TIP_COLOR           1143
+#define IDS_TIP_THICKNESS       1144

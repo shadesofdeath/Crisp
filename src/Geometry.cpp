@@ -193,5 +193,85 @@ POINT SnapToSquare(POINT anchor, POINT other) noexcept {
     return POINT{anchor.x + side * signX, anchor.y + side * signY};
 }
 
+
+double FitScale(int imageWidth, int imageHeight, int viewWidth,
+                int viewHeight) noexcept {
+    if (imageWidth <= 0 || imageHeight <= 0 || viewWidth <= 0 ||
+        viewHeight <= 0) {
+        return 1.0;
+    }
+    const double byWidth = static_cast<double>(viewWidth) / imageWidth;
+    const double byHeight = static_cast<double>(viewHeight) / imageHeight;
+    const double fit = byWidth < byHeight ? byWidth : byHeight;
+    return fit < 1.0 ? fit : 1.0;
+}
+
+double ClampZoom(double zoom, double minimum, double maximum) noexcept {
+    if (zoom < minimum) {
+        return minimum;
+    }
+    return zoom > maximum ? maximum : zoom;
+}
+
+POINT ClampPan(POINT pan, int scaledWidth, int scaledHeight, int viewWidth,
+               int viewHeight) noexcept {
+    const int limitX = scaledWidth > viewWidth ? (scaledWidth - viewWidth) / 2 : 0;
+    const int limitY =
+        scaledHeight > viewHeight ? (scaledHeight - viewHeight) / 2 : 0;
+
+    POINT clamped = pan;
+    clamped.x = clamped.x < -limitX ? -limitX
+                                    : (clamped.x > limitX ? limitX : clamped.x);
+    clamped.y = clamped.y < -limitY ? -limitY
+                                    : (clamped.y > limitY ? limitY : clamped.y);
+    return clamped;
+}
+
+RECT CanvasRect(const RECT& viewport, int imageWidth, int imageHeight,
+                double scale, POINT pan) noexcept {
+    const int width = static_cast<int>(imageWidth * scale);
+    const int height = static_cast<int>(imageHeight * scale);
+    const int left = viewport.left +
+                     (static_cast<int>(Width(viewport)) - width) / 2 + pan.x;
+    const int top = viewport.top +
+                    (static_cast<int>(Height(viewport)) - height) / 2 + pan.y;
+    return RECT{left, top, left + width, top + height};
+}
+
+POINT ViewToImage(POINT client, POINT canvasOrigin, double scale) noexcept {
+    if (scale <= 0.0) {
+        return POINT{0, 0};
+    }
+    return POINT{static_cast<LONG>((client.x - canvasOrigin.x) / scale),
+                 static_cast<LONG>((client.y - canvasOrigin.y) / scale)};
+}
+
+POINT ImageToView(POINT image, POINT canvasOrigin, double scale) noexcept {
+    return POINT{canvasOrigin.x + static_cast<LONG>(image.x * scale),
+                 canvasOrigin.y + static_cast<LONG>(image.y * scale)};
+}
+
+POINT PanForZoomAnchor(POINT anchor, const RECT& viewport, int imageWidth,
+                       int imageHeight, double oldScale, POINT oldPan,
+                       double newScale) noexcept {
+    const RECT before =
+        CanvasRect(viewport, imageWidth, imageHeight, oldScale, oldPan);
+    const POINT image =
+        ViewToImage(anchor, POINT{before.left, before.top}, oldScale);
+
+    const RECT after =
+        CanvasRect(viewport, imageWidth, imageHeight, newScale, oldPan);
+    const POINT moved = ImageToView(image, POINT{after.left, after.top}, newScale);
+
+    POINT pan = oldPan;
+    pan.x += anchor.x - moved.x;
+    pan.y += anchor.y - moved.y;
+
+    const int scaledWidth = static_cast<int>(imageWidth * newScale);
+    const int scaledHeight = static_cast<int>(imageHeight * newScale);
+    return ClampPan(pan, scaledWidth, scaledHeight,
+                    static_cast<int>(Width(viewport)),
+                    static_cast<int>(Height(viewport)));
+}
 }  // namespace geom
 }  // namespace crisp

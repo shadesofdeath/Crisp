@@ -14,6 +14,7 @@
 #include "OcrLayout.h"
 #include "Settings.h"
 
+#include <string>
 #include <vector>
 
 #include <windows.h>
@@ -97,7 +98,6 @@ struct State {
     // örnek tutamacı.
     HINSTANCE instance = nullptr;
     Image* image = nullptr;   // çağıranın görüntüsü; dönüşte sonuç burada
-    Image original;           // hiç dokunulmamış taban; her boyamada kopyalanır
     Document document;
     Settings settings;
 
@@ -145,6 +145,9 @@ struct State {
     int tooltipButton = -1;
     bool tooltipVisible = false;
 };
+
+// İpucu gecikmesi için zamanlayıcı kimliği.
+inline constexpr UINT_PTR kTooltipTimer = 1;
 
 [[nodiscard]] int Scale(int value, unsigned dpi) noexcept;
 
@@ -209,6 +212,13 @@ void OcrCopySelection(HWND window, const State& state);
 
 // Tanınan kelimeleri ve seçimi tuvalin üstüne çizer.
 void DrawOcrOverlay(HDC dc, const State& state);
+
+// --- İpuçları (EditorTooltip.cpp) -------------------------------------------
+[[nodiscard]] std::wstring TooltipText(const Button& button);
+void UpdateTooltipHover(HWND window, State& state, int button);
+void ShowTooltipNow(HWND window, State& state);
+void HideTooltip(HWND window, State& state);
+void DrawTooltip(HDC dc, const State& state, const RECT& client);
 
 }  // namespace editor
 }  // namespace crisp

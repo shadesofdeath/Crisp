@@ -137,6 +137,7 @@ set(CRISP_APP_SOURCES
     src/EditorChrome.cpp
     src/EditorActions.cpp
     src/EditorOcr.cpp
+    src/EditorTooltip.cpp
     src/HistoryWindow.cpp
     src/HistoryInput.cpp
     src/SettingsWindow.cpp

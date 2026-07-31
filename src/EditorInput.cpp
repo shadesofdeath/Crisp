@@ -55,6 +55,18 @@ LRESULT CALLBACK EditorProc(HWND window, UINT message, WPARAM wParam,
         case WM_ERASEBKGND:
             return 1;
 
+        case WM_TIMER:
+            if (state != nullptr && wParam == kTooltipTimer) {
+                ShowTooltipNow(window, *state);
+            }
+            return 0;
+
+        case WM_MOUSELEAVE:
+            if (state != nullptr) {
+                HideTooltip(window, *state);
+            }
+            return 0;
+
         // Tekerlek YAKINLAŞTIRIR, kaydırmaz: kaydırma çubuğu olmayan bir
         // tuvalde tekerleğin kaydırması, kullanıcının görüntüyü nereye
         // ittiğini göremediği bir hareket olurdu.
@@ -129,6 +141,16 @@ LRESULT CALLBACK EditorProc(HWND window, UINT message, WPARAM wParam,
                 state->hoverButton = hover;
                 ::InvalidateRect(window, nullptr, FALSE);
             }
+            UpdateTooltipHover(window, *state, hover);
+
+            // WM_MOUSELEAVE KENDİLİĞİNDEN GELMEZ: her hareket sonrası yeniden
+            // istenmeli. Onsuz, fare pencereden çıktığında ipucu ekranda asılı
+            // kalırdı.
+            TRACKMOUSEEVENT track{};
+            track.cbSize = sizeof(track);
+            track.dwFlags = TME_LEAVE;
+            track.hwndTrack = window;
+            ::TrackMouseEvent(&track);
             if (hover < 0 && OcrMouseMove(window, *state, client)) {
                 return 0;
             }
@@ -152,6 +174,7 @@ LRESULT CALLBACK EditorProc(HWND window, UINT message, WPARAM wParam,
                 break;
             }
             const POINT client{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
+            HideTooltip(window, *state);
             const int index = ButtonAt(*state, client);
             if (index >= 0) {
                 const Button button = state->buttons[static_cast<size_t>(index)];
@@ -243,6 +266,25 @@ LRESULT CALLBACK EditorProc(HWND window, UINT message, WPARAM wParam,
             }
             if (control && wParam == '0') {
                 ZoomToFit(window, *state);
+                return 0;
+            }
+
+            // SAYI TUŞLARI ARAÇ SEÇER. On aracın hepsine fareyle gitmek,
+            // işaretlerken elin sürekli araç çubuğuna dönmesi demekti.
+            // Metin yazılırken devre dışı: o sırada rakam metnin parçasıdır.
+            if (!control && !state->typing && wParam >= '0' && wParam <= '9') {
+                constexpr ToolKind kOrder[] = {
+                    ToolKind::Crop,        ToolKind::Arrow,
+                    ToolKind::Rectangle,   ToolKind::Ellipse,
+                    ToolKind::Pen,         ToolKind::Highlighter,
+                    ToolKind::Text,        ToolKind::StepNumber,
+                    ToolKind::Blur,        ToolKind::Mosaic};
+                state->tool = kOrder[wParam - '0'];
+                state->ocr.active = false;
+                RECT area{};
+                ::GetClientRect(window, &area);
+                LayoutButtons(*state, area);
+                ::InvalidateRect(window, nullptr, FALSE);
                 return 0;
             }
 

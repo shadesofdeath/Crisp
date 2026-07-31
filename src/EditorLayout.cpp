@@ -1,56 +1,27 @@
 // EditorLayout.cpp — Tuval yerleşimi, koordinat dönüşümü ve yakınlaştırma.
-// Araç çubuğu yerleşimi ve çizim EditorWindow.cpp'dedir.
+//
+// HESAP BURADA DEĞİL: sığdırma ölçeği, kaydırma sınırı, çıpalı yakınlaştırma
+// ve koordinat dönüşümleri geom:: altında, crisp_core'da. Burada kalan tek şey
+// bunları pencere durumuna bağlamak. Ayrım bilinçli — matematik pencere
+// açmadan sınanabilmeli, ve bu dosya bir zamanlar o kuralın tek istisnasıydı.
 #include "EditorInternal.h"
 
 #include "Geometry.h"
 
-#include <algorithm>
+#include <cmath>
 
 namespace crisp {
 namespace editor {
-namespace {
-
-// Pencereye sığdıran ölçek. BÜYÜTME YOK: küçük bir yakalamayı pencereye
-// yaymak pikselleri bulanıklaştırır ve kullanıcı çizdiği şeyin gerçek
-// boyutunu yanlış tahmin eder. Kullanıcı isterse yakınlaştırma düğmesiyle
-// büyütür — o zaman büyütmeyi kendisi istemiş olur.
-[[nodiscard]] double FitScale(const State& state) noexcept {
-    if (state.image == nullptr || !state.image->Valid()) {
-        return 1.0;
-    }
-    const int width = static_cast<int>(geom::Width(state.viewport));
-    const int height = static_cast<int>(geom::Height(state.viewport));
-    if (width <= 0 || height <= 0) {
-        return 1.0;
-    }
-    const double fit =
-        (std::min)(static_cast<double>(width) / state.image->Width(),
-                   static_cast<double>(height) / state.image->Height());
-    return fit < 1.0 ? fit : 1.0;
-}
-
-}  // namespace
 
 void ClampPan(State& state) {
-    if (geom::IsEmpty(state.viewport)) {
+    if (geom::IsEmpty(state.viewport) || state.image == nullptr) {
         return;
     }
-    const int viewWidth = static_cast<int>(geom::Width(state.viewport));
-    const int viewHeight = static_cast<int>(geom::Height(state.viewport));
-    const int imageWidth = static_cast<int>(state.image->Width() * state.scale);
-    const int imageHeight = static_cast<int>(state.image->Height() * state.scale);
-
-    // Görüntü görünür alandan KÜÇÜKSE kaydırma yoktur; ortada durur.
-    // Serbest bırakmak, kullanıcının resmi köşeye itip "kayboldu" sanması
-    // demek olurdu.
-    const int limitX = imageWidth > viewWidth ? (imageWidth - viewWidth) / 2 : 0;
-    const int limitY =
-        imageHeight > viewHeight ? (imageHeight - viewHeight) / 2 : 0;
-
-    state.pan.x = (std::clamp)(state.pan.x, static_cast<LONG>(-limitX),
-                               static_cast<LONG>(limitX));
-    state.pan.y = (std::clamp)(state.pan.y, static_cast<LONG>(-limitY),
-                               static_cast<LONG>(limitY));
+    state.pan = geom::ClampPan(
+        state.pan, static_cast<int>(state.image->Width() * state.scale),
+        static_cast<int>(state.image->Height() * state.scale),
+        static_cast<int>(geom::Width(state.viewport)),
+        static_cast<int>(geom::Height(state.viewport)));
 }
 
 void LayoutCanvas(State& state, const RECT& client) {
@@ -69,37 +40,29 @@ void LayoutCanvas(State& state, const RECT& client) {
         return;
     }
 
-    state.scale = state.fitToWindow ? FitScale(state) : state.zoom;
     if (state.fitToWindow) {
+        state.scale = geom::FitScale(state.image->Width(), state.image->Height(),
+                                     static_cast<int>(geom::Width(state.viewport)),
+                                     static_cast<int>(geom::Height(state.viewport)));
         state.zoom = state.scale;
         state.pan = POINT{0, 0};
+    } else {
+        state.scale = state.zoom;
     }
 
     ClampPan(state);
-
-    const int width = static_cast<int>(state.image->Width() * state.scale);
-    const int height = static_cast<int>(state.image->Height() * state.scale);
-    const int left = state.viewport.left +
-                     (static_cast<int>(geom::Width(state.viewport)) - width) / 2 +
-                     state.pan.x;
-    const int top = state.viewport.top +
-                    (static_cast<int>(geom::Height(state.viewport)) - height) / 2 +
-                    state.pan.y;
-    state.canvas = RECT{left, top, left + width, top + height};
+    state.canvas = geom::CanvasRect(state.viewport, state.image->Width(),
+                                    state.image->Height(), state.scale, state.pan);
 }
 
 POINT ToImage(const State& state, POINT client) noexcept {
-    if (state.scale <= 0.0) {
-        return POINT{0, 0};
-    }
-    return POINT{
-        static_cast<LONG>((client.x - state.canvas.left) / state.scale),
-        static_cast<LONG>((client.y - state.canvas.top) / state.scale)};
+    return geom::ViewToImage(client, POINT{state.canvas.left, state.canvas.top},
+                             state.scale);
 }
 
 POINT ToClient(const State& state, POINT image) noexcept {
-    return POINT{state.canvas.left + static_cast<LONG>(image.x * state.scale),
-                 state.canvas.top + static_cast<LONG>(image.y * state.scale)};
+    return geom::ImageToView(image, POINT{state.canvas.left, state.canvas.top},
+                             state.scale);
 }
 
 RECT ToClientRect(const State& state, const RECT& image) noexcept {
@@ -114,29 +77,21 @@ void ZoomAt(HWND window, State& state, double factor, POINT anchor) {
     }
 
     const double previous = state.scale;
-    double target = (state.fitToWindow ? state.scale : state.zoom) * factor;
-    target = (std::clamp)(target, kMinZoom, kMaxZoom);
+    const double target = geom::ClampZoom(previous * factor, kMinZoom, kMaxZoom);
     if (::fabs(target - previous) < 0.0001) {
         return;
     }
 
-    // Çıpanın altındaki GÖRÜNTÜ NOKTASI, yakınlaştırmadan sonra da aynı ekran
-    // noktasında kalmalı. Bunun için önce nokta hesaplanır, ölçek değişir,
-    // sonra o noktanın nereye düştüğüne bakılıp fark kaydırmaya eklenir.
-    const POINT before = ToImage(state, anchor);
-
+    state.pan = geom::PanForZoomAnchor(anchor, state.viewport,
+                                       state.image->Width(),
+                                       state.image->Height(), previous, state.pan,
+                                       target);
     state.fitToWindow = false;
     state.zoom = target;
 
     RECT client{};
     ::GetClientRect(window, &client);
     LayoutCanvas(state, client);
-
-    const POINT after = ToClient(state, before);
-    state.pan.x += anchor.x - after.x;
-    state.pan.y += anchor.y - after.y;
-    LayoutCanvas(state, client);
-
     ::InvalidateRect(window, nullptr, FALSE);
 }
 
