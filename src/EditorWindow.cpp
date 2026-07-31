@@ -179,18 +179,66 @@ void DrawActionGlyph(HDC dc, const RECT& box, int action, COLORREF color,
     ::DeleteObject(created);
 }
 
-void DrawButton(HDC dc, const State& state, const Button& button, bool selected,
-                bool hovered) {
+// Düğme ZEMİNLERİ alfa katmanına, GLİFLERİ doğrudan DC'ye çizilir. Zeminler
+// yuvarlatılmış ve kenar yumuşatmalı olmalı; GDI'nin RoundRect'i yumuşatma
+// yapmaz ve köşeler tırtıklı çıkar — düz kare düğmelerin ucuz durmasının
+// sebebi de buydu.
+void DrawButtonBackground(AlphaLayer& layer, const State& state,
+                          const Button& button, bool selected, bool hovered) {
     const Palette& colors = theme::Colors();
-    const int radius = Scale(6, state.dpi);
-    (void)radius;
+    const int radius = Scale(8, state.dpi);
 
-    if (selected) {
-        FillRectColor(dc, button.bounds, colors.accent);
-    } else if (hovered && button.enabled) {
-        FillRectColor(dc, button.bounds, colors.surfaceAlt);
+    if (button.kind == ButtonKind::Separator) {
+        // Grup ayracı: tam yükseklikte değil, ortada kısa bir çizgi. Tam boy
+        // bir çizgi araç çubuğunu bölmelere ayırıp ağırlaştırırdı.
+        const int inset = Scale(9, state.dpi);
+        const RECT line{button.bounds.left, button.bounds.top + inset,
+                        button.bounds.left + (std::max)(1, Scale(1, state.dpi)),
+                        button.bounds.bottom - inset};
+        layer.FillRoundRect(line, colors.border, 190, 0);
+        return;
     }
 
+    if (button.kind == ButtonKind::Color) {
+        // Renk örnekleri DAİRE: kare örnekler araç simgeleriyle aynı siluete
+        // sahip olduğu için göz onları da düğme sanıyordu.
+        RECT swatch = button.bounds;
+        const int r = static_cast<int>(geom::Width(swatch)) / 2;
+        if (selected) {
+            // Seçili renk bir halkayla işaretlenir; örneğin kendi rengini
+            // değiştirmek onu tanınmaz hâle getirirdi.
+            RECT ring = swatch;
+            ::InflateRect(&ring, Scale(4, state.dpi), Scale(4, state.dpi));
+            layer.StrokeRoundRect(ring, colors.accent, 255,
+                                  static_cast<int>(geom::Width(ring)) / 2,
+                                  (std::max)(2, Scale(2, state.dpi)));
+        }
+        layer.FillRoundRect(swatch, button.color, 255, r);
+        // İnce çerçeve: beyaz örnek açık zeminde, koyu örnek koyu zeminde
+        // kaybolurdu.
+        layer.StrokeRoundRect(swatch, colors.border, 150, r, 1);
+        return;
+    }
+
+    if (selected) {
+        layer.FillRoundRect(button.bounds, colors.accent, 255, radius);
+    } else if (hovered && button.enabled) {
+        layer.FillRoundRect(button.bounds, colors.text, 26, radius);
+    }
+}
+
+[[nodiscard]] bool IsSelected(const State& state, const Button& button) noexcept {
+    switch (button.kind) {
+        case ButtonKind::Tool:      return button.tool == state.tool;
+        case ButtonKind::Color:     return button.color == state.color;
+        case ButtonKind::Thickness: return button.thickness == state.thickness;
+        default:                    return false;
+    }
+}
+
+void DrawButtonGlyph(HDC dc, const State& state, const Button& button,
+                     bool selected) {
+    const Palette& colors = theme::Colors();
     const COLORREF ink =
         button.enabled ? (selected ? RGB(255, 255, 255) : colors.text)
                        : colors.textDim;
@@ -199,16 +247,7 @@ void DrawButton(HDC dc, const State& state, const Button& button, bool selected,
         case ButtonKind::Tool:
             DrawToolGlyph(dc, button.bounds, button.tool, ink, state.dpi);
             break;
-        case ButtonKind::Color: {
-            FillRectColor(dc, button.bounds, button.color);
-            // Beyaz örnek koyu zeminde kaybolmasın diye herkese çerçeve.
-            FrameRectColor(dc, button.bounds, selected ? Scale(2, state.dpi) : 1,
-                           selected ? colors.accent : colors.border);
-            break;
-        }
         case ButtonKind::Thickness: {
-            // Yarıçap kalınlıkla ORANTILI ama küçük: 7 kalınlık için 2
-            // kat büyütmek düğmeyi dolduran bir daire üretiyordu.
             const int dot = Scale(button.thickness + 3, state.dpi);
             const int cx = button.bounds.left +
                            static_cast<int>(geom::Width(button.bounds)) / 2;
@@ -228,6 +267,8 @@ void DrawButton(HDC dc, const State& state, const Button& button, bool selected,
         case ButtonKind::Action:
             DrawActionGlyph(dc, button.bounds, button.action, ink, state.dpi);
             break;
+        default:
+            break;   // renk ve ayraç yalnızca zeminde
     }
 }
 
@@ -261,6 +302,7 @@ void LayoutButtons(State& state, const RECT& client) {
     const int gap = Scale(kButtonGap, state.dpi);
     const int group = Scale(kGroupGap, state.dpi);
     const int top = (Scale(kToolbarHeight, state.dpi) - side) / 2;
+    const unsigned dpiLocal = state.dpi;
     int x = group;
 
     for (const ToolKind tool :
@@ -275,7 +317,16 @@ void LayoutButtons(State& state, const RECT& client) {
         x += side + gap;
     }
 
-    x += group;
+    auto addSeparator = [&]() {
+        Button separator;
+        separator.kind = ButtonKind::Separator;
+        separator.bounds = RECT{x + group / 2, top, x + group / 2 + Scale(2, dpiLocal),
+                                top + side};
+        state.buttons.push_back(separator);
+        x += group;
+    };
+
+    addSeparator();
     const int swatch = Scale(kSwatchSide, state.dpi);
     const int swatchTop = (Scale(kToolbarHeight, state.dpi) - swatch) / 2;
     for (const COLORREF color : kPalette) {
@@ -287,7 +338,7 @@ void LayoutButtons(State& state, const RECT& client) {
         x += swatch + gap;
     }
 
-    x += group;
+    addSeparator();
     for (const int thickness : {2, 4, 7}) {
         Button button;
         button.kind = ButtonKind::Thickness;
@@ -364,6 +415,11 @@ POINT ToImage(const State& state, POINT client) noexcept {
 
 int ButtonAt(const State& state, POINT client) noexcept {
     for (size_t i = 0; i < state.buttons.size(); ++i) {
+        // Ayraçlar tıklanamaz: aralarına düşen bir tıklama, yanındaki düğmenin
+        // seçilmesini engellerdi.
+        if (state.buttons[i].kind == ButtonKind::Separator) {
+            continue;
+        }
         if (::PtInRect(&state.buttons[i].bounds, client)) {
             return static_cast<int>(i);
         }
@@ -405,7 +461,6 @@ void Paint(HWND window, State& state) {
     const Palette& colors = theme::Colors();
     FillRectColor(memory, client, colors.surfaceAlt);
 
-    // Araç çubuğu
     const RECT toolbar{0, 0, geom::Width(client),
                        Scale(kToolbarHeight, state.dpi)};
     FillRectColor(memory, toolbar, colors.surface);
@@ -413,18 +468,22 @@ void Paint(HWND window, State& state) {
                   RECT{0, toolbar.bottom - 1, toolbar.right, toolbar.bottom},
                   colors.border);
 
-    for (size_t i = 0; i < state.buttons.size(); ++i) {
-        const Button& button = state.buttons[i];
-        bool selected = false;
-        if (button.kind == ButtonKind::Tool) {
-            selected = (button.tool == state.tool);
-        } else if (button.kind == ButtonKind::Color) {
-            selected = (button.color == state.color);
-        } else if (button.kind == ButtonKind::Thickness) {
-            selected = (button.thickness == state.thickness);
+    // 1. AŞAMA — zeminler tek bir alfa katmanına, sonra tek karıştırma.
+    if (state.chrome.Prepare(memory, POINT{0, 0},
+                             static_cast<int>(geom::Width(toolbar)),
+                             static_cast<int>(geom::Height(toolbar)))) {
+        for (size_t i = 0; i < state.buttons.size(); ++i) {
+            const Button& button = state.buttons[i];
+            DrawButtonBackground(state.chrome, state, button,
+                                 IsSelected(state, button),
+                                 state.hoverButton == static_cast<int>(i));
         }
-        DrawButton(memory, state, button, selected,
-                   state.hoverButton == static_cast<int>(i));
+        state.chrome.BlendTo(memory);
+    }
+
+    // 2. AŞAMA — glifler zeminlerin üstüne.
+    for (const Button& button : state.buttons) {
+        DrawButtonGlyph(memory, state, button, IsSelected(state, button));
     }
 
     // Tuval

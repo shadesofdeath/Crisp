@@ -7,6 +7,7 @@
 // bir dosya NE göründüğünü, diğeri NE OLDUĞUNU anlatır.
 #pragma once
 
+#include "AlphaLayer.h"
 #include "Annotation.h"
 #include "Capture.h"
 #include "EditorWindow.h"
@@ -26,7 +27,7 @@ inline constexpr int kButtonGap = 4;
 inline constexpr int kGroupGap = 14;
 inline constexpr int kSwatchSide = 22;
 
-enum class ButtonKind { Tool, Color, Thickness, Action };
+enum class ButtonKind { Tool, Color, Thickness, Action, Separator };
 
 enum ActionId {
     kActionUndo = 1,
@@ -76,6 +77,14 @@ struct State {
 
     RECT canvas{};
     double scale = 1.0;
+
+    // Araç çubuğunun yuvarlatılmış zeminleri tek bir alfa katmanına çizilip
+    // bir kerede karıştırılır; şekil başına AlphaBlend on beş blit demek olurdu.
+    AlphaLayer chrome;
+
+    // İpucu balonu: imleç bir düğmede beklediğinde açılır.
+    int tooltipButton = -1;
+    bool tooltipVisible = false;
 };
 
 [[nodiscard]] int Scale(int value, unsigned dpi) noexcept;
