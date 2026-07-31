@@ -70,6 +70,7 @@ BEGIN
     IDS_ABOUT_OCR_NO        "Text recognition: no OCR language pack on this machine"
     IDS_ABOUT_TITLE         "About Crisp"
     IDS_LANG_AUTO           "Automatic"
+    IDS_ABOUT_TAGLINE       "Screenshots that stay sharp."
 END
 
 // ---------------------------------------------------------------------------
@@ -116,6 +117,7 @@ BEGIN
     IDS_ABOUT_OCR_NO        "Metin tanıma: bu makinede OCR dil paketi kurulu değil"
     IDS_ABOUT_TITLE         "Crisp hakkında"
     IDS_LANG_AUTO           "Otomatik"
+    IDS_ABOUT_TAGLINE       "Keskin kalan ekran görüntüleri."
 END
 
 // ---------------------------------------------------------------------------
@@ -162,6 +164,7 @@ BEGIN
     IDS_ABOUT_OCR_NO        "Texterkennung: kein OCR-Sprachpaket auf diesem Gerät"
     IDS_ABOUT_TITLE         "Über Crisp"
     IDS_LANG_AUTO           "Automatisch"
+    IDS_ABOUT_TAGLINE       "Bildschirmfotos, die scharf bleiben."
 END
 
 // ---------------------------------------------------------------------------
@@ -208,6 +211,7 @@ BEGIN
     IDS_ABOUT_OCR_NO        "Reconnaissance de texte : aucun module OCR sur cette machine"
     IDS_ABOUT_TITLE         "À propos de Crisp"
     IDS_LANG_AUTO           "Automatique"
+    IDS_ABOUT_TAGLINE       "Des captures d'écran qui restent nettes."
 END
 
 // ---------------------------------------------------------------------------
@@ -254,6 +258,7 @@ BEGIN
     IDS_ABOUT_OCR_NO        "Reconocimiento de texto: no hay paquete OCR en este equipo"
     IDS_ABOUT_TITLE         "Acerca de Crisp"
     IDS_LANG_AUTO           "Automático"
+    IDS_ABOUT_TAGLINE       "Capturas que se mantienen nítidas."
 END
 
 // ---------------------------------------------------------------------------
@@ -300,6 +305,7 @@ BEGIN
     IDS_ABOUT_OCR_NO        "Riconoscimento del testo: nessun pacchetto OCR su questo computer"
     IDS_ABOUT_TITLE         "Informazioni su Crisp"
     IDS_LANG_AUTO           "Automatico"
+    IDS_ABOUT_TAGLINE       "Schermate che restano nitide."
 END
 
 // ---------------------------------------------------------------------------
@@ -346,6 +352,7 @@ BEGIN
     IDS_ABOUT_OCR_NO        "Reconhecimento de texto: sem pacote de OCR nesta máquina"
     IDS_ABOUT_TITLE         "Sobre o Crisp"
     IDS_LANG_AUTO           "Automático"
+    IDS_ABOUT_TAGLINE       "Capturas que continuam nítidas."
 END
 
 // ---------------------------------------------------------------------------
@@ -392,6 +399,7 @@ BEGIN
     IDS_ABOUT_OCR_NO        "Распознавание текста: на этом компьютере нет языкового пакета OCR"
     IDS_ABOUT_TITLE         "О программе Crisp"
     IDS_LANG_AUTO           "Автоматически"
+    IDS_ABOUT_TAGLINE       "Снимки экрана, которые остаются чёткими."
 END
 
 // ---------------------------------------------------------------------------
@@ -438,6 +446,7 @@ BEGIN
     IDS_ABOUT_OCR_NO        "Rozpoznawanie tekstu: brak pakietu OCR na tym komputerze"
     IDS_ABOUT_TITLE         "Informacje o programie Crisp"
     IDS_LANG_AUTO           "Automatycznie"
+    IDS_ABOUT_TAGLINE       "Zrzuty ekranu, które pozostają ostre."
 END
 
 // ---------------------------------------------------------------------------
@@ -484,6 +493,7 @@ BEGIN
     IDS_ABOUT_OCR_NO        "Tekstherkenning: geen OCR-taalpakket op deze machine"
     IDS_ABOUT_TITLE         "Over Crisp"
     IDS_LANG_AUTO           "Automatisch"
+    IDS_ABOUT_TAGLINE       "Schermafbeeldingen die scherp blijven."
 END
 
 // ---------------------------------------------------------------------------
@@ -530,6 +540,7 @@ BEGIN
     IDS_ABOUT_OCR_NO        "Rozpoznávání textu: v tomto počítači není jazykový balíček OCR"
     IDS_ABOUT_TITLE         "O aplikaci Crisp"
     IDS_LANG_AUTO           "Automaticky"
+    IDS_ABOUT_TAGLINE       "Snímky obrazovky, které zůstávají ostré."
 END
 
 // ---------------------------------------------------------------------------
@@ -576,6 +587,7 @@ BEGIN
     IDS_ABOUT_OCR_NO        "Textigenkänning: inget OCR-språkpaket på den här datorn"
     IDS_ABOUT_TITLE         "Om Crisp"
     IDS_LANG_AUTO           "Automatiskt"
+    IDS_ABOUT_TAGLINE       "Skärmbilder som förblir skarpa."
 END
 
 // ---------------------------------------------------------------------------
@@ -622,6 +634,7 @@ BEGIN
     IDS_ABOUT_OCR_NO        "Розпізнавання тексту: на цьому комп'ютері немає мовного пакета OCR"
     IDS_ABOUT_TITLE         "Про програму Crisp"
     IDS_LANG_AUTO           "Автоматично"
+    IDS_ABOUT_TAGLINE       "Знімки екрана, які лишаються чіткими."
 END
 
 // ---------------------------------------------------------------------------
@@ -668,6 +681,7 @@ BEGIN
     IDS_ABOUT_OCR_NO        "テキスト認識: この PC に OCR 言語パックがありません"
     IDS_ABOUT_TITLE         "Crisp について"
     IDS_LANG_AUTO           "自動"
+    IDS_ABOUT_TAGLINE       "くっきりしたままのスクリーンショット。"
 END
 
 // ---------------------------------------------------------------------------
@@ -714,6 +728,7 @@ BEGIN
     IDS_ABOUT_OCR_NO        "텍스트 인식: 이 컴퓨터에 OCR 언어 팩이 없습니다"
     IDS_ABOUT_TITLE         "Crisp 정보"
     IDS_LANG_AUTO           "자동"
+    IDS_ABOUT_TAGLINE       "선명하게 유지되는 스크린샷."
 END
 
 // ---------------------------------------------------------------------------
@@ -760,4 +775,5 @@ BEGIN
     IDS_ABOUT_OCR_NO        "文字识别：此计算机上没有 OCR 语言包"
     IDS_ABOUT_TITLE         "关于 Crisp"
     IDS_LANG_AUTO           "自动"
+    IDS_ABOUT_TAGLINE       "始终清晰的屏幕截图。"
 END

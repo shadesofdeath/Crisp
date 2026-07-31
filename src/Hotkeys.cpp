@@ -38,7 +38,23 @@ int Hotkeys::Apply(HWND owner, const Settings& settings) {
         {HOTKEY_DELAYED, &settings.hotkeyDelayed},
     };
 
+    // PRINT SCREEN AYRI ELE ALINIR: Settings::Clamp değiştiricisi olmayan
+    // kısayolları iptal eder, çünkü tek bir harf tuşuna basınca yakalama
+    // başlaması istenmez. Print Screen ise tam olarak bunun için var olan bir
+    // tuştur ve o kuralın istisnasıdır.
     int failures = 0;
+    if (settings.printScreenCapture) {
+        if (::RegisterHotKey(owner, HOTKEY_PRINTSCREEN, MOD_NOREPEAT,
+                             VK_SNAPSHOT)) {
+            m_registered |= (1u << HOTKEY_PRINTSCREEN);
+        } else {
+            // Windows'un "PrtScn ile Ekran Alıntısı'nı aç" ayarı bu tuşu
+            // kendine ayırmış olabilir; bu bir hata değil, çakışmadır.
+            LogV(L"Print Screen kaydedilemedi (hata %lu) — Windows ayarı almış olabilir",
+                 ::GetLastError());
+            ++failures;
+        }
+    }
     for (const Binding& binding : bindings) {
         if (!binding.hotkey->assigned()) {
             continue;   // atanmamış kısayol bir hata değildir
@@ -57,7 +73,7 @@ void Hotkeys::UnregisterAll() noexcept {
         m_registered = 0;
         return;
     }
-    for (int id = HOTKEY_REGION; id <= HOTKEY_DELAYED; ++id) {
+    for (int id = HOTKEY_REGION; id <= HOTKEY_PRINTSCREEN; ++id) {
         if ((m_registered & (1u << id)) != 0) {
             ::UnregisterHotKey(m_owner, id);
         }

@@ -234,17 +234,30 @@ bool App::SaveCapture(const Image& image, std::wstring& savedPath) {
         return false;
     }
 
+    ImageFormat format = FormatFromString(m_settings.saveFormat.c_str());
+
+    // BİÇİM YOKSA PNG'YE DÜŞ. Windows PNG ve JPEG kodlayıcılarını her zaman
+    // taşır ama WebP kodlayıcısı isteğe bağlı bir bileşendir ve çoğu kurulumda
+    // yoktur. Seçili biçimde ısrar etmek, kullanıcının yakalamasını
+    // kaybetmesi demek olurdu — kaydedilmiş bir PNG, kaydedilmemiş bir
+    // WebP'den her zaman iyidir.
+    if (format != ImageFormat::Png && !IsFormatAvailable(format)) {
+        LogV(L"%s kodlayıcısı yok; PNG'ye düşülüyor", m_settings.saveFormat.c_str());
+        format = ImageFormat::Png;
+    }
+
     std::wstring path = folder;
     path += L"\\Crisp ";
     path += TimestampForFileName();
-    path += L".png";
+    path += L'.';
+    path += ExtensionForFormat(format);
 
     // Aynı saniyede iki yakalama olabilir; benzersizleştirme olmadan ikincisi
     // birincinin üzerine yazardı.
     path = MakeUniquePath(path);
 
-    if (!SavePng(image, path)) {
-        LogV(L"PNG kaydedilemedi: %s", path.c_str());
+    if (!SaveImage(image, path, format, m_settings.saveQuality)) {
+        LogV(L"Kaydedilemedi: %s", path.c_str());
         return false;
     }
 

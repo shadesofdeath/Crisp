@@ -207,6 +207,71 @@ CRISP_TEST(Codec, Tek_piksel_goruntu) {
     CHECK_EQ(decoded.Pixel(0, 0), 0xFF123456u);
 }
 
+CRISP_TEST(Codec, FormatFromPath_uzantiyi_tanir) {
+    CHECK(FormatFromPath(L"C:\\a\\b.png") == ImageFormat::Png);
+    CHECK(FormatFromPath(L"C:\\a\\b.jpg") == ImageFormat::Jpeg);
+    CHECK(FormatFromPath(L"C:\\a\\b.jpeg") == ImageFormat::Jpeg);
+    CHECK(FormatFromPath(L"C:\\a\\b.webp") == ImageFormat::WebP);
+    // Büyük harf de tanınmalı: kullanıcı ".PNG" yazabilir.
+    CHECK(FormatFromPath(L"C:\\a\\b.JPG") == ImageFormat::Jpeg);
+    // Bilinmeyen ve uzantısız PNG'ye düşer — sessizce kodlanamayan bir biçim
+    // seçmektense bilinen bir biçime düşmek doğru.
+    CHECK(FormatFromPath(L"C:\\a\\b.tiff") == ImageFormat::Png);
+    CHECK(FormatFromPath(L"C:\\a\\b") == ImageFormat::Png);
+}
+
+CRISP_TEST(Codec, ExtensionForFormat_gidis_donus) {
+    CHECK(FormatFromString(ExtensionForFormat(ImageFormat::Png)) == ImageFormat::Png);
+    CHECK(FormatFromString(ExtensionForFormat(ImageFormat::Jpeg)) == ImageFormat::Jpeg);
+    CHECK(FormatFromString(ExtensionForFormat(ImageFormat::WebP)) == ImageFormat::WebP);
+    CHECK(FormatFromString(nullptr) == ImageFormat::Png);
+    CHECK(FormatFromString(L"saçmalık") == ImageFormat::Png);
+}
+
+CRISP_TEST(Codec, PNG_ve_JPEG_daima_kullanilabilir) {
+    // Windows bu iki kodlayıcıyı her zaman taşır; taşımadığı bir kurulumda
+    // aracın kaydetme özelliği zaten çalışmazdı ve bunu bilmek gerekir.
+    CHECK(IsFormatAvailable(ImageFormat::Png));
+    CHECK(IsFormatAvailable(ImageFormat::Jpeg));
+}
+
+CRISP_TEST(Codec, JPEG_kaydedilebilir_ve_geri_okunabilir) {
+    Image original;
+    CHECK(original.Create(48, 32));
+    PaintTestPattern(original);
+
+    const std::wstring path = TempFile(L"kalite.jpg");
+    CHECK(SaveImage(original, path, ImageFormat::Jpeg, 92));
+    CHECK(::GetFileAttributesW(path.c_str()) != INVALID_FILE_ATTRIBUTES);
+
+    // JPEG KAYIPLIDIR: pikseller birebir aynı OLMAZ. Doğrulanabilecek şey
+    // boyutun korunması ve dosyanın gerçekten çözülebilmesi.
+    Image loaded;
+    CHECK(LoadPng(path, loaded));   // WIC kapsayıcıyı kendisi tanır
+    CHECK_EQ(loaded.Width(), 48);
+    CHECK_EQ(loaded.Height(), 32);
+}
+
+CRISP_TEST(Codec, JPEG_kalitesi_dosya_boyutunu_degistirir) {
+    // Kalite ayarının gerçekten kodlayıcıya ULAŞTIĞINI kanıtlar. Özellik
+    // torbası Initialize'dan sonra yazılsaydı sessizce yok sayılır ve iki
+    // dosya aynı boyutta çıkardı.
+    Image original;
+    CHECK(original.Create(120, 90));
+    PaintTestPattern(original);
+
+    const std::wstring low = TempFile(L"dusuk.jpg");
+    const std::wstring high = TempFile(L"yuksek.jpg");
+    CHECK(SaveImage(original, low, ImageFormat::Jpeg, 10));
+    CHECK(SaveImage(original, high, ImageFormat::Jpeg, 100));
+
+    WIN32_FILE_ATTRIBUTE_DATA lowInfo{};
+    WIN32_FILE_ATTRIBUTE_DATA highInfo{};
+    CHECK(::GetFileAttributesExW(low.c_str(), GetFileExInfoStandard, &lowInfo));
+    CHECK(::GetFileAttributesExW(high.c_str(), GetFileExInfoStandard, &highInfo));
+    CHECK(lowInfo.nFileSizeLow < highInfo.nFileSizeLow);
+}
+
 CRISP_TEST(Codec, Genis_ve_ince_goruntular) {
     // 1 piksel yüksekliğinde çok geniş ve tersi: stride hesabındaki bir hata
     // burada patlar.

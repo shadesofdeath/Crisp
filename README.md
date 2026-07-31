@@ -14,7 +14,7 @@ pixel magnifier, annotation, OCR and pin-to-screen.
 ![Win32](https://img.shields.io/badge/Win32-native-1a1a1a?style=flat-square)
 ![No dependencies](https://img.shields.io/badge/dependencies-none-2ea44f?style=flat-square)
 ![Tests](https://img.shields.io/badge/tests-124%20passing-2ea44f?style=flat-square)
-![Size](https://img.shields.io/badge/exe-308%20KB-2ea44f?style=flat-square)
+![Size](https://img.shields.io/badge/exe-317%20KB-2ea44f?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-1a1a1a?style=flat-square)
 
 <br>
@@ -124,10 +124,13 @@ well. Crisp exists for the parts they do not:
 | Colour picker | done |
 | 16 interface languages, follows the Windows display language | done |
 | Light and dark theme, follows Windows live | done |
+| PNG and JPEG saving with a quality setting | done |
+| Print Screen opens the region overlay | done |
+| Custom About window | done |
 | Annotation editor | not started |
 | Capture history | not started |
 
-124 tests pass. See [Tests](#tests).
+129 tests pass. See [Tests](#tests).
 
 ### Languages
 
@@ -139,6 +142,17 @@ explicitly.
 <div align="center">
 <img src="docs/screenshots/languages.png" width="900" alt="The tray menu in German, Japanese, Russian and Turkish">
 </div>
+
+### About
+
+Not a message box — its own window, themed, with the app icon and a link to the
+repository.
+
+<div align="center">
+<img src="docs/screenshots/about.png" width="820" alt="The About window in dark and light">
+</div>
+
+<br>
 
 ### Theme
 

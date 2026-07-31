@@ -4,6 +4,8 @@
 #include "Util.h"
 
 #include <shlwapi.h>
+
+#include <cwctype>
 #include <wincodec.h>
 
 namespace crisp {
@@ -20,9 +22,31 @@ namespace {
     return true;
 }
 
+// WebP kapsayıcı kimliği eski SDK başlıklarında yoktur; elle tanımlanır.
+// {1F122A9-...} değil — WIC'in yayımladığı kimlik budur.
+// Kodlayıcının VAR OLMASI ayrı bir konudur, bkz. IsFormatAvailable.
+const GUID kContainerFormatWebp = {
+    0xe094b0e2,
+    0x67f2,
+    0x45b3,
+    {0xb0, 0xea, 0x11, 0x53, 0x37, 0xca, 0x7c, 0xf3}};
+
+[[nodiscard]] const GUID& ContainerFor(ImageFormat format) noexcept {
+    switch (format) {
+        case ImageFormat::Jpeg:
+            return GUID_ContainerFormatJpeg;
+        case ImageFormat::WebP:
+            return kContainerFormatWebp;
+        case ImageFormat::Png:
+        default:
+            return GUID_ContainerFormatPng;
+    }
+}
+
 // Görüntüyü açık bir IStream'e kodlar. Hem bellek hem dosya yolu bu tek
 // fonksiyondan geçer; iki ayrı kopya olsaydı biri düzeltilip diğeri unutulurdu.
-[[nodiscard]] bool EncodeToStream(const Image& image, IStream* stream) {
+[[nodiscard]] bool EncodeToStream(const Image& image, IStream* stream,
+                                  ImageFormat imageFormat, unsigned quality) {
     if (!image.Valid() || stream == nullptr) {
         return false;
     }
@@ -33,9 +57,11 @@ namespace {
     }
 
     ComPtr<IWICBitmapEncoder> encoder;
-    HRESULT hr = factory->CreateEncoder(GUID_ContainerFormatPng, nullptr,
+    HRESULT hr = factory->CreateEncoder(ContainerFor(imageFormat), nullptr,
                                         encoder.GetAddressOf());
     if (FAILED(hr)) {
+        LogV(L"Kodlayıcı oluşturulamadı (biçim %d): 0x%08X",
+             static_cast<int>(imageFormat), hr);
         return false;
     }
 
@@ -51,6 +77,19 @@ namespace {
         return false;
     }
 
+    // Kalite, frame->Initialize'DAN ÖNCE yazılmalı: Initialize özellik
+    // torbasını okur ve sonra yapılan değişiklikler dikkate alınmaz.
+    if (imageFormat != ImageFormat::Png && properties) {
+        PROPBAG2 option{};
+        option.pstrName = const_cast<LPOLESTR>(L"ImageQuality");
+        VARIANT value{};
+        ::VariantInit(&value);
+        value.vt = VT_R4;
+        value.fltVal = static_cast<float>(quality) / 100.0f;
+        // Başarısızlık ölümcül değil: kodlayıcı varsayılan kalitesini kullanır.
+        CRISP_LOG_IF_FAILED(properties->Write(1, &option, &value));
+    }
+
     hr = frame->Initialize(properties.Get());
     if (FAILED(hr)) {
         return false;
@@ -62,12 +101,47 @@ namespace {
         return false;
     }
 
-    // İstenen biçim; WIC destekleyemezse kendi seçtiğini geri yazar, o yüzden
-    // değişken const değil.
-    WICPixelFormatGUID format = GUID_WICPixelFormat32bppBGRA;
+    // JPEG'de alfa kanalı YOKTUR; 32bpp istemek kodlayıcıyı kendi dönüşümünü
+    // yapmaya zorlar ve bazı sürümlerde kanal sırası bozulur. Biçime uygun
+    // olanı istemek daha güvenli.
+    WICPixelFormatGUID format = (imageFormat == ImageFormat::Jpeg)
+                                    ? GUID_WICPixelFormat24bppBGR
+                                    : GUID_WICPixelFormat32bppBGRA;
     hr = frame->SetPixelFormat(&format);
     if (FAILED(hr)) {
         return false;
+    }
+
+    // Kodlayıcı istediğimiz biçimi kabul etmediyse (geri yazdıysa), pikselleri
+    // dönüştürmek gerekir. WICConvertBitmapSource bunu yapar; doğrudan
+    // WritePixels çağırmak yanlış yorumlanmış baytlar demek olurdu.
+    if (!::IsEqualGUID(format, GUID_WICPixelFormat32bppBGRA)) {
+        ComPtr<IWICBitmap> source;
+        hr = factory->CreateBitmapFromMemory(
+            static_cast<UINT>(image.Width()), static_cast<UINT>(image.Height()),
+            GUID_WICPixelFormat32bppBGRA, static_cast<UINT>(image.Stride()),
+            static_cast<UINT>(image.Stride()) * static_cast<UINT>(image.Height()),
+            static_cast<BYTE*>(image.Bits()), source.GetAddressOf());
+        if (FAILED(hr)) {
+            return false;
+        }
+
+        ComPtr<IWICBitmapSource> converted;
+        hr = ::WICConvertBitmapSource(format, source.Get(),
+                                      converted.GetAddressOf());
+        if (FAILED(hr)) {
+            return false;
+        }
+
+        hr = frame->WriteSource(converted.Get(), nullptr);
+        if (FAILED(hr)) {
+            return false;
+        }
+        hr = frame->Commit();
+        if (FAILED(hr)) {
+            return false;
+        }
+        return SUCCEEDED(encoder->Commit());
     }
 
     const UINT stride = static_cast<UINT>(image.Stride());
@@ -193,7 +267,7 @@ bool EncodePng(const Image& image, std::vector<uint8_t>& out) {
         return false;
     }
 
-    if (!EncodeToStream(image, stream.Get())) {
+    if (!EncodeToStream(image, stream.Get(), ImageFormat::Png, 100)) {
         return false;
     }
 
@@ -224,8 +298,18 @@ bool EncodePng(const Image& image, std::vector<uint8_t>& out) {
 }
 
 bool SavePng(const Image& image, const std::wstring& path) {
+    return SaveImage(image, path, ImageFormat::Png, 100);
+}
+
+bool SaveImage(const Image& image, const std::wstring& path, ImageFormat format,
+               unsigned quality) {
     if (!image.Valid() || path.empty()) {
         return false;
+    }
+    if (quality < 1u) {
+        quality = 1u;
+    } else if (quality > 100u) {
+        quality = 100u;
     }
 
     const size_t slash = path.find_last_of(L'\\');
@@ -247,12 +331,65 @@ bool SavePng(const Image& image, const std::wstring& path) {
         return false;
     }
 
-    if (!EncodeToStream(image, stream.Get())) {
+    if (!EncodeToStream(image, stream.Get(), format, quality)) {
         return false;
     }
 
     hr = stream->Commit(STGC_DEFAULT);
     return SUCCEEDED(hr);
+}
+
+bool IsFormatAvailable(ImageFormat format) {
+    ComPtr<IWICImagingFactory> factory;
+    if (!CreateFactory(factory)) {
+        return false;
+    }
+    ComPtr<IWICBitmapEncoder> encoder;
+    return SUCCEEDED(
+        factory->CreateEncoder(ContainerFor(format), nullptr, encoder.GetAddressOf()));
+}
+
+ImageFormat FormatFromPath(const std::wstring& path) noexcept {
+    const size_t dot = path.find_last_of(L'.');
+    if (dot == std::wstring::npos) {
+        return ImageFormat::Png;
+    }
+    std::wstring extension = path.substr(dot + 1);
+    for (wchar_t& c : extension) {
+        c = static_cast<wchar_t>(::towlower(c));
+    }
+    if (extension == L"jpg" || extension == L"jpeg") {
+        return ImageFormat::Jpeg;
+    }
+    if (extension == L"webp") {
+        return ImageFormat::WebP;
+    }
+    return ImageFormat::Png;
+}
+
+const wchar_t* ExtensionForFormat(ImageFormat format) noexcept {
+    switch (format) {
+        case ImageFormat::Jpeg:
+            return L"jpg";
+        case ImageFormat::WebP:
+            return L"webp";
+        case ImageFormat::Png:
+        default:
+            return L"png";
+    }
+}
+
+ImageFormat FormatFromString(const wchar_t* value) noexcept {
+    if (value == nullptr) {
+        return ImageFormat::Png;
+    }
+    if (::wcscmp(value, L"jpg") == 0 || ::wcscmp(value, L"jpeg") == 0) {
+        return ImageFormat::Jpeg;
+    }
+    if (::wcscmp(value, L"webp") == 0) {
+        return ImageFormat::WebP;
+    }
+    return ImageFormat::Png;
 }
 
 bool DecodePng(const uint8_t* data, size_t size, Image& out) {

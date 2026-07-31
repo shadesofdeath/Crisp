@@ -74,6 +74,7 @@
 #define IDS_ABOUT_OCR_NO        1035
 #define IDS_ABOUT_TITLE         1036
 #define IDS_LANG_AUTO           1037
+#define IDS_ABOUT_TAGLINE       1038
 
 // --- Kısayol etiketleri (1104-1119) ------------------------------------------
 // AYRI BLOKTA ve YALNIZCA DİLDEN BAĞIMSIZ tanımlı. "Ctrl+Shift+S" her dilde

@@ -209,6 +209,10 @@ void Settings::Clamp() {
     if (theme != L"light" && theme != L"dark") {
         theme = L"system";
     }
+    if (saveFormat != L"jpg" && saveFormat != L"webp") {
+        saveFormat = L"png";
+    }
+    saveQuality = ClampUnsigned(saveQuality, 1u, 100u);
 
     // Hiçbir eylem seçili değilse araç yakalar ve sonucu sessizce atar.
     // Kullanıcı bunu isteyerek yapmış olamaz; en beklenen davranışa dönülür.
@@ -234,6 +238,8 @@ void Settings::Load(const SettingsStore& store) {
     store.ReadString(L"SaveFolder", saveFolder);
     store.ReadString(L"Language", language);
     store.ReadString(L"Theme", theme);
+    store.ReadString(L"SaveFormat", saveFormat);
+    store.ReadUnsigned(L"SaveQuality", saveQuality);
 
     store.ReadBool(L"CopyToClipboard", after.copyToClipboard);
     store.ReadBool(L"SaveToFile", after.saveToFile);
@@ -244,6 +250,7 @@ void Settings::Load(const SettingsStore& store) {
     store.ReadBool(L"ShowMagnifier", showMagnifier);
     store.ReadBool(L"ShowWindowHighlight", showWindowHighlight);
     store.ReadBool(L"PlayShutterSound", playShutterSound);
+    store.ReadBool(L"PrintScreenCapture", printScreenCapture);
 
     auto readHotkey = [&store](const wchar_t* name, Hotkey& target) {
         unsigned packed = 0;
@@ -268,6 +275,8 @@ bool Settings::Save(const SettingsStore& store) const {
     ok = store.WriteString(L"SaveFolder", saveFolder) && ok;
     ok = store.WriteString(L"Language", language) && ok;
     ok = store.WriteString(L"Theme", theme) && ok;
+    ok = store.WriteString(L"SaveFormat", saveFormat) && ok;
+    ok = store.WriteUnsigned(L"SaveQuality", saveQuality) && ok;
 
     ok = store.WriteBool(L"CopyToClipboard", after.copyToClipboard) && ok;
     ok = store.WriteBool(L"SaveToFile", after.saveToFile) && ok;
@@ -278,6 +287,7 @@ bool Settings::Save(const SettingsStore& store) const {
     ok = store.WriteBool(L"ShowMagnifier", showMagnifier) && ok;
     ok = store.WriteBool(L"ShowWindowHighlight", showWindowHighlight) && ok;
     ok = store.WriteBool(L"PlayShutterSound", playShutterSound) && ok;
+    ok = store.WriteBool(L"PrintScreenCapture", printScreenCapture) && ok;
 
     ok = store.WriteUnsigned(L"HotkeyRegion", hotkeyRegion.packed()) && ok;
     ok = store.WriteUnsigned(L"HotkeyFullScreen", hotkeyFullScreen.packed()) && ok;

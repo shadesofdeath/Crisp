@@ -84,12 +84,18 @@ struct Settings {
     std::wstring language = L"auto";
     // Tema: "system" | "light" | "dark".
     std::wstring theme = L"system";
+    // Kayıt biçimi: "png" | "jpg" | "webp".
+    std::wstring saveFormat = L"png";
+    unsigned saveQuality = 90;        // JPEG/WebP; 1..100
+
     AfterCapture after{};
 
     unsigned delaySeconds = 3;        // gecikmeli yakalama; 1..30
     bool showMagnifier = true;
     bool showWindowHighlight = true;
     bool playShutterSound = false;
+    // Print Screen tuşu bölge yakalamayı açsın mı?
+    bool printScreenCapture = true;
 
     Hotkey hotkeyRegion{MOD_CONTROL | MOD_SHIFT, 'S'};
     Hotkey hotkeyFullScreen{MOD_CONTROL | MOD_SHIFT, 'F'};

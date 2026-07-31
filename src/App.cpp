@@ -2,6 +2,7 @@
 // Yakalama akışları AppCapture.cpp'dedir.
 #include "App.h"
 
+#include "AboutWindow.h"
 #include "Localization.h"
 #include "Messages.h"
 #include "Ocr.h"
@@ -212,17 +213,9 @@ void App::OnCommand(int command) {
         case IDM_OPEN_FOLDER:
             OpenSaveFolder();
             break;
-        case IDM_ABOUT: {
-            const std::wstring text =
-                L"Crisp " CRISP_VERSION_TEXT L"\n\n" + Loc::Str(IDS_ABOUT_BODY) +
-                L"\n\n" +
-                Loc::Str(IsOcrAvailable() ? IDS_ABOUT_OCR_YES : IDS_ABOUT_OCR_NO) +
-                L"\n\nMIT · © 2026 ShadesOfDeath";
-            ::MessageBoxW(nullptr, text.c_str(),
-                          Loc::Str(IDS_ABOUT_TITLE).c_str(),
-                          MB_OK | MB_ICONINFORMATION);
+        case IDM_ABOUT:
+            ShowAboutWindow(m_instance);
             break;
-        }
         case IDM_EXIT:
             CloseAllPins();
             ::DestroyWindow(m_window);
@@ -245,6 +238,9 @@ void App::OnHotkey(int id) {
             break;
         case HOTKEY_DELAYED:
             StartCapture(CaptureMode::Delayed);
+            break;
+        case HOTKEY_PRINTSCREEN:
+            StartCapture(CaptureMode::Region);
             break;
         default:
             break;

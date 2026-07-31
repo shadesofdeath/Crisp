@@ -22,6 +22,7 @@ enum HotkeyId : int {
     HOTKEY_FULLSCREEN = 2,
     HOTKEY_WINDOW = 3,
     HOTKEY_DELAYED = 4,
+    HOTKEY_PRINTSCREEN = 5,
 };
 
 }  // namespace crisp
