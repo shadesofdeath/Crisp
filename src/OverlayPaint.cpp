@@ -2,7 +2,9 @@
 #include "OverlayPaint.h"
 
 #include "Geometry.h"
+#include "Localization.h"
 #include "Util.h"
+#include "resource.h"
 
 #include <cstdio>
 
@@ -307,18 +309,13 @@ void DrawTextLayer(AlphaLayer& layer, const OverlayVisual& visual) {
 
 void DrawHint(HDC dc, const OverlayVisual& visual, HFONT font) {
     const RECT monitor = visual.screen;
-    const wchar_t* text =
-        visual.textSelect
-            ? L"Metnin üzerinde sürükle: seç      Ctrl+A: tümü      "
-              L"Enter / Ctrl+C: kopyala      Esc: iptal"
-        : visual.colorPick
-            ? L"Tıkla: rengi kopyala      Esc / sağ tık: iptal"
-            : L"Sürükle: alan seç      Tıkla: pencere yakala      "
-              L"Shift: kare      Esc / sağ tık: iptal";
+    const std::wstring text = Loc::Str(
+        visual.textSelect ? IDS_HINT_TEXT
+                          : (visual.colorPick ? IDS_HINT_COLOR : IDS_HINT_REGION));
 
     const HGDIOBJ oldFont = ::SelectObject(dc, font);
     RECT measure{0, 0, 0, 0};
-    ::DrawTextW(dc, text, -1, &measure, DT_CALCRECT | DT_SINGLELINE | DT_NOPREFIX);
+    ::DrawTextW(dc, text.c_str(), -1, &measure, DT_CALCRECT | DT_SINGLELINE | DT_NOPREFIX);
     ::SelectObject(dc, oldFont);
 
     const LONG padX = Scale(16, visual.dpi);
@@ -339,7 +336,7 @@ void DrawHint(HDC dc, const OverlayVisual& visual, HFONT font) {
     ::SetBkMode(dc, TRANSPARENT);
     ::SetTextColor(dc, kTextDim);
     RECT textArea{box.left + padX, box.top + padY, box.right - padX, box.bottom};
-    ::DrawTextW(dc, text, -1, &textArea, DT_SINGLELINE | DT_NOPREFIX);
+    ::DrawTextW(dc, text.c_str(), -1, &textArea, DT_SINGLELINE | DT_NOPREFIX);
     ::SelectObject(dc, previous);
 }
 

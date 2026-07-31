@@ -14,7 +14,7 @@ pixel magnifier, annotation, OCR and pin-to-screen.
 ![Win32](https://img.shields.io/badge/Win32-native-1a1a1a?style=flat-square)
 ![No dependencies](https://img.shields.io/badge/dependencies-none-2ea44f?style=flat-square)
 ![Tests](https://img.shields.io/badge/tests-124%20passing-2ea44f?style=flat-square)
-![Size](https://img.shields.io/badge/exe-255%20KB-2ea44f?style=flat-square)
+![Size](https://img.shields.io/badge/exe-308%20KB-2ea44f?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-1a1a1a?style=flat-square)
 
 <br>
@@ -122,10 +122,29 @@ well. Crisp exists for the parts they do not:
 | OCR — region to text | done |
 | Text on screen — boxed lines, drag/word/line select, context menu | done |
 | Colour picker | done |
+| 16 interface languages, follows the Windows display language | done |
 | Annotation editor | not started |
 | Capture history | not started |
 
 124 tests pass. See [Tests](#tests).
+
+### Languages
+
+Czech, Dutch, English, French, German, Italian, Japanese, Korean, Polish,
+Portuguese (Brazil), Russian, Simplified Chinese, Spanish, Swedish, Turkish,
+Ukrainian — picked automatically from your Windows display language, or set
+explicitly.
+
+<div align="center">
+<img src="docs/screenshots/languages.png" width="900" alt="The tray menu in German, Japanese, Russian and Turkish">
+</div>
+
+Adding one is a `LANGUAGE`/`STRINGTABLE` block in `res/strings.rc` and a row in
+`Loc::Languages()`. Nothing else. A half-finished translation is safe: a missing
+string falls back to English rather than leaving a blank menu item. Accelerator
+labels live in a single language-neutral block — `Ctrl+Shift+S` is the same in
+every language and copying it sixteen times would be sixteen times the
+maintenance.
 
 ### Shortcuts
 

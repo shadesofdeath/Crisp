@@ -2,11 +2,16 @@
 // Yakalama akışları AppCapture.cpp'dedir.
 #include "App.h"
 
+#include "Localization.h"
 #include "Messages.h"
 #include "Ocr.h"
 #include "PinWindow.h"
 #include "Util.h"
 #include "resource.h"
+
+// Sürüm tek yerde: res/app.rc'deki VERSIONINFO ile elle eşleştirilmesi
+// gereken bir ikinci kopya olmasın diye burada tanımlanır.
+#define CRISP_VERSION_TEXT L"0.3.0"
 
 #include <commctrl.h>
 
@@ -35,6 +40,10 @@ bool App::Initialize(HINSTANCE instance) {
     ::InitCommonControlsEx(&controls);
 
     m_settings.Load(SettingsStore::ForApp());
+
+    // Dil, HER ŞEYDEN ÖNCE kurulur: bundan sonraki her hata iletisi ve menü
+    // metni Loc::Str'den gelir ve dil kurulmadan çağrılırsa boş döner.
+    Loc::Initialize(instance, m_settings.language);
 
     WNDCLASSEXW wc{};
     wc.cbSize = sizeof(wc);
@@ -186,18 +195,13 @@ void App::OnCommand(int command) {
             OpenSaveFolder();
             break;
         case IDM_ABOUT: {
-            const std::wstring ocr =
-                IsOcrAvailable()
-                    ? L"OCR: kullanılabilir"
-                    : L"OCR: bu makinede OCR dil paketi kurulu değil";
             const std::wstring text =
-                L"Crisp 0.2.0\n\n"
-                L"Ekran alıntısı aracı.\n"
-                L"Bölge, pencere ve tam ekran yakalama; büyüteç, ekrana "
-                L"iğneleme, renk seçici ve OCR.\n\n" +
-                ocr +
-                L"\n\nMIT lisanslı · © 2026 ShadesOfDeath";
-            ::MessageBoxW(nullptr, text.c_str(), L"Crisp hakkında",
+                L"Crisp " CRISP_VERSION_TEXT L"\n\n" + Loc::Str(IDS_ABOUT_BODY) +
+                L"\n\n" +
+                Loc::Str(IsOcrAvailable() ? IDS_ABOUT_OCR_YES : IDS_ABOUT_OCR_NO) +
+                L"\n\nMIT · © 2026 ShadesOfDeath";
+            ::MessageBoxW(nullptr, text.c_str(),
+                          Loc::Str(IDS_ABOUT_TITLE).c_str(),
                           MB_OK | MB_ICONINFORMATION);
             break;
         }

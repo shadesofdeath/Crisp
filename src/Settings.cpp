@@ -199,6 +199,14 @@ void SettingsStore::Flush() const {
 void Settings::Clamp() {
     delaySeconds = ClampUnsigned(delaySeconds, 1u, 30u);
 
+    // Bilinmeyen ya da boş dil kodu "auto"ya döner. Doğrulama Localization'a
+    // sorulmaz: Settings crisp_core'da, Localization uygulama katmanında ve
+    // çekirdeğin arayüz katmanına bağımlı olması yön kuralını bozardı.
+    // Buradaki kontrol biçimsel; gerçek eşleme Loc tarafında yapılır.
+    if (language.empty()) {
+        language = L"auto";
+    }
+
     // Hiçbir eylem seçili değilse araç yakalar ve sonucu sessizce atar.
     // Kullanıcı bunu isteyerek yapmış olamaz; en beklenen davranışa dönülür.
     if (!after.copyToClipboard && !after.saveToFile && !after.pinToScreen &&
@@ -221,6 +229,7 @@ void Settings::Clamp() {
 
 void Settings::Load(const SettingsStore& store) {
     store.ReadString(L"SaveFolder", saveFolder);
+    store.ReadString(L"Language", language);
 
     store.ReadBool(L"CopyToClipboard", after.copyToClipboard);
     store.ReadBool(L"SaveToFile", after.saveToFile);
@@ -253,6 +262,7 @@ bool Settings::Save(const SettingsStore& store) const {
 
     bool ok = true;
     ok = store.WriteString(L"SaveFolder", saveFolder) && ok;
+    ok = store.WriteString(L"Language", language) && ok;
 
     ok = store.WriteBool(L"CopyToClipboard", after.copyToClipboard) && ok;
     ok = store.WriteBool(L"SaveToFile", after.saveToFile) && ok;

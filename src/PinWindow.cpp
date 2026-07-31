@@ -4,6 +4,8 @@
 #include "ClipboardImage.h"
 #include "Geometry.h"
 #include "ImageCodec.h"
+#include "Localization.h"
+#include "resource.h"
 #include "Util.h"
 
 #include <commdlg.h>
@@ -97,8 +99,8 @@ void SaveAs(const PinState& state) {
         return;   // kullanıcı iptal etti; hata değil
     }
     if (!SavePng(state.image, path)) {
-        ::MessageBoxW(state.window, L"Görüntü kaydedilemedi.", L"Crisp",
-                      MB_OK | MB_ICONERROR);
+        ::MessageBoxW(state.window, Loc::Str(IDS_SAVE_FAILED).c_str(),
+                      Loc::Str(IDS_APP_TITLE).c_str(), MB_OK | MB_ICONERROR);
     }
 }
 
@@ -108,16 +110,23 @@ void ShowContextMenu(PinState& state) {
         return;
     }
 
-    ::AppendMenuW(menu, MF_STRING, kPinCopy, L"Panoya kopyala\tCtrl+C");
-    ::AppendMenuW(menu, MF_STRING, kPinSaveAs, L"Farklı kaydet…\tCtrl+S");
+    const std::wstring copyText = Loc::MenuText(IDS_PIN_COPY, IDS_ACCEL_COPY);
+    const std::wstring saveText = Loc::MenuText(IDS_PIN_SAVE_AS, IDS_ACCEL_SAVE);
+    const std::wstring sizeText = Loc::Str(IDS_PIN_ACTUAL_SIZE);
+    const std::wstring opaqueText = Loc::Str(IDS_PIN_OPAQUE);
+    const std::wstring translucentText = Loc::Str(IDS_PIN_TRANSLUCENT);
+    const std::wstring closeText = Loc::MenuText(IDS_PIN_CLOSE, IDS_ACCEL_ESC);
+
+    ::AppendMenuW(menu, MF_STRING, kPinCopy, copyText.c_str());
+    ::AppendMenuW(menu, MF_STRING, kPinSaveAs, saveText.c_str());
     ::AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    ::AppendMenuW(menu, MF_STRING, kPinActualSize, L"Gerçek boyut\tÇift tık");
+    ::AppendMenuW(menu, MF_STRING, kPinActualSize, sizeText.c_str());
     ::AppendMenuW(menu, MF_STRING | (state.opacity == 255 ? MF_CHECKED : 0),
-                  kPinOpacityFull, L"Tam opak");
+                  kPinOpacityFull, opaqueText.c_str());
     ::AppendMenuW(menu, MF_STRING | (state.opacity != 255 ? MF_CHECKED : 0),
-                  kPinOpacityHalf, L"Yarı saydam");
+                  kPinOpacityHalf, translucentText.c_str());
     ::AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    ::AppendMenuW(menu, MF_STRING, kPinClose, L"Kapat\tEsc");
+    ::AppendMenuW(menu, MF_STRING, kPinClose, closeText.c_str());
 
     POINT cursor{};
     ::GetCursorPos(&cursor);
@@ -334,10 +343,11 @@ bool PinImageToScreen(HINSTANCE instance, const Image& image, POINT topLeft) {
         placement.top = screen.top;
     }
 
+    const std::wstring pinTitle = Loc::Str(IDS_PIN_TITLE);
     PinState* raw = state.get();
     const HWND window = ::CreateWindowExW(
         WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED, kWindowClass,
-        L"Crisp — iğnelenmiş", WS_POPUP, placement.left, placement.top,
+        pinTitle.c_str(), WS_POPUP, placement.left, placement.top,
         state->image.Width(), state->image.Height(), nullptr, nullptr, instance,
         raw);
 

@@ -20,6 +20,11 @@ IDI_APP        ICON "icons\\app.ico"
 IDI_TRAY_DARK  ICON "icons\\tray_dark.ico"
 IDI_TRAY_LIGHT ICON "icons\\tray_light.ico"
 
+// --- Arayüz dizeleri ---------------------------------------------------------
+// Ayrı dosya: dil blokları bu dosyayı üç katına çıkarırdı ve yeni bir dil
+// eklerken sürüm bilgisiyle aynı dosyaya dokunmak gerekmemeli.
+#include "strings.rc"
+
 // --- Sürüm bilgisi -----------------------------------------------------------
 VS_VERSION_INFO VERSIONINFO
     FILEVERSION    0,1,0,0

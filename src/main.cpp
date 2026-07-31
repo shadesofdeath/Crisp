@@ -1,5 +1,6 @@
 // main.cpp — Giriş noktası, tek örnek kilidi.
 #include "App.h"
+#include "Localization.h"
 #include "Util.h"
 #include "resource.h"
 
@@ -24,16 +25,14 @@ int WINAPI wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE, _In_ PWSTR,
     // COM, WIC (PNG kodlama) ve kabuk klasörü sorguları için gerekli.
     const crisp::com_scope com;
     if (!com.ok()) {
-        ::MessageBoxW(nullptr, L"COM başlatılamadı.", L"Crisp",
-                      MB_OK | MB_ICONERROR);
+        ::MessageBoxW(nullptr, crisp::Loc::Str(IDS_COM_FAILED).c_str(),
+                      L"Crisp", MB_OK | MB_ICONERROR);
         return 1;
     }
 
     crisp::App app;
     if (!app.Initialize(instance)) {
-        ::MessageBoxW(nullptr,
-                      L"Crisp başlatılamadı. Tepsi simgesi eklenemedi ya da "
-                      L"pencere oluşturulamadı.",
+        ::MessageBoxW(nullptr, crisp::Loc::Str(IDS_START_FAILED).c_str(),
                       L"Crisp", MB_OK | MB_ICONERROR);
         return 1;
     }

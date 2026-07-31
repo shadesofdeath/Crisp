@@ -115,6 +115,7 @@ set(CRISP_APP_SOURCES
     src/Overlay.cpp
     src/OverlayPaint.cpp
     src/AlphaLayer.cpp
+    src/Localization.cpp
     src/PinWindow.cpp
     src/Ocr.cpp
     src/TrayIcon.cpp
@@ -126,6 +127,7 @@ set(CRISP_APP_HEADERS
     src/Overlay.h
     src/OverlayPaint.h
     src/AlphaLayer.h
+    src/Localization.h
     src/PinWindow.h
     src/Ocr.h
     src/TrayIcon.h
@@ -172,6 +174,7 @@ set_property(SOURCE res/app.rc APPEND PROPERTY OBJECT_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/res/icons/app.ico"
     "${CMAKE_CURRENT_SOURCE_DIR}/res/icons/tray_dark.ico"
     "${CMAKE_CURRENT_SOURCE_DIR}/res/icons/tray_light.ico"
+    "${CMAKE_CURRENT_SOURCE_DIR}/res/strings.rc"
 )
 
 endif()  # CRISP_APP

@@ -4,12 +4,14 @@
 #include "ClipboardImage.h"
 #include "Geometry.h"
 #include "ImageCodec.h"
+#include "Localization.h"
 #include "Messages.h"
 #include "Ocr.h"
 #include "Overlay.h"
 #include "PinWindow.h"
 #include "Util.h"
 #include "WindowPick.h"
+#include "resource.h"
 
 #include <shellapi.h>
 
@@ -138,19 +140,15 @@ void App::SelectTextOnScreen() {
 
     if (!recognized) {
         m_busy = false;
-        ::MessageBoxW(nullptr,
-                      L"Metin tanıma çalıştırılamadı.\n\n"
-                      L"Windows'un OCR motoru, dil profilinde OCR destekli bir "
-                      L"dil bulunmadığında kullanılamaz. Ayarlar > Saat ve dil > "
-                      L"Dil ve bölge üzerinden bir dil paketi ekleyin.",
-                      L"Crisp — Metin seç", MB_OK | MB_ICONWARNING);
+        ::MessageBoxW(nullptr, Loc::Str(IDS_OCR_UNAVAILABLE).c_str(),
+                      Loc::Str(IDS_APP_TITLE).c_str(), MB_OK | MB_ICONWARNING);
         return;
     }
 
     if (layout.empty()) {
         m_busy = false;
-        ::MessageBoxW(nullptr, L"Ekranda tanınabilir metin bulunamadı.",
-                      L"Crisp — Metin seç", MB_OK | MB_ICONINFORMATION);
+        ::MessageBoxW(nullptr, Loc::Str(IDS_OCR_NO_TEXT_SCREEN).c_str(),
+                      Loc::Str(IDS_APP_TITLE).c_str(), MB_OK | MB_ICONINFORMATION);
         return;
     }
 
@@ -186,20 +184,16 @@ void App::CaptureTextToClipboard() {
 
     std::wstring text;
     if (!RecognizeText(capture, text)) {
-        ::MessageBoxW(nullptr,
-                      L"Metin tanıma çalıştırılamadı.\n\n"
-                      L"Windows'un OCR motoru, dil profilinde OCR destekli bir "
-                      L"dil bulunmadığında kullanılamaz. Ayarlar > Saat ve dil > "
-                      L"Dil ve bölge üzerinden bir dil paketi ekleyin.",
-                      L"Crisp — OCR", MB_OK | MB_ICONWARNING);
+        ::MessageBoxW(nullptr, Loc::Str(IDS_OCR_UNAVAILABLE).c_str(),
+                      Loc::Str(IDS_APP_TITLE).c_str(), MB_OK | MB_ICONWARNING);
         return;
     }
 
     if (text.empty()) {
         // Boş sonuç bir hata değil: kullanıcı metin içermeyen bir alan seçmiş
         // olabilir. Panoyu boş metinle EZMEK ise veri kaybı olurdu.
-        ::MessageBoxW(nullptr, L"Seçilen alanda metin bulunamadı.",
-                      L"Crisp — OCR", MB_OK | MB_ICONINFORMATION);
+        ::MessageBoxW(nullptr, Loc::Str(IDS_OCR_NO_TEXT_REGION).c_str(),
+                      Loc::Str(IDS_APP_TITLE).c_str(), MB_OK | MB_ICONINFORMATION);
         return;
     }
 

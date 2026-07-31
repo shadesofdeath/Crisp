@@ -1,9 +1,12 @@
 // TrayIcon.cpp — bkz. TrayIcon.h.
 #include "TrayIcon.h"
 
+#include "Localization.h"
 #include "Messages.h"
 #include "Util.h"
 #include "resource.h"
+
+#include <string>
 
 // WIN32_LEAN_AND_MEAN nedeniyle ikisi de <windows.h> ile gelmez:
 //   shellapi.h — NOTIFYICONDATAW, Shell_NotifyIconW
@@ -15,7 +18,6 @@ namespace crisp {
 namespace {
 
 constexpr UINT kIconId = 1;
-constexpr const wchar_t* kTooltip = L"Crisp — ekran alıntısı";
 
 // Görev çubuğu açık temada mı? SystemUsesLightTheme, kabuğun (görev çubuğu,
 // başlat) temasını verir; AppsUseLightTheme uygulama pencerelerinin temasıdır
@@ -78,7 +80,9 @@ bool TrayIcon::Add(HWND owner, HINSTANCE instance) {
     data.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_SHOWTIP;
     data.uCallbackMessage = WM_CRISP_TRAY;
     data.hIcon = LoadTrayIcon(instance, !m_darkTaskbar);
-    ::wcscpy_s(data.szTip, kTooltip);
+    // szTip 128 karakterlik sabit dizidir; uzun bir çeviri kırpılır, taşmaz.
+    const std::wstring tooltip = Loc::Str(IDS_TRAY_TOOLTIP);
+    ::wcsncpy_s(data.szTip, tooltip.c_str(), _TRUNCATE);
 
     if (data.hIcon == nullptr) {
         LogV(L"Tepsi simgesi yüklenemedi");
@@ -151,19 +155,27 @@ int TrayIcon::ShowMenu(HWND owner) {
         return 0;
     }
 
-    ::AppendMenuW(menu, MF_STRING, IDM_CAPTURE_REGION, L"Bölge seç\tCtrl+Shift+S");
-    ::AppendMenuW(menu, MF_STRING, IDM_CAPTURE_WINDOW, L"Pencere yakala\tCtrl+Shift+W");
-    ::AppendMenuW(menu, MF_STRING, IDM_CAPTURE_FULLSCREEN, L"Tam ekran\tCtrl+Shift+F");
-    ::AppendMenuW(menu, MF_STRING, IDM_CAPTURE_DELAYED, L"Gecikmeli yakala\tCtrl+Shift+D");
-    ::AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    ::AppendMenuW(menu, MF_STRING, IDM_SELECT_TEXT, L"Ekrandan metin seç");
-    ::AppendMenuW(menu, MF_STRING, IDM_CAPTURE_OCR, L"Bölgedeki metni kopyala");
-    ::AppendMenuW(menu, MF_STRING, IDM_PICK_COLOR, L"Renk seç");
-    ::AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    ::AppendMenuW(menu, MF_STRING, IDM_OPEN_FOLDER, L"Kayıt klasörünü aç");
-    ::AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    ::AppendMenuW(menu, MF_STRING, IDM_ABOUT, L"Hakkında");
-    ::AppendMenuW(menu, MF_STRING, IDM_EXIT, L"Çıkış");
+    // Metinler her açılışta yeniden okunur: dil ayarı değiştiğinde menünün
+    // eski dilde kalmaması için önbelleğe alınmazlar.
+    auto add = [menu](UINT command, UINT textId, UINT acceleratorId) {
+        const std::wstring text = Loc::MenuText(textId, acceleratorId);
+        ::AppendMenuW(menu, MF_STRING, command, text.c_str());
+    };
+    auto separator = [menu]() { ::AppendMenuW(menu, MF_SEPARATOR, 0, nullptr); };
+
+    add(IDM_CAPTURE_REGION, IDS_MENU_REGION, IDS_ACCEL_REGION);
+    add(IDM_CAPTURE_WINDOW, IDS_MENU_WINDOW, IDS_ACCEL_WINDOW);
+    add(IDM_CAPTURE_FULLSCREEN, IDS_MENU_FULLSCREEN, IDS_ACCEL_FULLSCREEN);
+    add(IDM_CAPTURE_DELAYED, IDS_MENU_DELAYED, IDS_ACCEL_DELAYED);
+    separator();
+    add(IDM_SELECT_TEXT, IDS_MENU_SELECT_TEXT, 0);
+    add(IDM_CAPTURE_OCR, IDS_MENU_REGION_TEXT, 0);
+    add(IDM_PICK_COLOR, IDS_MENU_PICK_COLOR, 0);
+    separator();
+    add(IDM_OPEN_FOLDER, IDS_MENU_OPEN_FOLDER, 0);
+    separator();
+    add(IDM_ABOUT, IDS_MENU_ABOUT, 0);
+    add(IDM_EXIT, IDS_MENU_EXIT, 0);
 
     POINT cursor{};
     ::GetCursorPos(&cursor);

@@ -2,9 +2,11 @@
 #include "Overlay.h"
 
 #include "Geometry.h"
+#include "Localization.h"
 #include "OverlayPaint.h"
 #include "Util.h"
 #include "WindowPick.h"
+#include "resource.h"
 
 namespace crisp {
 namespace {
@@ -136,13 +138,20 @@ void ShowTextMenu(HWND window, OverlayState& state) {
 
     enum : int { kCopy = 1, kCopyAll, kSelectAll, kCancel };
 
+    const std::wstring copyText = Loc::MenuText(IDS_TEXTMENU_COPY, IDS_ACCEL_COPY);
+    const std::wstring copyAllText = Loc::Str(IDS_TEXTMENU_COPY_ALL);
+    const std::wstring selectAllText =
+        Loc::MenuText(IDS_TEXTMENU_SELECT_ALL, IDS_ACCEL_SELECT_ALL);
+    const std::wstring cancelText =
+        Loc::MenuText(IDS_TEXTMENU_CANCEL, IDS_ACCEL_ESC);
+
     const bool hasSelection = state.visual.selectionFirst >= 0;
     ::AppendMenuW(menu, MF_STRING | (hasSelection ? 0u : MF_GRAYED), kCopy,
-                  L"Kopyala\tCtrl+C");
-    ::AppendMenuW(menu, MF_STRING, kCopyAll, L"Tümünü kopyala");
-    ::AppendMenuW(menu, MF_STRING, kSelectAll, L"Tümünü seç\tCtrl+A");
+                  copyText.c_str());
+    ::AppendMenuW(menu, MF_STRING, kCopyAll, copyAllText.c_str());
+    ::AppendMenuW(menu, MF_STRING, kSelectAll, selectAllText.c_str());
     ::AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
-    ::AppendMenuW(menu, MF_STRING, kCancel, L"İptal\tEsc");
+    ::AppendMenuW(menu, MF_STRING, kCancel, cancelText.c_str());
 
     POINT cursor{};
     ::GetCursorPos(&cursor);
