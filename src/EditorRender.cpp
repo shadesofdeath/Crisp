@@ -297,7 +297,7 @@ void RenderPreview(HDC dc, const Shape& shape, unsigned dpi) {
     if (dc == nullptr) {
         return;
     }
-    if (ToolIsEffect(shape.kind)) {
+    if (ToolIsEffect(shape.kind) || ToolIsImageOp(shape.kind)) {
         // Efektin önizlemesi kesikli bir çerçeve: gerçek bulanıklığı her fare
         // hareketinde hesaplamak büyük seçimlerde gözle görülür şekilde
         // yavaşlar ve kullanıcının görmesi gereken şey alanın sınırı.

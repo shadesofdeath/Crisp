@@ -8,6 +8,7 @@
 
 #include "Capture.h"
 
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -26,6 +27,7 @@ enum class ToolKind {
     StepNumber,
     Blur,
     Mosaic,
+    Crop,
 };
 
 // Araç bir sürükleme mi bekliyor yoksa tek tıkla mı yerleşiyor?
@@ -36,6 +38,10 @@ enum class ToolKind {
 
 // Araç bir bölge efekti mi (altındaki pikselleri değiştirir, üstüne çizmez)?
 [[nodiscard]] bool ToolIsEffect(ToolKind kind) noexcept;
+
+// Araç, şekil eklemek yerine GÖRÜNTÜNÜN KENDİSİNİ mi değiştiriyor?
+// Bu araçlar belgeye şekil koymaz; sürükleme bittiğinde tabanı yeniler.
+[[nodiscard]] bool ToolIsImageOp(ToolKind kind) noexcept;
 
 struct Shape {
     ToolKind kind = ToolKind::Arrow;
@@ -58,6 +64,13 @@ struct Shape {
 // çiftleri) burada yalnızca hata yüzeyi eklerdi; listenin kopyası hem basit
 // hem yanlış olamaz.
 struct DocumentState {
+    // Şekillerin üzerine çizildiği taban görüntü.
+    //
+    // PAYLAŞILAN İŞARETÇİ: geçmişteki her adım kendi kopyasını tutsaydı, 4K
+    // bir yakalamada 64 adım × 14 MB = yarım gigabayttan fazla olurdu. Şekil
+    // eklemek tabanı değiştirmez, bu yüzden adımların çoğu aynı görüntüyü
+    // paylaşır; yalnızca kırpma/döndürme/ölçekleme yeni bir taban üretir.
+    std::shared_ptr<const Image> base;
     std::vector<Shape> shapes;
     int nextStepNumber = 1;
 };
@@ -69,6 +82,22 @@ public:
     // --- Düzenleme ----------------------------------------------------------
     void AddShape(Shape shape);
     void Clear();
+
+    // Başlangıç tabanı; geçmişe adım eklemez.
+    void SetBase(std::shared_ptr<const Image> base);
+
+    // Görüntünün kendisini değiştiren bir işlem uygular (kırpma, döndürme,
+    // ölçekleme).
+    //
+    // ŞEKİLLER TEMİZLENİR ve bu bilinçlidir: şekil koordinatları eski
+    // görüntünün uzayındadır. Kırptıktan sonra onları korumak, okların
+    // görüntünün dışına kaymış hâlde durması demek olurdu. Çağıran, işlemden
+    // ÖNCE şekilleri tabana pişirir; geri alma pişmemiş hâli geri getirir.
+    void ApplyImageOp(std::shared_ptr<const Image> newBase);
+
+    [[nodiscard]] const std::shared_ptr<const Image>& Base() const noexcept {
+        return m_state.base;
+    }
 
     // --- Geçmiş -------------------------------------------------------------
     [[nodiscard]] bool CanUndo() const noexcept { return !m_undo.empty(); }

@@ -26,6 +26,8 @@ bool ToolIsEffect(ToolKind kind) noexcept {
     return kind == ToolKind::Blur || kind == ToolKind::Mosaic;
 }
 
+bool ToolIsImageOp(ToolKind kind) noexcept { return kind == ToolKind::Crop; }
+
 RECT Shape::Bounds() const noexcept {
     if (!points.empty()) {
         // Serbest çizimde sınır noktaların tamamını kapsar; start/end yalnızca
@@ -63,6 +65,20 @@ void Document::AddShape(Shape shape) {
         ++m_state.nextStepNumber;
     }
     m_state.shapes.push_back(std::move(shape));
+}
+
+void Document::SetBase(std::shared_ptr<const Image> base) {
+    m_state.base = std::move(base);
+}
+
+void Document::ApplyImageOp(std::shared_ptr<const Image> newBase) {
+    if (!newBase) {
+        return;
+    }
+    PushUndo();
+    m_state.base = std::move(newBase);
+    m_state.shapes.clear();
+    m_state.nextStepNumber = 1;
 }
 
 void Document::Clear() {

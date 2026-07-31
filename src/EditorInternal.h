@@ -30,7 +30,10 @@ inline constexpr int kSwatchSide = 22;
 enum class ButtonKind { Tool, Color, Thickness, Action, Separator };
 
 enum ActionId {
-    kActionUndo = 1,
+    kActionRotateLeft = 1,
+    kActionRotateRight,
+    kActionScale,
+    kActionUndo,
     kActionRedo,
     kActionClear,
     kActionCopy,

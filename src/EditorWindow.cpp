@@ -116,6 +116,17 @@ void DrawToolGlyph(HDC dc, const RECT& box, ToolKind tool, COLORREF color,
                 }
             }
             break;
+        case ToolKind::Crop: {
+            // İki L: fotoğrafçı kadrajı. Dikdörtgen aracıyla karışmasın diye
+            // kapalı bir çerçeve DEĞİL.
+            ::MoveToEx(dc, cx - r, cy - r + Scale(4, dpi), nullptr);
+            ::LineTo(dc, cx - r, cy + r);
+            ::LineTo(dc, cx + r - Scale(4, dpi), cy + r);
+            ::MoveToEx(dc, cx + r, cy + r - Scale(4, dpi), nullptr);
+            ::LineTo(dc, cx + r, cy - r);
+            ::LineTo(dc, cx - r + Scale(4, dpi), cy - r);
+            break;
+        }
         case ToolKind::Mosaic: {
             const int cell = (std::max)(2, r * 2 / 3);
             const HBRUSH fill = ::CreateSolidBrush(color);
@@ -159,8 +170,16 @@ void DrawActionGlyph(HDC dc, const RECT& box, int action, COLORREF color,
         return;
     }
 
-    const wchar_t* glyph = L"";
+    // SOLA DÖNDÜRME SİMGESİ YOKTUR: Segoe MDL2'de saat yönünde dönen bir ok
+    // (E7AD) var, aynası yok. Başka bir kavisli ok seçmek geri al/yinele
+    // düğmeleriyle karışırdı; aynı glifi yatayda çevirmek iki düğmeyi
+    // birbirinin tam yansıması yapar.
+    const wchar_t* glyph = L"";
+    bool mirror = false;
     switch (action) {
+        case kActionRotateLeft:  glyph = L""; mirror = true; break;
+        case kActionRotateRight: glyph = L""; break;
+        case kActionScale:       glyph = L""; break;   // FullScreen
         case kActionUndo:  glyph = L""; break;   // Undo
         case kActionRedo:  glyph = L""; break;   // Redo
         case kActionClear: glyph = L""; break;   // Delete
@@ -173,8 +192,25 @@ void DrawActionGlyph(HDC dc, const RECT& box, int action, COLORREF color,
     const HGDIOBJ previous = ::SelectObject(dc, created);
     ::SetBkMode(dc, TRANSPARENT);
     ::SetTextColor(dc, color);
+
+    int previousMode = 0;
+    XFORM previousTransform{};
+    if (mirror) {
+        // Düğmenin kendi orta ekseninde yansıt: x' = (left + right) - x.
+        previousMode = ::SetGraphicsMode(dc, GM_ADVANCED);
+        ::GetWorldTransform(dc, &previousTransform);
+        const XFORM flip{-1.0f, 0.0f, 0.0f, 1.0f,
+                         static_cast<FLOAT>(box.left + box.right), 0.0f};
+        ::SetWorldTransform(dc, &flip);
+    }
+
     RECT area = box;
     ::DrawTextW(dc, glyph, -1, &area, DT_CENTER | DT_VCENTER | DT_SINGLELINE);
+
+    if (mirror) {
+        ::SetWorldTransform(dc, &previousTransform);
+        ::SetGraphicsMode(dc, previousMode);
+    }
     ::SelectObject(dc, previous);
     ::DeleteObject(created);
 }
@@ -284,9 +320,9 @@ int RequiredToolbarWidth(unsigned dpi) noexcept {
     const int group = Scale(kGroupGap, dpi);
     const int swatch = Scale(kSwatchSide, dpi);
 
-    constexpr int kToolCount = 9;
+    constexpr int kToolCount = 10;
     constexpr int kThicknessCount = 3;
-    constexpr int kActionCount = 6;
+    constexpr int kActionCount = 9;
     const int colorCount = static_cast<int>(std::size(kPalette));
 
     return group + kToolCount * (side + gap) +
@@ -308,7 +344,7 @@ void LayoutButtons(State& state, const RECT& client) {
     for (const ToolKind tool :
          {ToolKind::Arrow, ToolKind::Rectangle, ToolKind::Ellipse, ToolKind::Pen,
           ToolKind::Highlighter, ToolKind::Text, ToolKind::StepNumber,
-          ToolKind::Blur, ToolKind::Mosaic}) {
+          ToolKind::Blur, ToolKind::Mosaic, ToolKind::Crop}) {
         Button button;
         button.kind = ButtonKind::Tool;
         button.tool = tool;
@@ -354,13 +390,14 @@ void LayoutButtons(State& state, const RECT& client) {
     // PENCERE DARSA soldan devam ederler. Sağa yaslamayı koşulsuz uygulamak,
     // dar bir pencerede eylem düğmelerini renk örneklerinin ÜSTÜNE bindirirdi
     // ve iki grup da tıklanamaz hâle gelirdi.
-    const int actionsWidth = 6 * (side + gap) + group;
+    const int actionsWidth = 9 * (side + gap) + group;
     int right = static_cast<int>(geom::Width(client)) - group;
     if (right - actionsWidth < x) {
         right = x + actionsWidth;
     }
     for (const int action : {kActionClose, kActionSave, kActionCopy, kActionClear,
-                             kActionRedo, kActionUndo}) {
+                             kActionRedo, kActionUndo, kActionScale,
+                             kActionRotateRight, kActionRotateLeft}) {
         Button button;
         button.kind = ButtonKind::Action;
         button.action = action;
@@ -428,15 +465,16 @@ int ButtonAt(const State& state, POINT client) noexcept {
 }
 
 void Rebuild(State& state) {
-    if (state.image == nullptr || !state.original.Valid()) {
+    const std::shared_ptr<const Image>& base = state.document.Base();
+    if (state.image == nullptr || !base || !base->Valid()) {
         return;
     }
-    // HER SEFERİNDE ORİJİNALDEN: mevcut görüntünün üstüne boyamak, geri
-    // alınan bir şeklin izini bırakırdı — geri alma yalnızca listeden siler,
-    // piksellerden değil.
+    // HER SEFERİNDE TABANDAN: mevcut görüntünün üstüne boyamak, geri alınan
+    // bir şeklin izini bırakırdı — geri alma yalnızca listeden siler,
+    // piksellerden değil. Taban belgede durur, çünkü kırpma ve döndürme onu
+    // değiştirir ve o değişiklikler de geri alınabilir olmalı.
     Image fresh;
-    if (!CropImage(state.original, 0, 0, state.original.Width(),
-                   state.original.Height(), fresh)) {
+    if (!CropImage(*base, 0, 0, base->Width(), base->Height(), fresh)) {
         return;
     }
     RenderShapes(fresh, state.document.Shapes(), state.dpi);

@@ -49,6 +49,7 @@ set(CRISP_CORE_SOURCES
     src/Settings.cpp
     src/OcrLayout.cpp
     src/ImageEffects.cpp
+    src/ImageTransform.cpp
     src/Annotation.cpp
 )
 
@@ -62,6 +63,7 @@ set(CRISP_CORE_HEADERS
     src/Settings.h
     src/OcrLayout.h
     src/ImageEffects.h
+    src/ImageTransform.h
     src/Annotation.h
 )
 
@@ -208,6 +210,7 @@ if(CRISP_TESTS)
         tests/TestWindowPick.cpp
         tests/TestOcrLayout.cpp
         tests/TestAnnotation.cpp
+        tests/TestTransform.cpp
     )
     target_link_libraries(crisp_tests PRIVATE crisp_core)
     target_include_directories(crisp_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
