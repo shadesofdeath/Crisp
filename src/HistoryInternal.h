@@ -40,6 +40,7 @@ struct Tile {
 };
 
 struct State {
+    HINSTANCE instance = nullptr;
     HistoryStore* store = nullptr;
     std::vector<Tile> tiles;
 

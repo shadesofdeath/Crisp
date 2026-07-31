@@ -5,6 +5,7 @@
 #include "AboutWindow.h"
 #include "HotkeyEdit.h"
 #include "Localization.h"
+#include "MessageWindow.h"
 #include "Messages.h"
 #include "Ocr.h"
 #include "PinWindow.h"
@@ -312,8 +313,8 @@ void App::ReportHotkeyFailures() {
         return;
     }
 
-    ::MessageBoxW(m_window, (Loc::Str(IDS_HOTKEY_FAILED) + list).c_str(),
-                  Loc::Str(IDS_APP_TITLE).c_str(), MB_OK | MB_ICONWARNING);
+    ShowMessage(m_instance, m_window, Loc::Str(IDS_HOTKEY_FAILED) + list,
+                MessageIcon::Warning);
 }
 
 void App::OnHotkey(int id) {

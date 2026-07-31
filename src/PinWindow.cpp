@@ -5,6 +5,7 @@
 #include "Geometry.h"
 #include "ImageCodec.h"
 #include "Localization.h"
+#include "MessageWindow.h"
 #include "Theme.h"
 #include "resource.h"
 #include "Util.h"
@@ -100,8 +101,8 @@ void SaveAs(const PinState& state) {
         return;   // kullanıcı iptal etti; hata değil
     }
     if (!SavePng(state.image, path)) {
-        ::MessageBoxW(state.window, Loc::Str(IDS_SAVE_FAILED).c_str(),
-                      Loc::Str(IDS_APP_TITLE).c_str(), MB_OK | MB_ICONERROR);
+        ShowMessage(::GetModuleHandleW(nullptr), state.window,
+                    Loc::Str(IDS_SAVE_FAILED), MessageIcon::Error);
     }
 }
 

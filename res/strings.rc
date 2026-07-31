@@ -124,6 +124,8 @@ BEGIN
     IDS_SET_RESET           "Restore defaults"
     IDS_SET_FOLDER_PROMPT   "Choose where captures are saved"
     IDS_HOTKEY_FAILED       "These shortcuts could not be registered. Another application is probably using them:"
+    IDS_MSG_YES             "Yes"
+    IDS_MSG_NO              "No"
 END
 
 // ---------------------------------------------------------------------------
@@ -224,6 +226,8 @@ BEGIN
     IDS_SET_RESET           "Varsayılanlar"
     IDS_SET_FOLDER_PROMPT   "Yakalamaların kaydedileceği klasörü seçin"
     IDS_HOTKEY_FAILED       "Şu kısayollar kaydedilemedi. Büyük olasılıkla başka bir uygulama kullanıyor:"
+    IDS_MSG_YES             "Evet"
+    IDS_MSG_NO              "Hayır"
 END
 
 // ---------------------------------------------------------------------------
@@ -324,6 +328,8 @@ BEGIN
     IDS_SET_RESET           "Standardwerte"
     IDS_SET_FOLDER_PROMPT   "Speicherort für Aufnahmen wählen"
     IDS_HOTKEY_FAILED       "Diese Tastenkürzel konnten nicht registriert werden. Wahrscheinlich verwendet sie eine andere Anwendung:"
+    IDS_MSG_YES             "Ja"
+    IDS_MSG_NO              "Nein"
 END
 
 // ---------------------------------------------------------------------------
@@ -424,6 +430,8 @@ BEGIN
     IDS_SET_RESET           "Valeurs par défaut"
     IDS_SET_FOLDER_PROMPT   "Choisir où enregistrer les captures"
     IDS_HOTKEY_FAILED       "Ces raccourcis n'ont pas pu être enregistrés. Une autre application les utilise probablement :"
+    IDS_MSG_YES             "Oui"
+    IDS_MSG_NO              "Non"
 END
 
 // ---------------------------------------------------------------------------
@@ -524,6 +532,8 @@ BEGIN
     IDS_SET_RESET           "Valores predeterminados"
     IDS_SET_FOLDER_PROMPT   "Elige dónde guardar las capturas"
     IDS_HOTKEY_FAILED       "No se pudieron registrar estos atajos. Probablemente los use otra aplicación:"
+    IDS_MSG_YES             "Sí"
+    IDS_MSG_NO              "No"
 END
 
 // ---------------------------------------------------------------------------
@@ -624,6 +634,8 @@ BEGIN
     IDS_SET_RESET           "Valori predefiniti"
     IDS_SET_FOLDER_PROMPT   "Scegli dove salvare le acquisizioni"
     IDS_HOTKEY_FAILED       "Impossibile registrare queste scorciatoie. Probabilmente sono usate da un'altra applicazione:"
+    IDS_MSG_YES             "Sì"
+    IDS_MSG_NO              "No"
 END
 
 // ---------------------------------------------------------------------------
@@ -724,6 +736,8 @@ BEGIN
     IDS_SET_RESET           "Padrões"
     IDS_SET_FOLDER_PROMPT   "Escolha onde salvar as capturas"
     IDS_HOTKEY_FAILED       "Não foi possível registrar estes atalhos. Provavelmente outro aplicativo os utiliza:"
+    IDS_MSG_YES             "Sim"
+    IDS_MSG_NO              "Não"
 END
 
 // ---------------------------------------------------------------------------
@@ -824,6 +838,8 @@ BEGIN
     IDS_SET_RESET           "По умолчанию"
     IDS_SET_FOLDER_PROMPT   "Выберите папку для снимков"
     IDS_HOTKEY_FAILED       "Не удалось зарегистрировать эти сочетания клавиш. Вероятно, их использует другое приложение:"
+    IDS_MSG_YES             "Да"
+    IDS_MSG_NO              "Нет"
 END
 
 // ---------------------------------------------------------------------------
@@ -924,6 +940,8 @@ BEGIN
     IDS_SET_RESET           "Domyślne"
     IDS_SET_FOLDER_PROMPT   "Wybierz folder zapisu zrzutów"
     IDS_HOTKEY_FAILED       "Nie udało się zarejestrować tych skrótów. Prawdopodobnie używa ich inna aplikacja:"
+    IDS_MSG_YES             "Tak"
+    IDS_MSG_NO              "Nie"
 END
 
 // ---------------------------------------------------------------------------
@@ -1024,6 +1042,8 @@ BEGIN
     IDS_SET_RESET           "Standaardwaarden"
     IDS_SET_FOLDER_PROMPT   "Kies waar opnamen worden opgeslagen"
     IDS_HOTKEY_FAILED       "Deze sneltoetsen konden niet worden geregistreerd. Waarschijnlijk gebruikt een andere toepassing ze:"
+    IDS_MSG_YES             "Ja"
+    IDS_MSG_NO              "Nee"
 END
 
 // ---------------------------------------------------------------------------
@@ -1124,6 +1144,8 @@ BEGIN
     IDS_SET_RESET           "Výchozí hodnoty"
     IDS_SET_FOLDER_PROMPT   "Vyberte, kam se snímky ukládají"
     IDS_HOTKEY_FAILED       "Tyto zkratky se nepodařilo zaregistrovat. Pravděpodobně je používá jiná aplikace:"
+    IDS_MSG_YES             "Ano"
+    IDS_MSG_NO              "Ne"
 END
 
 // ---------------------------------------------------------------------------
@@ -1224,6 +1246,8 @@ BEGIN
     IDS_SET_RESET           "Standardvärden"
     IDS_SET_FOLDER_PROMPT   "Välj var skärmbilder sparas"
     IDS_HOTKEY_FAILED       "Dessa kortkommandon kunde inte registreras. Troligen används de av ett annat program:"
+    IDS_MSG_YES             "Ja"
+    IDS_MSG_NO              "Nej"
 END
 
 // ---------------------------------------------------------------------------
@@ -1324,6 +1348,8 @@ BEGIN
     IDS_SET_RESET           "За замовчуванням"
     IDS_SET_FOLDER_PROMPT   "Виберіть теку для знімків"
     IDS_HOTKEY_FAILED       "Не вдалося зареєструвати ці сполучення клавіш. Імовірно, їх використовує інша програма:"
+    IDS_MSG_YES             "Так"
+    IDS_MSG_NO              "Ні"
 END
 
 // ---------------------------------------------------------------------------
@@ -1424,6 +1450,8 @@ BEGIN
     IDS_SET_RESET           "既定値に戻す"
     IDS_SET_FOLDER_PROMPT   "キャプチャの保存先を選択"
     IDS_HOTKEY_FAILED       "これらのショートカットを登録できませんでした。別のアプリが使用している可能性があります:"
+    IDS_MSG_YES             "はい"
+    IDS_MSG_NO              "いいえ"
 END
 
 // ---------------------------------------------------------------------------
@@ -1524,6 +1552,8 @@ BEGIN
     IDS_SET_RESET           "기본값 복원"
     IDS_SET_FOLDER_PROMPT   "캡처를 저장할 위치 선택"
     IDS_HOTKEY_FAILED       "다음 단축키를 등록할 수 없습니다. 다른 앱이 사용 중일 수 있습니다:"
+    IDS_MSG_YES             "예"
+    IDS_MSG_NO              "아니요"
 END
 
 // ---------------------------------------------------------------------------
@@ -1624,4 +1654,6 @@ BEGIN
     IDS_SET_RESET           "恢复默认值"
     IDS_SET_FOLDER_PROMPT   "选择截图保存位置"
     IDS_HOTKEY_FAILED       "无法注册这些快捷键。可能已被其他应用占用："
+    IDS_MSG_YES             "是"
+    IDS_MSG_NO              "否"
 END

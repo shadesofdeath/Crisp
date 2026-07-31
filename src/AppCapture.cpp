@@ -7,6 +7,7 @@
 #include "HistoryWindow.h"
 #include "ImageCodec.h"
 #include "Localization.h"
+#include "MessageWindow.h"
 #include "Messages.h"
 #include "Ocr.h"
 #include "Overlay.h"
@@ -158,15 +159,15 @@ void App::SelectTextOnScreen() {
 
     if (!recognized) {
         m_busy = false;
-        ::MessageBoxW(nullptr, Loc::Str(IDS_OCR_UNAVAILABLE).c_str(),
-                      Loc::Str(IDS_APP_TITLE).c_str(), MB_OK | MB_ICONWARNING);
+        ShowMessage(m_instance, m_window, Loc::Str(IDS_OCR_UNAVAILABLE),
+                    MessageIcon::Warning);
         return;
     }
 
     if (layout.empty()) {
         m_busy = false;
-        ::MessageBoxW(nullptr, Loc::Str(IDS_OCR_NO_TEXT_SCREEN).c_str(),
-                      Loc::Str(IDS_APP_TITLE).c_str(), MB_OK | MB_ICONINFORMATION);
+        ShowMessage(m_instance, m_window, Loc::Str(IDS_OCR_NO_TEXT_SCREEN),
+                    MessageIcon::Information);
         return;
     }
 
@@ -202,16 +203,16 @@ void App::CaptureTextToClipboard() {
 
     std::wstring text;
     if (!RecognizeText(capture, text)) {
-        ::MessageBoxW(nullptr, Loc::Str(IDS_OCR_UNAVAILABLE).c_str(),
-                      Loc::Str(IDS_APP_TITLE).c_str(), MB_OK | MB_ICONWARNING);
+        ShowMessage(m_instance, m_window, Loc::Str(IDS_OCR_UNAVAILABLE),
+                    MessageIcon::Warning);
         return;
     }
 
     if (text.empty()) {
         // Boş sonuç bir hata değil: kullanıcı metin içermeyen bir alan seçmiş
         // olabilir. Panoyu boş metinle EZMEK ise veri kaybı olurdu.
-        ::MessageBoxW(nullptr, Loc::Str(IDS_OCR_NO_TEXT_REGION).c_str(),
-                      Loc::Str(IDS_APP_TITLE).c_str(), MB_OK | MB_ICONINFORMATION);
+        ShowMessage(m_instance, m_window, Loc::Str(IDS_OCR_NO_TEXT_REGION),
+                    MessageIcon::Information);
         return;
     }
 
@@ -388,8 +389,8 @@ void App::ReportSaveFailure() {
     // GÜNLÜĞE YAZMAK YETMEZ: kullanıcı "dosyaya kaydet" seçmişse ve disk dolu
     // ya da klasör yazılamıyorsa, yakalamayı kaybettiğini ÖĞRENMELİ. Sessiz
     // kalmak, saatler sonra klasörü açıp boş bulmak demek.
-    ::MessageBoxW(nullptr, Loc::Str(IDS_SAVE_FAILED).c_str(),
-                  Loc::Str(IDS_APP_TITLE).c_str(), MB_OK | MB_ICONERROR);
+    ShowMessage(m_instance, m_window, Loc::Str(IDS_SAVE_FAILED),
+                MessageIcon::Error);
 }
 
 void App::RememberInHistory(const Image& image) {

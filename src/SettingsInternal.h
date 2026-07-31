@@ -60,6 +60,7 @@ struct GroupTitle {
 };
 
 struct State {
+    HINSTANCE instance = nullptr;
     Settings* target = nullptr;   // çağıranın ayarları; yalnızca onaylanınca yazılır
     Settings working;             // pencere üzerinde düzenlenen kopya
 

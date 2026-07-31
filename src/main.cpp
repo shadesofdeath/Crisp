@@ -22,6 +22,13 @@ int WINAPI wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE, _In_ PWSTR,
         return 0;
     }
 
+    // DİL, İLK HATA İLETİSİNDEN ÖNCE kurulur. Loc::Str, Initialize
+    // çağrılmadan BOŞ dize döndürür; aşağıdaki iki hata kutusu bu yüzden
+    // metinsiz açılıyordu — yani başlatma başarısızlığı boş bir pencere
+    // olarak görünüyordu. Ayarlar henüz okunmadığı için "auto" kullanılır;
+    // App::Initialize dili kullanıcının seçimiyle yeniden kurar.
+    crisp::Loc::Initialize(instance, L"auto");
+
     // COM, WIC (PNG kodlama) ve kabuk klasörü sorguları için gerekli.
     const crisp::com_scope com;
     if (!com.ok()) {

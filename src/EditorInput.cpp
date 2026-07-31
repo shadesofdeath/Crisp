@@ -342,6 +342,7 @@ EditorResult RunEditor(HINSTANCE instance, const Settings& settings, Image& imag
     }
 
     State state;
+    state.instance = instance;
     state.image = &image;
     state.settings = settings;
 

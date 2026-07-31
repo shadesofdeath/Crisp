@@ -6,6 +6,7 @@
 #include "Geometry.h"
 #include "ImageCodec.h"
 #include "Localization.h"
+#include "MessageWindow.h"
 #include "Theme.h"
 #include "Util.h"
 #include "resource.h"
@@ -156,10 +157,10 @@ void ClearAll(HWND window, State& state) {
     }
     // GERİ ALINAMAZ bir işlem için onay: tek tıkla yirmi dört yakalamayı
     // silmek, kullanıcının kaybettiğini ancak sonradan fark etmesi olurdu.
-    const int answer = ::MessageBoxW(window, Loc::Str(IDS_HISTORY_CLEAR_ASK).c_str(),
-                                     Loc::Str(IDS_APP_TITLE).c_str(),
-                                     MB_YESNO | MB_ICONWARNING | MB_DEFBUTTON2);
-    if (answer != IDYES) {
+    const MessageResult answer =
+        ShowMessage(state.instance, window, Loc::Str(IDS_HISTORY_CLEAR_ASK),
+                    MessageIcon::Question, MessageButtons::YesNo);
+    if (answer != MessageResult::Yes) {
         return;
     }
     (void)state.store->Clear();
@@ -424,6 +425,7 @@ HistoryResult ShowHistoryWindow(HINSTANCE instance, HistoryStore& store) {
     }
 
     history::State state;
+    state.instance = instance;
     state.store = &store;
 
     POINT cursor{};

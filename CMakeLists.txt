@@ -129,6 +129,7 @@ set(CRISP_APP_SOURCES
     src/Localization.cpp
     src/Theme.cpp
     src/AboutWindow.cpp
+    src/MessageWindow.cpp
     src/EditorWindow.cpp
     src/EditorInput.cpp
     src/EditorRender.cpp
@@ -156,6 +157,7 @@ set(CRISP_APP_HEADERS
     src/Localization.h
     src/Theme.h
     src/AboutWindow.h
+    src/MessageWindow.h
     src/EditorWindow.h
     src/EditorInternal.h
     src/EditorRender.h

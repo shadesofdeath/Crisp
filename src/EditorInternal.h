@@ -93,6 +93,9 @@ inline constexpr COLORREF kPalette[] = {
 };
 
 struct State {
+    // İleti kutusu ve alt pencereler için gerekli; pencere sınıfını kaydeden
+    // örnek tutamacı.
+    HINSTANCE instance = nullptr;
     Image* image = nullptr;   // çağıranın görüntüsü; dönüşte sonuç burada
     Image original;           // hiç dokunulmamış taban; her boyamada kopyalanır
     Document document;

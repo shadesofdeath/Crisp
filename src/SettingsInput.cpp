@@ -7,6 +7,7 @@
 #include "HotkeyEdit.h"
 #include "ImageCodec.h"
 #include "Localization.h"
+#include "MessageWindow.h"
 #include "SettingsWindow.h"
 #include "Theme.h"
 #include "Util.h"
@@ -143,13 +144,13 @@ void ResetToDefaults(HWND window, State& state) {
     LoadIntoControls(window, state);
 }
 
-void ClearHistory(HWND window) {
+void ClearHistory(HWND window, const State& state) {
     HistoryStore store;
     store.SetFolder(HistoryStore::DefaultFolder());
     const size_t removed = store.Clear();
     LogV(L"Geçmişten %zu kayıt silindi", removed);
-    ::MessageBoxW(window, Loc::Str(IDS_SET_HISTORY_CLEARED).c_str(),
-                  Loc::Str(IDS_APP_TITLE).c_str(), MB_OK | MB_ICONINFORMATION);
+    ShowMessage(state.instance, window, Loc::Str(IDS_SET_HISTORY_CLEARED),
+                MessageIcon::Information);
 }
 
 LRESULT CALLBACK SettingsProc(HWND window, UINT message, WPARAM wParam,
@@ -223,7 +224,7 @@ LRESULT CALLBACK SettingsProc(HWND window, UINT message, WPARAM wParam,
                     ResetToDefaults(window, *state);
                     return 0;
                 case kIdHistoryClear:
-                    ClearHistory(window);
+                    ClearHistory(window, *state);
                     return 0;
                 case kIdBrowse: {
                     std::wstring folder = GetText(window, kIdFolder);
@@ -369,6 +370,7 @@ bool ShowSettingsWindow(HINSTANCE instance, Settings& settings) {
     }
 
     State state;
+    state.instance = instance;
     state.target = &settings;
     state.working = settings;
 

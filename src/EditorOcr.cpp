@@ -10,6 +10,7 @@
 #include "ClipboardImage.h"
 #include "Geometry.h"
 #include "Localization.h"
+#include "MessageWindow.h"
 #include "Ocr.h"
 #include "Theme.h"
 #include "Util.h"
@@ -62,13 +63,13 @@ void ToggleOcrMode(HWND window, State& state) {
     ::SetCursor(previous);
 
     if (!recognized) {
-        ::MessageBoxW(window, Loc::Str(IDS_OCR_UNAVAILABLE).c_str(),
-                      Loc::Str(IDS_APP_TITLE).c_str(), MB_OK | MB_ICONWARNING);
+        ShowMessage(state.instance, window, Loc::Str(IDS_OCR_UNAVAILABLE),
+                    MessageIcon::Warning);
         return;
     }
     if (layout.empty()) {
-        ::MessageBoxW(window, Loc::Str(IDS_OCR_NO_TEXT_REGION).c_str(),
-                      Loc::Str(IDS_APP_TITLE).c_str(), MB_OK | MB_ICONINFORMATION);
+        ShowMessage(state.instance, window, Loc::Str(IDS_OCR_NO_TEXT_REGION),
+                    MessageIcon::Information);
         return;
     }
 
