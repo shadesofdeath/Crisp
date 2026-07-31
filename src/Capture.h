@@ -74,6 +74,13 @@ private:
 // Ekran koordinatlarındaki dikdörtgeni yakalar. Boş dikdörtgen başarısızlıktır.
 [[nodiscard]] bool CaptureRect(const RECT& screenRect, Image& out);
 
+// Kaynağın bir bölgesini yeni bir görüntüye kopyalar. x/y KAYNAĞA GÖRE
+// koordinattır (ekran koordinatı değil); çağıran dönüşümü kendisi yapar.
+// İstenen bölge kaynağın dışına taşıyorsa başarısız olur — sessizce kırpmak,
+// kullanıcının seçtiğinden farklı bir görüntü döndürmek olurdu.
+[[nodiscard]] bool CropImage(const Image& source, int x, int y, int width,
+                             int height, Image& out);
+
 // Pencereyi yakalar. DwmGetWindowAttribute(DWMWA_EXTENDED_FRAME_BOUNDS) ile
 // GERÇEK çerçeve sınırı alınır: GetWindowRect, Windows 10/11'de görünmez
 // yeniden boyutlandırma kenarlığını da içerir ve düz GetWindowRect ile yakalanan

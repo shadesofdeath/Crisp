@@ -13,21 +13,42 @@ pixel magnifier, annotation, OCR and pin-to-screen.
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=cplusplus&logoColor=white)
 ![Win32](https://img.shields.io/badge/Win32-native-1a1a1a?style=flat-square)
 ![No dependencies](https://img.shields.io/badge/dependencies-none-2ea44f?style=flat-square)
-![Tests](https://img.shields.io/badge/tests-82%20passing-2ea44f?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-86%20passing-2ea44f?style=flat-square)
+![Size](https://img.shields.io/badge/exe-220%20KB-2ea44f?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-1a1a1a?style=flat-square)
 
 <br>
 
-**[Status](#status)** · **[Planned features](#planned-features)** ·
-**[Build](#build)** · **[Tests](#tests)**
+**[Screenshots](#screenshots)** · **[Status](#status)** ·
+**[Planned features](#planned-features)** · **[Build](#build)** · **[Tests](#tests)**
 
 </div>
 
 <br>
 
-> **Work in progress.** The capture core is complete and tested; the user
-> interface is being built. This README documents what exists today and marks
-> what does not — see [Status](#status).
+> **Work in progress.** Capture works end to end — region, window, screen and
+> delayed, to the clipboard or a PNG. Annotation, pinning, OCR and history are
+> not built yet. See [Status](#status).
+
+<br>
+
+## Screenshots
+
+Hover a window and the frame lights up; click to capture it. The magnifier
+follows the cursor with the pixel under it, its coordinates and its colour.
+
+<div align="center">
+<img src="docs/screenshots/overlay-window-pick.png" width="820" alt="Window pick with magnifier">
+</div>
+
+<br>
+
+Drag instead and you get a live selection with its size. Everything outside the
+selection stays dimmed.
+
+<div align="center">
+<img src="docs/screenshots/overlay-selection.png" width="820" alt="Region selection">
+</div>
 
 <br>
 
@@ -50,17 +71,33 @@ well. Crisp exists for the parts they do not:
 | Area | State |
 |---|---|
 | Image buffer, capture (region / window / screen) | done, tested |
-| PNG encode and decode | done, tested |
+| Crop, PNG encode and decode | done, tested |
 | Clipboard (CF_DIB + PNG) | done, tested |
 | Settings (registry + portable `.ini`) | done, tested |
 | Window pick and frame bounds | done, tested |
-| Selection overlay, tray, hotkeys | in progress |
-| Pin to screen | planned |
-| Annotation editor | planned |
-| OCR | planned |
-| Capture history | planned |
+| Selection overlay — dim, magnifier, size readout, square snap | done |
+| Tray icon, context menu, global hotkeys | done |
+| Delayed capture | done |
+| Save as PNG, copy to clipboard | done |
+| Pin to screen | not started |
+| Annotation editor | not started |
+| OCR | not started |
+| Capture history | not started |
 
-82 tests pass. See [Tests](#tests).
+86 tests pass. See [Tests](#tests).
+
+### Shortcuts
+
+| | |
+|---|---|
+| `Ctrl+Shift+S` | Select a region |
+| `Ctrl+Shift+W` | Capture the window under the cursor |
+| `Ctrl+Shift+F` | Capture the current monitor |
+| `Ctrl+Shift+D` | Countdown, then select |
+
+While the overlay is open: drag to select, click to take the highlighted window,
+hold `Shift` to lock the selection square, `Enter` to accept, `Esc` or
+right-click to cancel.
 
 <br>
 

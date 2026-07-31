@@ -192,6 +192,39 @@ bool CaptureRect(const RECT& screenRect, Image& out) {
     return BlitFromScreen(screenRect, out);
 }
 
+bool CropImage(const Image& source, int x, int y, int width, int height,
+               Image& out) {
+    if (!source.Valid() || width <= 0 || height <= 0) {
+        return false;
+    }
+    if (x < 0 || y < 0 || x + width > source.Width() ||
+        y + height > source.Height()) {
+        return false;
+    }
+    // Kaynak ve hedef aynı nesne olamaz: aşağıdaki kopyalama sırasında hedefi
+    // yeniden tahsis etmek kaynağın piksellerini serbest bırakırdı.
+    if (&source == &out) {
+        return false;
+    }
+
+    if (!out.Create(width, height)) {
+        return false;
+    }
+
+    const auto* sourceBytes = static_cast<const uint8_t*>(source.Bits());
+    auto* destinationBytes = static_cast<uint8_t*>(out.Bits());
+    const size_t rowBytes = static_cast<size_t>(width) * 4;
+
+    for (int row = 0; row < height; ++row) {
+        const uint8_t* from = sourceBytes +
+                              static_cast<size_t>(y + row) * source.Stride() +
+                              static_cast<size_t>(x) * 4;
+        uint8_t* to = destinationBytes + static_cast<size_t>(row) * out.Stride();
+        ::memcpy(to, from, rowBytes);
+    }
+    return true;
+}
+
 bool CaptureWindow(HWND window, Image& out) {
     if (window == nullptr || !::IsWindow(window)) {
         return false;

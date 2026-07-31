@@ -1,0 +1,51 @@
+// app.rc — Kaynak betiği.
+//
+// Manifest RC üzerinden gömülür; CMakeLists linker'ın kendi manifestini
+// üretmesini /MANIFEST:NO ile engeller, yoksa ikisi çakışır.
+
+#include <windows.h>
+
+#include "resource.h"
+
+#pragma code_page(65001)
+
+// --- Manifest ----------------------------------------------------------------
+CREATEPROCESS_MANIFEST_RESOURCE_ID RT_MANIFEST "app.manifest"
+
+// --- Simgeler ----------------------------------------------------------------
+// IDI_APP İLK SIRADA OLMALI: Explorer, kabuk simgesi olarak kaynak sırasındaki
+// EN DÜŞÜK kimlikli simgeyi seçer. Tepsi simgeleri öne geçerse dosya
+// gezgininde uygulama plakasız bir glif olarak görünür.
+IDI_APP        ICON "icons\\app.ico"
+IDI_TRAY_DARK  ICON "icons\\tray_dark.ico"
+IDI_TRAY_LIGHT ICON "icons\\tray_light.ico"
+
+// --- Sürüm bilgisi -----------------------------------------------------------
+VS_VERSION_INFO VERSIONINFO
+    FILEVERSION    0,1,0,0
+    PRODUCTVERSION 0,1,0,0
+    FILEFLAGSMASK  VS_FFI_FILEFLAGSMASK
+    FILEFLAGS      0
+    FILEOS         VOS_NT_WINDOWS32
+    FILETYPE       VFT_APP
+    FILESUBTYPE    VFT2_UNKNOWN
+BEGIN
+    BLOCK "StringFileInfo"
+    BEGIN
+        BLOCK "040904B0"   // en-US, Unicode
+        BEGIN
+            VALUE "CompanyName",      "ShadesOfDeath"
+            VALUE "FileDescription",  "Crisp — screen capture"
+            VALUE "FileVersion",      "0.1.0.0"
+            VALUE "InternalName",     "Crisp"
+            VALUE "LegalCopyright",   "© 2026 ShadesOfDeath. MIT licensed."
+            VALUE "OriginalFilename", "Crisp.exe"
+            VALUE "ProductName",      "Crisp"
+            VALUE "ProductVersion",   "0.1.0.0"
+        END
+    END
+    BLOCK "VarFileInfo"
+    BEGIN
+        VALUE "Translation", 0x409, 1200
+    END
+END

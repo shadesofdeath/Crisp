@@ -187,19 +187,22 @@ if(CRISP_TESTS)
     add_test(NAME crisp_core_tests COMMAND crisp_tests)
 endif()
 
-# --- Simge üretimi -----------------------------------------------------------
-if(NOT EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/res/icons/app.ico")
-    message(STATUS "  Simgeler eksik — tools/make_icons.ps1 çalıştırılıyor...")
+# --- Simge doğrulaması -------------------------------------------------------
+# Simgeler ÜRETİLMEZ, doğrulanır. Elle tasarlanmış varlıklardır ve depoda
+# tutulurlar; bir üretici burada çalışsaydı her yapılandırmada onların üzerine
+# yazardı. Doğrulayıcı eksik kare ya da yanlış boyutu yapılandırma sırasında
+# yakalar — alternatifi, bulanık bir tepsi simgesini çalışırken fark etmektir.
+if(CRISP_APP)
     execute_process(
         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
-                -File "${CMAKE_CURRENT_SOURCE_DIR}/tools/make_icons.ps1"
+                -File "${CMAKE_CURRENT_SOURCE_DIR}/tools/check_icons.ps1"
         WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}"
         RESULT_VARIABLE CRISP_ICON_RESULT
         OUTPUT_VARIABLE CRISP_ICON_OUTPUT
         ERROR_VARIABLE CRISP_ICON_OUTPUT
     )
     if(NOT CRISP_ICON_RESULT EQUAL 0)
-        message(FATAL_ERROR "Simge üretimi başarısız:\n${CRISP_ICON_OUTPUT}")
+        message(FATAL_ERROR "Simge doğrulaması başarısız:\n${CRISP_ICON_OUTPUT}")
     endif()
 endif()
 

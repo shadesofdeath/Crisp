@@ -102,6 +102,63 @@ CRISP_TEST(Image, Tasima_sahipligi_devreder) {
     CHECK(!source.Valid());
 }
 
+CRISP_TEST(Crop, Dogru_bolgeyi_kopyalar) {
+    Image source;
+    CHECK(source.Create(10, 10));
+    // Her piksele koordinatını kodla: yanlış bölge kopyalanırsa hemen belli olur.
+    for (int y = 0; y < 10; ++y) {
+        for (int x = 0; x < 10; ++x) {
+            source.SetPixel(x, y, 0xFF000000u | (static_cast<uint32_t>(x) << 8) |
+                                      static_cast<uint32_t>(y));
+        }
+    }
+
+    Image cropped;
+    CHECK(CropImage(source, 3, 4, 5, 2, cropped));
+    CHECK_EQ(cropped.Width(), 5);
+    CHECK_EQ(cropped.Height(), 2);
+
+    // Kırpılanın (0,0)'ı kaynağın (3,4)'ü olmalı.
+    CHECK_EQ(cropped.Pixel(0, 0), 0xFF000000u | (3u << 8) | 4u);
+    CHECK_EQ(cropped.Pixel(4, 1), 0xFF000000u | (7u << 8) | 5u);
+}
+
+CRISP_TEST(Crop, Tam_kaynak_kopyalanabilir) {
+    Image source;
+    CHECK(source.Create(6, 6));
+    source.Fill(0xFF334455u);
+
+    Image cropped;
+    CHECK(CropImage(source, 0, 0, 6, 6, cropped));
+    CHECK_EQ(cropped.Width(), 6);
+    CHECK_EQ(cropped.Pixel(5, 5), 0xFF334455u);
+}
+
+CRISP_TEST(Crop, Sinir_disi_bolge_reddedilir) {
+    // Sessizce kırpmak, kullanıcının seçtiğinden FARKLI bir görüntü döndürmek
+    // olurdu; hata döndürmek tek doğru davranış.
+    Image source;
+    CHECK(source.Create(10, 10));
+
+    Image cropped;
+    CHECK(!CropImage(source, -1, 0, 5, 5, cropped));
+    CHECK(!CropImage(source, 0, -1, 5, 5, cropped));
+    CHECK(!CropImage(source, 6, 0, 5, 5, cropped));    // 6+5 > 10
+    CHECK(!CropImage(source, 0, 6, 5, 5, cropped));
+    CHECK(!CropImage(source, 0, 0, 0, 5, cropped));    // sıfır genişlik
+    CHECK(!CropImage(source, 0, 0, 5, 0, cropped));
+}
+
+CRISP_TEST(Crop, Gecersiz_kaynak_ve_kendine_kopyalama_reddedilir) {
+    const Image empty;
+    Image out;
+    CHECK(!CropImage(empty, 0, 0, 1, 1, out));
+
+    Image source;
+    CHECK(source.Create(4, 4));
+    CHECK(!CropImage(source, 0, 0, 2, 2, source));   // aynı nesne
+}
+
 CRISP_TEST(Capture, VirtualScreenRect_makul) {
     const RECT screen = VirtualScreenRect();
     CHECK(!geom::IsEmpty(screen));
