@@ -243,3 +243,50 @@ CRISP_TEST(OcrLayout, Satir_atlamasi_birden_fazla_satirda) {
     layout.words.push_back(OcrWord{L"uc", RECT{0, 60, 30, 80}, 2});
     CHECK_STR(AllText(layout), L"bir\r\niki\r\nuc");
 }
+
+// --- Motorun satır kimliği yanlış olduğunda ----------------------------------
+
+CRISP_TEST(OcrLayout, Ayni_satirdaki_parcalar_birlesir) {
+    // GERÇEK BİR HATADAN: Windows OCR tek bir kod satırını parçalara bölüp her
+    // birine ayrı satır kimliği veriyor ve üst kenarları birkaç piksel
+    // oynuyor. Kimliklere güvenmek, kopyalanan metni karıştırıyordu.
+    OcrLayout layout;
+    layout.words.push_back(OcrWord{L"wParam", RECT{300, 101, 380, 119}, 7});
+    layout.words.push_back(OcrWord{L"if", RECT{100, 100, 120, 118}, 3});
+    layout.words.push_back(OcrWord{L"(control", RECT{140, 102, 260, 120}, 5});
+
+    ocrsel::NormalizeReadingOrder(layout);
+
+    CHECK_EQ(layout.count(), 3);
+    CHECK_STR(layout.words[0].text, L"if");
+    CHECK_STR(layout.words[1].text, L"(control");
+    CHECK_STR(layout.words[2].text, L"wParam");
+    // Üçü de TEK satır sayılmalı; ayrı satırlar CRLF sokup metni bölerdi.
+    CHECK_EQ(layout.words[0].line, 0);
+    CHECK_EQ(layout.words[2].line, 0);
+    CHECK_EQ(ocrsel::LineCount(layout), 1);
+}
+
+CRISP_TEST(OcrLayout, Ayri_satirlar_birlestirilmez) {
+    OcrLayout layout;
+    layout.words.push_back(OcrWord{L"alt", RECT{100, 140, 160, 158}, 0});
+    layout.words.push_back(OcrWord{L"ust", RECT{100, 100, 160, 118}, 0});
+
+    ocrsel::NormalizeReadingOrder(layout);
+
+    CHECK_STR(layout.words[0].text, L"ust");
+    CHECK_STR(layout.words[1].text, L"alt");
+    CHECK_EQ(layout.words[0].line, 0);
+    CHECK_EQ(layout.words[1].line, 1);
+    CHECK_EQ(ocrsel::LineCount(layout), 2);
+}
+
+CRISP_TEST(OcrLayout, Parcali_satirin_metni_tek_satir_olur) {
+    OcrLayout layout;
+    layout.words.push_back(OcrWord{L"dunya", RECT{200, 101, 300, 119}, 9});
+    layout.words.push_back(OcrWord{L"merhaba", RECT{100, 100, 190, 118}, 4});
+
+    ocrsel::NormalizeReadingOrder(layout);
+    const std::wstring text = ocrsel::AllText(layout);
+    CHECK_STR(text, L"merhaba dunya");
+}

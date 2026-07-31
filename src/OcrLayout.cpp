@@ -30,55 +30,64 @@ void NormalizeReadingOrder(OcrLayout& layout) {
         return;
     }
 
-    // Satırları temsil eden anahtar: üst kenar, eşitlikte sol kenar. Motorun
-    // verdiği satır kimliği korunur ki aynı satırın kelimeleri birlikte kalsın.
-    struct LineKey {
-        int originalLine;
-        LONG top;
-        LONG left;
-    };
+    // MOTORUN SATIR KİMLİĞİ ATILIR ve satırlar DİKEY ÖRTÜŞMEDEN yeniden
+    // kurulur.
+    //
+    // Sebebi ölçüldü: motor tek bir kod satırını "if", "(control &&
+    // (wParam", "|| wParam" gibi parçalara bölüp her birine ayrı satır
+    // kimliği veriyor. Kimlikleri koruyup yalnızca üst kenara göre sıralamak,
+    // birkaç pikselle ayrılan bu parçaları rastgele bir sıraya sokuyordu ve
+    // kopyalanan metin "II wParam / (controL && (wParam / if" diye çıkıyordu.
+    // Ekranda aynı hizada duran her şey aynı satırdır; ölçüt bu olmalı.
+    std::vector<OcrWord> words = std::move(layout.words);
+    std::sort(words.begin(), words.end(),
+              [](const OcrWord& a, const OcrWord& b) {
+                  if (a.bounds.top != b.bounds.top) {
+                      return a.bounds.top < b.bounds.top;
+                  }
+                  return a.bounds.left < b.bounds.left;
+              });
 
-    std::vector<LineKey> keys;
-    for (const OcrWord& word : layout.words) {
-        auto it = keys.begin();
-        for (; it != keys.end(); ++it) {
-            if (it->originalLine == word.line) {
+    std::vector<OcrWord> ordered;
+    ordered.reserve(words.size());
+
+    size_t index = 0;
+    int line = 0;
+    while (index < words.size()) {
+        std::vector<OcrWord> row;
+        row.push_back(words[index]);
+
+        // Satırın dikey ORTA noktası ve yüksekliği, satıra katılan her
+        // kelimeyle güncellenir; yoksa eğik yazılmış ya da farklı punto bir
+        // kelime satırı kopartırdı.
+        LONG rowTop = words[index].bounds.top;
+        LONG rowBottom = words[index].bounds.bottom;
+        ++index;
+
+        while (index < words.size()) {
+            const RECT& next = words[index].bounds;
+            const LONG centre = (next.top + next.bottom) / 2;
+            // Kelimenin ortası satırın dikey aralığına düşüyorsa aynı satır.
+            // Üst üste binmeyen ama bir pikselle değen kutuları birleştirmemek
+            // için ölçüt "orta nokta içeride", "kenarlar değiyor" değil.
+            if (centre < rowTop || centre > rowBottom) {
                 break;
             }
+            rowTop = next.top < rowTop ? next.top : rowTop;
+            rowBottom = next.bottom > rowBottom ? next.bottom : rowBottom;
+            row.push_back(words[index]);
+            ++index;
         }
-        if (it == keys.end()) {
-            keys.push_back(LineKey{word.line, word.bounds.top, word.bounds.left});
-        } else {
-            it->top = word.bounds.top < it->top ? word.bounds.top : it->top;
-            it->left = word.bounds.left < it->left ? word.bounds.left : it->left;
-        }
-    }
 
-    std::sort(keys.begin(), keys.end(), [](const LineKey& a, const LineKey& b) {
-        if (a.top != b.top) {
-            return a.top < b.top;
-        }
-        return a.left < b.left;
-    });
-
-    // Eski satır kimliği → yeni sıra numarası.
-    std::vector<OcrWord> ordered;
-    ordered.reserve(layout.words.size());
-    for (size_t newLine = 0; newLine < keys.size(); ++newLine) {
-        std::vector<OcrWord> lineWords;
-        for (const OcrWord& word : layout.words) {
-            if (word.line == keys[newLine].originalLine) {
-                lineWords.push_back(word);
-            }
-        }
-        std::sort(lineWords.begin(), lineWords.end(),
+        std::sort(row.begin(), row.end(),
                   [](const OcrWord& a, const OcrWord& b) {
                       return a.bounds.left < b.bounds.left;
                   });
-        for (OcrWord& word : lineWords) {
-            word.line = static_cast<int>(newLine);
+        for (OcrWord& word : row) {
+            word.line = line;
             ordered.push_back(std::move(word));
         }
+        ++line;
     }
 
     layout.words = std::move(ordered);
