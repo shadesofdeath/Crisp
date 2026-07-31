@@ -35,10 +35,20 @@ using ABI::Windows::Graphics::Imaging::IBitmapDecoderStatics;
 using ABI::Windows::Graphics::Imaging::IBitmapFrameWithSoftwareBitmap;
 using ABI::Windows::Graphics::Imaging::ISoftwareBitmap;
 using ABI::Windows::Graphics::Imaging::SoftwareBitmap;
+using ABI::Windows::Foundation::Collections::IVectorView;
+using ABI::Windows::Foundation::Rect;
 using ABI::Windows::Media::Ocr::IOcrEngine;
 using ABI::Windows::Media::Ocr::IOcrEngineStatics;
+using ABI::Windows::Media::Ocr::IOcrLine;
 using ABI::Windows::Media::Ocr::IOcrResult;
+using ABI::Windows::Media::Ocr::IOcrWord;
+using ABI::Windows::Media::Ocr::OcrLine;
 using ABI::Windows::Media::Ocr::OcrResult;
+
+// WinRT'nin OcrWord'ü İÇERİ ALINMAZ: bu dosya `namespace crisp` içinde ve
+// projenin kendi `crisp::OcrWord` yapısı var. İkisi birden görünür olsaydı
+// her kullanım belirsiz kalırdı. WinRT tarafı takma adla anılır.
+namespace WinOcr = ABI::Windows::Media::Ocr;
 using ABI::Windows::Storage::Streams::IDataWriter;
 using ABI::Windows::Storage::Streams::IDataWriterFactory;
 using ABI::Windows::Storage::Streams::IOutputStream;
@@ -258,15 +268,9 @@ template <typename TFactory>
     return out ? S_OK : E_NOTIMPL;
 }
 
-}  // namespace
-
-bool IsOcrAvailable() {
-    ComPtr<IOcrEngine> engine;
-    return SUCCEEDED(CreateEngine(engine));
-}
-
-bool RecognizeText(const Image& image, std::wstring& text) {
-    text.clear();
+// Görüntüyü motora verip sonucu döndürür. İki genel fonksiyon da bunu
+// kullanır: tanıma boru hattı tek yerde durur, iki kopya arasında ayrışamaz.
+[[nodiscard]] bool RunRecognition(const Image& image, ComPtr<IOcrResult>& out) {
     if (!image.Valid()) {
         return false;
     }
@@ -308,20 +312,136 @@ bool RecognizeText(const Image& image, std::wstring& text) {
         return false;
     }
 
+    hr = operation->GetResults(out.GetAddressOf());
+    return SUCCEEDED(hr) && out;
+}
+
+}  // namespace
+
+bool IsOcrAvailable() {
+    ComPtr<IOcrEngine> engine;
+    return SUCCEEDED(CreateEngine(engine));
+}
+
+bool RecognizeText(const Image& image, std::wstring& text) {
+    text.clear();
+
     ComPtr<IOcrResult> result;
-    hr = operation->GetResults(result.GetAddressOf());
-    if (FAILED(hr) || !result) {
+    if (!RunRecognition(image, result)) {
+        return false;
+    }
+    HRESULT hr = S_OK;
+
+    // METİN, SATIRLARDAN KURULUR — OcrResult.Text'ten DEĞİL.
+    //
+    // Text özelliği tanınan bütün kelimeleri tek bir boşlukla birleştirir ve
+    // satır yapısını tamamen kaybeder. Dört satırlık bir fatura tek bir şeride
+    // dönüşür, üstelik sütunlar iç içe geçtiği için okunamaz hâle gelir. Bir
+    // ekran alıntısı aracında yakalanan şey çoğu zaman fatura, kod ya da tablo
+    // olur; satır sonları içeriğin yarısıdır.
+    ComPtr<IVectorView<OcrLine*>> lines;
+    hr = result->get_Lines(lines.GetAddressOf());
+    if (FAILED(hr) || !lines) {
         return false;
     }
 
-    HStringOwner recognized;
-    hr = result->get_Text(recognized.put());
+    unsigned lineCount = 0;
+    hr = lines->get_Size(&lineCount);
     if (FAILED(hr)) {
         return false;
     }
 
+    for (unsigned i = 0; i < lineCount; ++i) {
+        ComPtr<IOcrLine> line;
+        if (FAILED(lines->GetAt(i, line.GetAddressOf())) || !line) {
+            continue;
+        }
+        HStringOwner lineText;
+        if (FAILED(line->get_Text(lineText.put()))) {
+            continue;
+        }
+        if (!text.empty()) {
+            // CRLF: metin panoya gidiyor ve Windows uygulamalarının çoğu düz
+            // LF'yi tek satır sayar.
+            text += L"\r\n";
+        }
+        text += lineText.str();
+    }
+
     // Metin bulunamaması BAŞARIDIR: boş bir bölge seçmek hata değil.
-    text = recognized.str();
+    return true;
+}
+
+bool RecognizeLayout(const Image& image, OcrLayout& layout) {
+    layout.words.clear();
+
+    ComPtr<IOcrResult> result;
+    if (!RunRecognition(image, result)) {
+        return false;
+    }
+
+    ComPtr<IVectorView<OcrLine*>> lines;
+    if (FAILED(result->get_Lines(lines.GetAddressOf())) || !lines) {
+        return false;
+    }
+
+    unsigned lineCount = 0;
+    if (FAILED(lines->get_Size(&lineCount))) {
+        return false;
+    }
+
+    for (unsigned lineIndex = 0; lineIndex < lineCount; ++lineIndex) {
+        ComPtr<IOcrLine> line;
+        if (FAILED(lines->GetAt(lineIndex, line.GetAddressOf())) || !line) {
+            continue;
+        }
+
+        ComPtr<IVectorView<WinOcr::OcrWord*>> words;
+        if (FAILED(line->get_Words(words.GetAddressOf())) || !words) {
+            continue;
+        }
+
+        unsigned wordCount = 0;
+        if (FAILED(words->get_Size(&wordCount))) {
+            continue;
+        }
+
+        for (unsigned wordIndex = 0; wordIndex < wordCount; ++wordIndex) {
+            ComPtr<IOcrWord> word;
+            if (FAILED(words->GetAt(wordIndex, word.GetAddressOf())) || !word) {
+                continue;
+            }
+
+            HStringOwner wordText;
+            if (FAILED(word->get_Text(wordText.put()))) {
+                continue;
+            }
+
+            Rect box{};
+            if (FAILED(word->get_BoundingRect(&box))) {
+                continue;
+            }
+
+            OcrWord entry;
+            entry.text = wordText.str();
+            entry.line = static_cast<int>(lineIndex);
+            // Rect KAYAR NOKTA ve genişlik/yükseklik taşır; RECT tam sayı ve
+            // sağ/alt kenar taşır. Sol/üst aşağı, sağ/alt yukarı yuvarlanır ki
+            // kutu tanınan pikselleri asla KIRPMASIN — bir piksel eksik kutu,
+            // kelimenin kenarında yapılan tıklamayı ıskalatır.
+            entry.bounds.left = static_cast<LONG>(box.X);
+            entry.bounds.top = static_cast<LONG>(box.Y);
+            entry.bounds.right =
+                static_cast<LONG>(box.X + box.Width + 0.999f);
+            entry.bounds.bottom =
+                static_cast<LONG>(box.Y + box.Height + 0.999f);
+
+            if (!entry.text.empty()) {
+                layout.words.push_back(std::move(entry));
+            }
+        }
+    }
+
     return true;
 }
 

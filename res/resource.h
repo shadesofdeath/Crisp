@@ -14,9 +14,10 @@
 #define IDM_CAPTURE_WINDOW      202
 #define IDM_CAPTURE_FULLSCREEN  203
 #define IDM_CAPTURE_DELAYED     204
-#define IDM_CAPTURE_OCR         205
-#define IDM_PICK_COLOR          206
-#define IDM_OPEN_FOLDER         207
-#define IDM_SETTINGS            208
-#define IDM_ABOUT               209
-#define IDM_EXIT                210
+#define IDM_SELECT_TEXT         205
+#define IDM_CAPTURE_OCR         206
+#define IDM_PICK_COLOR          207
+#define IDM_OPEN_FOLDER         208
+#define IDM_SETTINGS            209
+#define IDM_ABOUT               210
+#define IDM_EXIT                211

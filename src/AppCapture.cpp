@@ -115,6 +115,58 @@ void App::CaptureCurrentMonitor() {
     DeliverCapture(capture, POINT{monitor.left, monitor.top});
 }
 
+void App::SelectTextOnScreen() {
+    if (m_busy) {
+        return;
+    }
+    m_busy = true;
+    ::Sleep(kMenuSettleMs);
+
+    // Ekran ÖNCE dondurulur ve OCR kaplama açılmadan çalıştırılır. Tanıma tam
+    // ekranda saniye sürebiliyor; pencereyi açıp sonra taramak, kullanıcının
+    // donmuş bir arayüzle karşılaşması demek olurdu.
+    Image frozen;
+    if (!CaptureRect(VirtualScreenRect(), frozen)) {
+        m_busy = false;
+        return;
+    }
+
+    OcrLayout layout;
+    const HCURSOR previousCursor = ::SetCursor(::LoadCursorW(nullptr, IDC_WAIT));
+    const bool recognized = RecognizeLayout(frozen, layout);
+    ::SetCursor(previousCursor);
+
+    if (!recognized) {
+        m_busy = false;
+        ::MessageBoxW(nullptr,
+                      L"Metin tanıma çalıştırılamadı.\n\n"
+                      L"Windows'un OCR motoru, dil profilinde OCR destekli bir "
+                      L"dil bulunmadığında kullanılamaz. Ayarlar > Saat ve dil > "
+                      L"Dil ve bölge üzerinden bir dil paketi ekleyin.",
+                      L"Crisp — Metin seç", MB_OK | MB_ICONWARNING);
+        return;
+    }
+
+    if (layout.empty()) {
+        m_busy = false;
+        ::MessageBoxW(nullptr, L"Ekranda tanınabilir metin bulunamadı.",
+                      L"Crisp — Metin seç", MB_OK | MB_ICONINFORMATION);
+        return;
+    }
+
+    const OverlayResult result =
+        RunSelectionOverlay(m_instance, m_settings, OverlayMode::TextSelect,
+                            false, frozen, &layout);
+    m_busy = false;
+
+    if (!result.accepted || result.pickedText.empty()) {
+        return;
+    }
+    if (!CopyTextToClipboard(result.pickedText.c_str(), m_window)) {
+        LogV(L"Seçilen metin panoya kopyalanamadı");
+    }
+}
+
 void App::CaptureTextToClipboard() {
     if (m_busy) {
         return;

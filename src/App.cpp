@@ -173,6 +173,9 @@ void App::OnCommand(int command) {
         case IDM_CAPTURE_DELAYED:
             StartCapture(CaptureMode::Delayed);
             break;
+        case IDM_SELECT_TEXT:
+            SelectTextOnScreen();
+            break;
         case IDM_CAPTURE_OCR:
             CaptureTextToClipboard();
             break;

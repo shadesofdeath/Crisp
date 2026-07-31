@@ -10,6 +10,7 @@
 #pragma once
 
 #include "Capture.h"
+#include "OcrLayout.h"
 
 #include <string>
 
@@ -23,5 +24,10 @@ namespace crisp {
 // Görüntüdeki metni çıkarır. Metin bulunamazsa true döner ve `text` boş kalır;
 // yalnızca motor çalıştırılamadığında false döner.
 [[nodiscard]] bool RecognizeText(const Image& image, std::wstring& text);
+
+// Kelimeleri KUTULARIYLA birlikte çıkarır — etkileşimli metin seçimi için.
+// Koordinatlar `image`'ın piksellerine göredir; çağıran ekran koordinatına
+// çevirmek isterse yakalamanın kökenini ekler.
+[[nodiscard]] bool RecognizeLayout(const Image& image, OcrLayout& layout);
 
 }  // namespace crisp

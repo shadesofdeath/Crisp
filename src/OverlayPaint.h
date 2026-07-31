@@ -11,6 +11,7 @@
 #pragma once
 
 #include "Capture.h"
+#include "OcrLayout.h"
 
 #include <windows.h>
 
@@ -26,6 +27,14 @@ struct OverlayVisual {
     bool showMagnifier = true;
     bool showHint = true;
     bool colorPick = false;   // ipucu metnini ve seçim çizimini değiştirir
+
+    // --- Metin seçme kipi ----------------------------------------------------
+    bool textSelect = false;
+    const OcrLayout* layout = nullptr;   // sahibi kaplama durumudur
+    int hoverWord = -1;
+    int selectionFirst = -1;   // -1: seçim yok
+    int selectionLast = -1;
+
     unsigned dpi = 96;
 };
 

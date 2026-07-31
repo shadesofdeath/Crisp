@@ -17,7 +17,7 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Statik CRT — runtime kurulumu gerektirmeyen tek dosya .exe.
+# Statik CRT �?" runtime kurulumu gerektirmeyen tek dosya .exe.
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -25,20 +25,20 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 option(CRISP_PACKAGED "MSIX paketli derleme" OFF)
-option(CRISP_TESTS    "Test koşucusunu derle"  ON)
+option(CRISP_TESTS    "Test ko�Yucusunu derle"  ON)
 
-# Çekirdeği ve testleri, arayüz katmanı olmadan derleyebilmek için. Geliştirme
-# sırasında çekirdeği tek başına yeşile boyamayı, CI'da ise pencere açmayan bir
+# �?ekirde�Yi ve testleri, arayüz katmanı olmadan derleyebilmek için. Geli�Ytirme
+# sırasında çekirde�Yi tek ba�Yına ye�Yile boyamayı, CI'da ise pencere açmayan bir
 # derleme yapmayı mümkün kılar.
 option(CRISP_APP      "Uygulama hedefini derle" ON)
 
 # ---------------------------------------------------------------------------
-# crisp_core — kullanıcı arayüzü OLMAYAN her şey
+# crisp_core �?" kullanıcı arayüzü OLMAYAN her �Yey
 # ---------------------------------------------------------------------------
-# AYRIM NEDENİ: bu hedefteki hiçbir fonksiyon pencere oluşturmaz ve kullanıcı
-# etkileşimi beklemez, bu yüzden hepsi bir konsol test koşucusundan doğrudan
-# çağrılabilir. Yakalama, kodlama, pano ve geometri buradadır; yalnızca
-# etkileşimli katman (kaplama, tepsi, uygulama döngüsü) dışarıda kalır.
+# AYRIM NEDENİ: bu hedefteki hiçbir fonksiyon pencere olu�Yturmaz ve kullanıcı
+# etkile�Yimi beklemez, bu yüzden hepsi bir konsol test ko�Yucusundan do�Yrudan
+# ça�Yrılabilir. Yakalama, kodlama, pano ve geometri buradadır; yalnızca
+# etkile�Yimli katman (kaplama, tepsi, uygulama döngüsü) dı�Yarıda kalır.
 set(CRISP_CORE_SOURCES
     src/Util.cpp
     src/Geometry.cpp
@@ -47,6 +47,7 @@ set(CRISP_CORE_SOURCES
     src/ImageCodec.cpp
     src/ClipboardImage.cpp
     src/Settings.cpp
+    src/OcrLayout.cpp
 )
 
 set(CRISP_CORE_HEADERS
@@ -57,6 +58,7 @@ set(CRISP_CORE_HEADERS
     src/ImageCodec.h
     src/ClipboardImage.h
     src/Settings.h
+    src/OcrLayout.h
 )
 
 add_library(crisp_core STATIC ${CRISP_CORE_SOURCES} ${CRISP_CORE_HEADERS})
@@ -95,8 +97,8 @@ target_link_libraries(crisp_core PUBLIC
     shell32
     advapi32
     shcore          # per-monitor DPI
-    dwmapi          # DwmGetWindowAttribute — pencerenin gerçek çerçeve sınırı
-    windowscodecs   # WIC — PNG kodlama/çözme
+    dwmapi          # DwmGetWindowAttribute �?" pencerenin gerçek çerçeve sınırı
+    windowscodecs   # WIC �?" PNG kodlama/çözme
     ole32           # CoCreateInstance
     shlwapi
 )
@@ -140,14 +142,14 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES
     ${CRISP_CORE_SOURCES} ${CRISP_CORE_HEADERS}
     ${CRISP_APP_SOURCES}  ${CRISP_APP_HEADERS})
 
-# runtimeobject : WinRT etkinleştirme (Windows.Media.Ocr), ham ABI ile —
-#                 C++/WinRT bağımlılığı YOK, yalnızca RoGetActivationFactory.
-# comdlg32      : iğne penceresindeki "Farklı kaydet" iletişim kutusu.
-target_link_libraries(crisp PRIVATE crisp_core comctl32 runtimeobject comdlg32)
+# runtimeobject : WinRT etkinle�Ytirme (Windows.Media.Ocr), ham ABI ile �?"
+#                 C++/WinRT ba�Yımlılı�Yı YOK, yalnızca RoGetActivationFactory.
+# comdlg32      : i�Yne penceresindeki "Farklı kaydet" ileti�Yim kutusu.
+target_link_libraries(crisp PRIVATE crisp_core comctl32 runtimeobject comdlg32 msimg32)
 
 target_link_options(crisp PRIVATE
-    # Manifest RC üzerinden gömülür (res/app.rc → RT_MANIFEST); linker'ın kendi
-    # manifestini üretmesi engellenir, yoksa çakışır.
+    # Manifest RC üzerinden gömülür (res/app.rc �?' RT_MANIFEST); linker'ın kendi
+    # manifestini üretmesi engellenir, yoksa çakı�Yır.
     /MANIFEST:NO
     /SUBSYSTEM:WINDOWS
     $<$<CONFIG:Release,MinSizeRel,RelWithDebInfo>:/LTCG>
@@ -161,9 +163,9 @@ set_target_properties(crisp PROPERTIES
     VS_DPI_AWARE "PerMonitor"
 )
 
-# app.rc simgeleri gömer ama CMake'in RC bağımlılık taraması onları görmez:
-# simge değişince ninja "no work to do" der ve ESKİ simge exe'de kalır. Hata
-# sessizdir — derleme başarılı görünür, yalnızca ürün yanlıştır.
+# app.rc simgeleri gömer ama CMake'in RC ba�Yımlılık taraması onları görmez:
+# simge de�Yi�Yince ninja "no work to do" der ve ESKİ simge exe'de kalır. Hata
+# sessizdir �?" derleme ba�Yarılı görünür, yalnızca ürün yanlı�Ytır.
 set_property(SOURCE res/app.rc APPEND PROPERTY OBJECT_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/res/icons/app.ico"
     "${CMAKE_CURRENT_SOURCE_DIR}/res/icons/tray_dark.ico"
@@ -173,7 +175,7 @@ set_property(SOURCE res/app.rc APPEND PROPERTY OBJECT_DEPENDS
 endif()  # CRISP_APP
 
 # ---------------------------------------------------------------------------
-# crisp_tests.exe — konsol test koşucusu
+# crisp_tests.exe �?" konsol test ko�Yucusu
 # ---------------------------------------------------------------------------
 if(CRISP_TESTS)
     add_executable(crisp_tests
@@ -185,6 +187,7 @@ if(CRISP_TESTS)
         tests/TestClipboard.cpp
         tests/TestSettings.cpp
         tests/TestWindowPick.cpp
+        tests/TestOcrLayout.cpp
     )
     target_link_libraries(crisp_tests PRIVATE crisp_core)
     target_include_directories(crisp_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
@@ -194,11 +197,11 @@ if(CRISP_TESTS)
     add_test(NAME crisp_core_tests COMMAND crisp_tests)
 endif()
 
-# --- Simge doğrulaması -------------------------------------------------------
-# Simgeler ÜRETİLMEZ, doğrulanır. Elle tasarlanmış varlıklardır ve depoda
-# tutulurlar; bir üretici burada çalışsaydı her yapılandırmada onların üzerine
-# yazardı. Doğrulayıcı eksik kare ya da yanlış boyutu yapılandırma sırasında
-# yakalar — alternatifi, bulanık bir tepsi simgesini çalışırken fark etmektir.
+# --- Simge do�Yrulaması -------------------------------------------------------
+# Simgeler �oRETİLMEZ, do�Yrulanır. Elle tasarlanmı�Y varlıklardır ve depoda
+# tutulurlar; bir üretici burada çalı�Ysaydı her yapılandırmada onların üzerine
+# yazardı. Do�Yrulayıcı eksik kare ya da yanlı�Y boyutu yapılandırma sırasında
+# yakalar �?" alternatifi, bulanık bir tepsi simgesini çalı�Yırken fark etmektir.
 if(CRISP_APP)
     execute_process(
         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
@@ -209,7 +212,7 @@ if(CRISP_APP)
         ERROR_VARIABLE CRISP_ICON_OUTPUT
     )
     if(NOT CRISP_ICON_RESULT EQUAL 0)
-        message(FATAL_ERROR "Simge doğrulaması başarısız:\n${CRISP_ICON_OUTPUT}")
+        message(FATAL_ERROR "Simge do�Yrulaması ba�Yarısız:\n${CRISP_ICON_OUTPUT}")
     endif()
 endif()
 

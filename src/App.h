@@ -51,6 +51,8 @@ private:
 
     // Bölge seçtirip içindeki metni panoya kopyalar.
     void CaptureTextToClipboard();
+    // Ekranı tarayıp kelimeleri kutular; kullanıcı metin seçer gibi seçer.
+    void SelectTextOnScreen();
     // Ekrandan bir pikselin rengini seçtirip panoya kopyalar.
     void PickColorToClipboard();
 

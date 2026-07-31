@@ -46,6 +46,62 @@ void FillRectColor(HDC dc, const RECT& r, COLORREF color) {
     ::DeleteObject(brush);
 }
 
+// Yarı saydam dolgu. GDI'nin FillRect'i alfa bilmez; AlphaBlend bir KAYNAK
+// bitmap ister, bu yüzden tek pikselli bir DIB üretilip hedefe gerilir.
+// Bitmap statiktir: her kelime kutusu için yeniden tahsis etmek, ekran dolusu
+// metinde yüzlerce gereksiz GDI nesnesi demek olurdu.
+void FillRectAlpha(HDC dc, const RECT& r, COLORREF color, BYTE alpha) {
+    if (geom::IsEmpty(r)) {
+        return;
+    }
+
+    static HDC sourceDc = nullptr;
+    static HBITMAP sourceBitmap = nullptr;
+    static void* sourceBits = nullptr;
+
+    if (sourceDc == nullptr) {
+        BITMAPINFO info{};
+        info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
+        info.bmiHeader.biWidth = 1;
+        info.bmiHeader.biHeight = -1;
+        info.bmiHeader.biPlanes = 1;
+        info.bmiHeader.biBitCount = 32;
+        info.bmiHeader.biCompression = BI_RGB;
+
+        sourceDc = ::CreateCompatibleDC(dc);
+        if (sourceDc == nullptr) {
+            return;
+        }
+        sourceBitmap = ::CreateDIBSection(nullptr, &info, DIB_RGB_COLORS,
+                                          &sourceBits, nullptr, 0);
+        if (sourceBitmap == nullptr) {
+            ::DeleteDC(sourceDc);
+            sourceDc = nullptr;
+            return;
+        }
+        ::SelectObject(sourceDc, sourceBitmap);
+    }
+    if (sourceBits == nullptr) {
+        return;
+    }
+
+    // AlphaBlend ÖNCEDEN ÇARPILMIŞ alfa bekler: renk bileşenleri alfaya göre
+    // ölçeklenmezse karışım açık renklerde beyaza doğru taşar.
+    const uint32_t r8 = (GetRValue(color) * alpha) / 255u;
+    const uint32_t g8 = (GetGValue(color) * alpha) / 255u;
+    const uint32_t b8 = (GetBValue(color) * alpha) / 255u;
+    *static_cast<uint32_t*>(sourceBits) =
+        (static_cast<uint32_t>(alpha) << 24) | (r8 << 16) | (g8 << 8) | b8;
+
+    BLENDFUNCTION blend{};
+    blend.BlendOp = AC_SRC_OVER;
+    blend.SourceConstantAlpha = 255;
+    blend.AlphaFormat = AC_SRC_ALPHA;
+
+    ::AlphaBlend(dc, r.left, r.top, static_cast<int>(geom::Width(r)),
+                 static_cast<int>(geom::Height(r)), sourceDc, 0, 0, 1, 1, blend);
+}
+
 // İçi boş dikdörtgen çerçeve. FrameRect fırça boyutunu kullanmadığı için
 // kalınlık dört ayrı FillRect ile verilir.
 void DrawFrame(HDC dc, const RECT& r, LONG thickness, COLORREF color) {
@@ -196,10 +252,56 @@ void DrawMagnifier(HDC dc, const OverlayVisual& visual, HDC frozenDc,
     DrawFrame(dc, swatch, 1, kPanelBorder);
 }
 
+// Tanınan kelimeleri kutular, seçili olanları vurgular.
+//
+// KUTULAR KIRPILMADAN ÇİZİLİR: kelime kutusu bir piksel eksik olsa kullanıcının
+// kenara yaptığı tıklama ıskalar. Ocr.cpp kutuları yukarı yuvarlayarak üretir,
+// burada da olduğu gibi kullanılır.
+void DrawTextLayer(HDC dc, const OverlayVisual& visual) {
+    if (visual.layout == nullptr || visual.layout->empty()) {
+        return;
+    }
+
+    const LONG pad = Scale(2, visual.dpi);
+    const int count = visual.layout->count();
+
+    for (int i = 0; i < count; ++i) {
+        const OcrWord& word = visual.layout->words[static_cast<size_t>(i)];
+        // Kelime kutuları GÖRÜNTÜ koordinatında; istemci koordinatı da
+        // görüntünün sol-üstünden başladığı için dönüşüm gerekmez.
+        RECT box = word.bounds;
+        box.left -= pad;
+        box.top -= pad;
+        box.right += pad;
+        box.bottom += pad;
+
+        const bool selected = visual.selectionFirst >= 0 &&
+                              i >= visual.selectionFirst &&
+                              i <= visual.selectionLast;
+
+        if (selected) {
+            // Metin seçimi görünümü: dolgu, altındaki yazı okunur kalacak
+            // kadar saydam.
+            FillRectAlpha(dc, box, kAccent, 110);
+        } else if (i == visual.hoverWord) {
+            FillRectAlpha(dc, box, kAccent, 55);
+        } else {
+            // Tanınan ama seçilmemiş kelimeler: yalnızca ince bir alt çizgi.
+            // Her kelimeyi kutulamak ekranı kafes gibi gösterirdi.
+            const RECT underline{box.left, box.bottom - Scale(1, visual.dpi) - 1,
+                                 box.right, box.bottom - 1};
+            FillRectAlpha(dc, underline, kAccent, 90);
+        }
+    }
+}
+
 void DrawHint(HDC dc, const OverlayVisual& visual, HFONT font) {
     const RECT monitor = visual.screen;
     const wchar_t* text =
-        visual.colorPick
+        visual.textSelect
+            ? L"Metnin üzerinde sürükle: seç      Ctrl+A: tümü      "
+              L"Enter / Ctrl+C: kopyala      Esc: iptal"
+        : visual.colorPick
             ? L"Tıkla: rengi kopyala      Esc / sağ tık: iptal"
             : L"Sürükle: alan seç      Tıkla: pencere yakala      "
               L"Shift: kare      Esc / sağ tık: iptal";
@@ -263,11 +365,26 @@ void PaintOverlay(HDC target, const OverlayVisual& visual, HDC frozenDc,
     const LONG width = geom::Width(visual.screen);
     const LONG height = geom::Height(visual.screen);
 
-    // 1. Karartılmış masaüstü, her yere.
-    ::BitBlt(target, 0, 0, width, height, dimmedDc, 0, 0, SRCCOPY);
-
     const HFONT font = CreateUiFont(visual.dpi, 9, false);
     const HFONT fontBold = CreateUiFont(visual.dpi, 10, true);
+
+    // Metin seçmede masaüstü KARARTILMAZ: kullanıcı okuyacağı metni seçiyor,
+    // %40'a düşürülmüş bir ekranda hangi kelimeyi aldığını göremez. Diğer
+    // kiplerde karartma, seçimin nerede bittiğini gösteren şeyin ta kendisi.
+    if (visual.textSelect) {
+        ::BitBlt(target, 0, 0, width, height, frozenDc, 0, 0, SRCCOPY);
+        DrawTextLayer(target, visual);
+
+        if (visual.showHint) {
+            DrawHint(target, visual, font);
+        }
+        ::DeleteObject(font);
+        ::DeleteObject(fontBold);
+        return;
+    }
+
+    // 1. Karartılmış masaüstü, her yere.
+    ::BitBlt(target, 0, 0, width, height, dimmedDc, 0, 0, SRCCOPY);
 
     // 2. Sürükleme başlamadıysa imlecin altındaki pencereyi vurgula.
     if (!visual.dragging && !geom::IsEmpty(visual.hover)) {

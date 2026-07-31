@@ -11,7 +11,10 @@
 #pragma once
 
 #include "Capture.h"
+#include "OcrLayout.h"
 #include "Settings.h"
+
+#include <string>
 
 #include <windows.h>
 
@@ -25,12 +28,16 @@ enum class OverlayMode {
     // ayrı bir kaplama yazmak, büyüteci ve piksel okumayı ikinci kez
     // uygulamak olurdu.
     ColorPick,
+    // Ekrandaki metin taranır, kelimeler kutulanır ve kullanıcı metin seçer
+    // gibi sürükleyerek istediği kısmı kopyalar.
+    TextSelect,
 };
 
 struct OverlayResult {
     bool accepted = false;
-    RECT selection{};        // Region kipinde; ekran koordinatı
+    RECT selection{};           // Region kipinde; ekran koordinatı
     uint32_t pickedColor = 0;   // ColorPick kipinde; 0xAARRGGBB
+    std::wstring pickedText;    // TextSelect kipinde
 };
 
 // Seçim arayüzünü çalıştırır ve KULLANICI KARAR VERENE KADAR DÖNMEZ; kendi
@@ -38,10 +45,14 @@ struct OverlayResult {
 // görüntüsüdür ve seçim ondan kırpılabilir.
 //
 // preferWindowPick: Region kipinde pencere vurgulamasını ayardan bağımsız açar.
+// layout: TextSelect kipinde ZORUNLU — çağıran OCR'ı önceden çalıştırıp
+//         kelime kutularını verir. Kaplamanın kendisi OCR çağırmaz; tanıma
+//         saniyeler sürebilir ve pencere açıldıktan sonra donmuş görünürdü.
 [[nodiscard]] OverlayResult RunSelectionOverlay(HINSTANCE instance,
                                                 const Settings& settings,
                                                 OverlayMode mode,
                                                 bool preferWindowPick,
-                                                Image& frozen);
+                                                Image& frozen,
+                                                const OcrLayout* layout = nullptr);
 
 }  // namespace crisp

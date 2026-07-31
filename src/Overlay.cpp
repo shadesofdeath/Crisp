@@ -32,6 +32,11 @@ struct OverlayState {
     bool decided = false;
     bool allowHover = true;
     OverlayMode mode = OverlayMode::Region;
+
+    // TextSelect kipi
+    OcrLayout layout;
+    int selectionAnchor = -1;   // sürüklemenin başladığı kelime
+
     OverlayResult result{};
 };
 
@@ -76,6 +81,41 @@ void Finish(HWND window, OverlayState& state, bool accepted, const RECT& selecti
     state.result.accepted = accepted;
     state.result.selection = selection;
     ::DestroyWindow(window);
+}
+
+// Ekran koordinatını dondurulmuş görüntünün koordinatına çevirir; kelime
+// kutuları görüntü koordinatındadır.
+[[nodiscard]] POINT ToImage(POINT screenPoint, const RECT& screen) noexcept {
+    return POINT{screenPoint.x - screen.left, screenPoint.y - screen.top};
+}
+
+// TextSelect: sürükleme boyunca seçili kelime aralığını günceller.
+void UpdateTextSelection(OverlayState& state, POINT cursor) {
+    if (state.selectionAnchor < 0) {
+        return;
+    }
+    const int current = ocrsel::NearestWord(
+        state.layout, ToImage(cursor, state.visual.screen));
+    if (current < 0) {
+        return;
+    }
+    ocrsel::NormalizeRange(state.selectionAnchor, current,
+                           state.visual.selectionFirst,
+                           state.visual.selectionLast);
+}
+
+void CommitTextSelection(HWND window, OverlayState& state) {
+    state.dragging = false;
+    state.visual.dragging = false;
+    ::ReleaseCapture();
+
+    if (state.visual.selectionFirst < 0) {
+        return;   // hiçbir şey seçilmedi; kaplamada kal
+    }
+
+    state.result.pickedText = ocrsel::TextForRange(
+        state.layout, state.visual.selectionFirst, state.visual.selectionLast);
+    Finish(window, state, !state.result.pickedText.empty(), RECT{});
 }
 
 // ColorPick kipinde tıklama: imlecin altındaki pikselin rengini alıp biter.
@@ -170,7 +210,13 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam,
             }
             const POINT cursor = CursorInScreen();
             state->visual.cursor = cursor;
-            if (state->dragging) {
+            if (state->mode == OverlayMode::TextSelect) {
+                state->visual.hoverWord = ocrsel::WordAt(
+                    state->layout, ToImage(cursor, state->visual.screen));
+                if (state->dragging) {
+                    UpdateTextSelection(*state, cursor);
+                }
+            } else if (state->dragging) {
                 UpdateSelection(*state, cursor);
             } else {
                 UpdateHover(*state, window, cursor);
@@ -185,6 +231,18 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam,
             }
             if (state->mode == OverlayMode::ColorPick) {
                 PickColor(window, *state);
+                return 0;
+            }
+            if (state->mode == OverlayMode::TextSelect) {
+                const POINT cursor = CursorInScreen();
+                state->selectionAnchor = ocrsel::NearestWord(
+                    state->layout, ToImage(cursor, state->visual.screen));
+                state->dragging = true;
+                state->visual.dragging = true;
+                state->visual.showHint = false;
+                UpdateTextSelection(*state, cursor);
+                ::SetCapture(window);
+                ::InvalidateRect(window, nullptr, FALSE);
                 return 0;
             }
             state->anchor = CursorInScreen();
@@ -202,7 +260,11 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam,
             if (state == nullptr || !state->dragging) {
                 break;
             }
-            CommitDrag(window, *state);
+            if (state->mode == OverlayMode::TextSelect) {
+                CommitTextSelection(window, *state);
+            } else {
+                CommitDrag(window, *state);
+            }
             return 0;
         }
 
@@ -222,6 +284,27 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam,
                 Finish(window, *state, false, RECT{});
                 return 0;
             }
+            if (state->mode == OverlayMode::TextSelect) {
+                const bool control = (::GetKeyState(VK_CONTROL) & 0x8000) != 0;
+                if (control && wParam == 'A' && !state->layout.empty()) {
+                    state->visual.selectionFirst = 0;
+                    state->visual.selectionLast = state->layout.count() - 1;
+                    state->visual.showHint = false;
+                    ::InvalidateRect(window, nullptr, FALSE);
+                    return 0;
+                }
+                if ((wParam == VK_RETURN || (control && wParam == 'C')) &&
+                    state->visual.selectionFirst >= 0) {
+                    state->result.pickedText = ocrsel::TextForRange(
+                        state->layout, state->visual.selectionFirst,
+                        state->visual.selectionLast);
+                    Finish(window, *state, !state->result.pickedText.empty(),
+                           RECT{});
+                    return 0;
+                }
+                break;
+            }
+
             if (wParam == VK_SHIFT && !state->shiftHeld) {
                 state->shiftHeld = true;
                 if (state->dragging) {
@@ -271,7 +354,12 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam,
             return 1;
 
         case WM_SETCURSOR:
-            ::SetCursor(::LoadCursorW(nullptr, IDC_CROSS));
+            // Metin seçmede I-kirişi: kullanıcıya bunun bir alan değil METİN
+            // seçimi olduğunu imleç söyler.
+            ::SetCursor(::LoadCursorW(
+                nullptr, (state != nullptr && state->mode == OverlayMode::TextSelect)
+                             ? IDC_IBEAM
+                             : IDC_CROSS));
             return TRUE;
 
         // Kaplama odağı kaybederse (Alt+Tab, Win tuşu) iptal edilir: görünmez
@@ -317,7 +405,7 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam,
 
 OverlayResult RunSelectionOverlay(HINSTANCE instance, const Settings& settings,
                                   OverlayMode mode, bool preferWindowPick,
-                                  Image& frozen) {
+                                  Image& frozen, const OcrLayout* layout) {
     OverlayResult result{};
 
     if (!EnsureWindowClass(instance)) {
@@ -336,11 +424,20 @@ OverlayResult RunSelectionOverlay(HINSTANCE instance, const Settings& settings,
     state.visual.screen = screen;
     state.visual.showHint = true;
     state.visual.colorPick = (mode == OverlayMode::ColorPick);
+    state.visual.textSelect = (mode == OverlayMode::TextSelect);
+
+    if (mode == OverlayMode::TextSelect && layout != nullptr) {
+        state.layout = *layout;
+        state.visual.layout = &state.layout;
+    }
 
     // Renk seçmenin tek yolu büyüteç: ayar kapalı olsa bile açılır, yoksa
     // kullanıcı hangi pikseli aldığını göremez.
+    // Metin seçmede ise büyüteç KAPALIDIR: kelime kutularının üstünü örter ve
+    // seçilen şey piksel değil metin olduğu için bir işe yaramaz.
     state.visual.showMagnifier =
-        settings.showMagnifier || mode == OverlayMode::ColorPick;
+        (mode != OverlayMode::TextSelect) &&
+        (settings.showMagnifier || mode == OverlayMode::ColorPick);
 
     // Pencere vurgulaması yalnızca bölge kipinde anlamlı.
     state.allowHover = (mode == OverlayMode::Region) &&
