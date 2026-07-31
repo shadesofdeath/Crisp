@@ -6,6 +6,7 @@
 #pragma once
 
 #include "Capture.h"
+#include "History.h"
 #include "Hotkeys.h"
 #include "Settings.h"
 #include "TrayIcon.h"
@@ -49,6 +50,10 @@ private:
     void DeliverCapture(const Image& image, POINT origin);
     void OpenSaveFolder();
 
+    // Geçmiş penceresini açar; kullanıcı bir kayıt seçerse düzenleyiciye taşır.
+    void ShowHistory();
+    void RememberInHistory(const Image& image);
+
     // Bölge seçtirip içindeki metni panoya kopyalar.
     void CaptureTextToClipboard();
     // Ekranı tarayıp kelimeleri kutular; kullanıcı metin seçer gibi seçer.
@@ -63,6 +68,7 @@ private:
     Settings m_settings;
     TrayIcon m_tray;
     Hotkeys m_hotkeys;
+    HistoryStore m_history;
 
     // Geri sayım sırasında yeniden tetiklenmeyi engeller; kaplama açıkken de
     // ikinci bir kaplama açılmamalı.

@@ -4,6 +4,7 @@
 #include "Util.h"
 
 #include <dwmapi.h>
+#include <uxtheme.h>   // SetWindowTheme — kaydırma çubuğunun görsel stil sınıfı
 
 namespace crisp {
 namespace theme {
@@ -232,6 +233,13 @@ void ApplyToWindow(HWND window) {
     if (FAILED(::DwmSetWindowAttribute(window, 20, &dark, sizeof(dark)))) {
         (void)::DwmSetWindowAttribute(window, 19, &dark, sizeof(dark));
     }
+
+    // KAYDIRMA ÇUBUĞU pencerenin İSTEMCİ DIŞI alanındadır ve onu Windows çizer;
+    // AllowDarkModeForWindow ona yetmez. Görsel stil sınıfını "DarkMode_Explorer"
+    // yapmak, kabuğun dosya gezgininde kullandığı koyu çubuğu getirir — aksi
+    // hâlde koyu bir pencerenin kenarında bembeyaz bir çubuk kalır.
+    (void)::SetWindowTheme(window, g_dark ? L"DarkMode_Explorer" : nullptr,
+                           nullptr);
 }
 
 ThemeMode ModeFromString(const wchar_t* value) noexcept {

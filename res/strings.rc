@@ -72,6 +72,15 @@ BEGIN
     IDS_LANG_AUTO           "Automatic"
     IDS_ABOUT_TAGLINE       "Screenshots that stay sharp."
     IDS_EDITOR_TITLE        "Crisp — annotate"
+    IDS_MENU_HISTORY        "History"
+    IDS_HISTORY_TITLE       "Capture history"
+    IDS_HISTORY_EMPTY       "No captures yet."
+    IDS_HISTORY_EDIT        "Edit"
+    IDS_HISTORY_COPY        "Copy"
+    IDS_HISTORY_REVEAL      "Show in folder"
+    IDS_HISTORY_DELETE      "Delete"
+    IDS_HISTORY_CLEAR       "Clear all"
+    IDS_HISTORY_CLEAR_ASK   "Delete every capture in the history? This cannot be undone."
 END
 
 // ---------------------------------------------------------------------------
@@ -120,6 +129,15 @@ BEGIN
     IDS_LANG_AUTO           "Otomatik"
     IDS_ABOUT_TAGLINE       "Keskin kalan ekran görüntüleri."
     IDS_EDITOR_TITLE        "Crisp — işaretle"
+    IDS_MENU_HISTORY        "Geçmiş"
+    IDS_HISTORY_TITLE       "Yakalama geçmişi"
+    IDS_HISTORY_EMPTY       "Henüz yakalama yok."
+    IDS_HISTORY_EDIT        "Düzenle"
+    IDS_HISTORY_COPY        "Kopyala"
+    IDS_HISTORY_REVEAL      "Klasörde göster"
+    IDS_HISTORY_DELETE      "Sil"
+    IDS_HISTORY_CLEAR       "Tümünü temizle"
+    IDS_HISTORY_CLEAR_ASK   "Geçmişteki tüm yakalamalar silinsin mi? Bu işlem geri alınamaz."
 END
 
 // ---------------------------------------------------------------------------
@@ -168,6 +186,15 @@ BEGIN
     IDS_LANG_AUTO           "Automatisch"
     IDS_ABOUT_TAGLINE       "Bildschirmfotos, die scharf bleiben."
     IDS_EDITOR_TITLE        "Crisp — kommentieren"
+    IDS_MENU_HISTORY        "Verlauf"
+    IDS_HISTORY_TITLE       "Aufnahmeverlauf"
+    IDS_HISTORY_EMPTY       "Noch keine Aufnahmen."
+    IDS_HISTORY_EDIT        "Bearbeiten"
+    IDS_HISTORY_COPY        "Kopieren"
+    IDS_HISTORY_REVEAL      "Im Ordner anzeigen"
+    IDS_HISTORY_DELETE      "Löschen"
+    IDS_HISTORY_CLEAR       "Alle löschen"
+    IDS_HISTORY_CLEAR_ASK   "Alle Aufnahmen im Verlauf löschen? Das lässt sich nicht rückgängig machen."
 END
 
 // ---------------------------------------------------------------------------
@@ -216,6 +243,15 @@ BEGIN
     IDS_LANG_AUTO           "Automatique"
     IDS_ABOUT_TAGLINE       "Des captures d'écran qui restent nettes."
     IDS_EDITOR_TITLE        "Crisp — annoter"
+    IDS_MENU_HISTORY        "Historique"
+    IDS_HISTORY_TITLE       "Historique des captures"
+    IDS_HISTORY_EMPTY       "Aucune capture pour l'instant."
+    IDS_HISTORY_EDIT        "Modifier"
+    IDS_HISTORY_COPY        "Copier"
+    IDS_HISTORY_REVEAL      "Afficher dans le dossier"
+    IDS_HISTORY_DELETE      "Supprimer"
+    IDS_HISTORY_CLEAR       "Tout effacer"
+    IDS_HISTORY_CLEAR_ASK   "Supprimer toutes les captures de l'historique ? Cette action est irréversible."
 END
 
 // ---------------------------------------------------------------------------
@@ -264,6 +300,15 @@ BEGIN
     IDS_LANG_AUTO           "Automático"
     IDS_ABOUT_TAGLINE       "Capturas que se mantienen nítidas."
     IDS_EDITOR_TITLE        "Crisp — anotar"
+    IDS_MENU_HISTORY        "Historial"
+    IDS_HISTORY_TITLE       "Historial de capturas"
+    IDS_HISTORY_EMPTY       "Aún no hay capturas."
+    IDS_HISTORY_EDIT        "Editar"
+    IDS_HISTORY_COPY        "Copiar"
+    IDS_HISTORY_REVEAL      "Mostrar en la carpeta"
+    IDS_HISTORY_DELETE      "Eliminar"
+    IDS_HISTORY_CLEAR       "Borrar todo"
+    IDS_HISTORY_CLEAR_ASK   "¿Eliminar todas las capturas del historial? Esta acción no se puede deshacer."
 END
 
 // ---------------------------------------------------------------------------
@@ -312,6 +357,15 @@ BEGIN
     IDS_LANG_AUTO           "Automatico"
     IDS_ABOUT_TAGLINE       "Schermate che restano nitide."
     IDS_EDITOR_TITLE        "Crisp — annota"
+    IDS_MENU_HISTORY        "Cronologia"
+    IDS_HISTORY_TITLE       "Cronologia acquisizioni"
+    IDS_HISTORY_EMPTY       "Nessuna acquisizione."
+    IDS_HISTORY_EDIT        "Modifica"
+    IDS_HISTORY_COPY        "Copia"
+    IDS_HISTORY_REVEAL      "Mostra nella cartella"
+    IDS_HISTORY_DELETE      "Elimina"
+    IDS_HISTORY_CLEAR       "Cancella tutto"
+    IDS_HISTORY_CLEAR_ASK   "Eliminare tutte le acquisizioni dalla cronologia? L'operazione è irreversibile."
 END
 
 // ---------------------------------------------------------------------------
@@ -360,6 +414,15 @@ BEGIN
     IDS_LANG_AUTO           "Automático"
     IDS_ABOUT_TAGLINE       "Capturas que continuam nítidas."
     IDS_EDITOR_TITLE        "Crisp — anotar"
+    IDS_MENU_HISTORY        "Histórico"
+    IDS_HISTORY_TITLE       "Histórico de capturas"
+    IDS_HISTORY_EMPTY       "Ainda não há capturas."
+    IDS_HISTORY_EDIT        "Editar"
+    IDS_HISTORY_COPY        "Copiar"
+    IDS_HISTORY_REVEAL      "Mostrar na pasta"
+    IDS_HISTORY_DELETE      "Excluir"
+    IDS_HISTORY_CLEAR       "Limpar tudo"
+    IDS_HISTORY_CLEAR_ASK   "Excluir todas as capturas do histórico? Esta ação não pode ser desfeita."
 END
 
 // ---------------------------------------------------------------------------
@@ -408,6 +471,15 @@ BEGIN
     IDS_LANG_AUTO           "Автоматически"
     IDS_ABOUT_TAGLINE       "Снимки экрана, которые остаются чёткими."
     IDS_EDITOR_TITLE        "Crisp — разметка"
+    IDS_MENU_HISTORY        "Журнал"
+    IDS_HISTORY_TITLE       "Журнал снимков"
+    IDS_HISTORY_EMPTY       "Снимков пока нет."
+    IDS_HISTORY_EDIT        "Изменить"
+    IDS_HISTORY_COPY        "Копировать"
+    IDS_HISTORY_REVEAL      "Показать в папке"
+    IDS_HISTORY_DELETE      "Удалить"
+    IDS_HISTORY_CLEAR       "Очистить всё"
+    IDS_HISTORY_CLEAR_ASK   "Удалить все снимки из журнала? Это действие нельзя отменить."
 END
 
 // ---------------------------------------------------------------------------
@@ -456,6 +528,15 @@ BEGIN
     IDS_LANG_AUTO           "Automatycznie"
     IDS_ABOUT_TAGLINE       "Zrzuty ekranu, które pozostają ostre."
     IDS_EDITOR_TITLE        "Crisp — adnotacje"
+    IDS_MENU_HISTORY        "Historia"
+    IDS_HISTORY_TITLE       "Historia zrzutów"
+    IDS_HISTORY_EMPTY       "Brak zrzutów."
+    IDS_HISTORY_EDIT        "Edytuj"
+    IDS_HISTORY_COPY        "Kopiuj"
+    IDS_HISTORY_REVEAL      "Pokaż w folderze"
+    IDS_HISTORY_DELETE      "Usuń"
+    IDS_HISTORY_CLEAR       "Wyczyść wszystko"
+    IDS_HISTORY_CLEAR_ASK   "Usunąć wszystkie zrzuty z historii? Tej operacji nie można cofnąć."
 END
 
 // ---------------------------------------------------------------------------
@@ -504,6 +585,15 @@ BEGIN
     IDS_LANG_AUTO           "Automatisch"
     IDS_ABOUT_TAGLINE       "Schermafbeeldingen die scherp blijven."
     IDS_EDITOR_TITLE        "Crisp — annoteren"
+    IDS_MENU_HISTORY        "Geschiedenis"
+    IDS_HISTORY_TITLE       "Opnamegeschiedenis"
+    IDS_HISTORY_EMPTY       "Nog geen opnamen."
+    IDS_HISTORY_EDIT        "Bewerken"
+    IDS_HISTORY_COPY        "Kopiëren"
+    IDS_HISTORY_REVEAL      "In map weergeven"
+    IDS_HISTORY_DELETE      "Verwijderen"
+    IDS_HISTORY_CLEAR       "Alles wissen"
+    IDS_HISTORY_CLEAR_ASK   "Alle opnamen uit de geschiedenis verwijderen? Dit kan niet ongedaan worden gemaakt."
 END
 
 // ---------------------------------------------------------------------------
@@ -552,6 +642,15 @@ BEGIN
     IDS_LANG_AUTO           "Automaticky"
     IDS_ABOUT_TAGLINE       "Snímky obrazovky, které zůstávají ostré."
     IDS_EDITOR_TITLE        "Crisp — poznámky"
+    IDS_MENU_HISTORY        "Historie"
+    IDS_HISTORY_TITLE       "Historie snímků"
+    IDS_HISTORY_EMPTY       "Zatím žádné snímky."
+    IDS_HISTORY_EDIT        "Upravit"
+    IDS_HISTORY_COPY        "Kopírovat"
+    IDS_HISTORY_REVEAL      "Zobrazit ve složce"
+    IDS_HISTORY_DELETE      "Odstranit"
+    IDS_HISTORY_CLEAR       "Vymazat vše"
+    IDS_HISTORY_CLEAR_ASK   "Odstranit všechny snímky z historie? Tuto akci nelze vrátit zpět."
 END
 
 // ---------------------------------------------------------------------------
@@ -600,6 +699,15 @@ BEGIN
     IDS_LANG_AUTO           "Automatiskt"
     IDS_ABOUT_TAGLINE       "Skärmbilder som förblir skarpa."
     IDS_EDITOR_TITLE        "Crisp — anteckna"
+    IDS_MENU_HISTORY        "Historik"
+    IDS_HISTORY_TITLE       "Skärmbildshistorik"
+    IDS_HISTORY_EMPTY       "Inga skärmbilder ännu."
+    IDS_HISTORY_EDIT        "Redigera"
+    IDS_HISTORY_COPY        "Kopiera"
+    IDS_HISTORY_REVEAL      "Visa i mappen"
+    IDS_HISTORY_DELETE      "Ta bort"
+    IDS_HISTORY_CLEAR       "Rensa allt"
+    IDS_HISTORY_CLEAR_ASK   "Ta bort alla skärmbilder i historiken? Det går inte att ångra."
 END
 
 // ---------------------------------------------------------------------------
@@ -648,6 +756,15 @@ BEGIN
     IDS_LANG_AUTO           "Автоматично"
     IDS_ABOUT_TAGLINE       "Знімки екрана, які лишаються чіткими."
     IDS_EDITOR_TITLE        "Crisp — розмітка"
+    IDS_MENU_HISTORY        "Журнал"
+    IDS_HISTORY_TITLE       "Журнал знімків"
+    IDS_HISTORY_EMPTY       "Знімків ще немає."
+    IDS_HISTORY_EDIT        "Змінити"
+    IDS_HISTORY_COPY        "Копіювати"
+    IDS_HISTORY_REVEAL      "Показати в папці"
+    IDS_HISTORY_DELETE      "Видалити"
+    IDS_HISTORY_CLEAR       "Очистити все"
+    IDS_HISTORY_CLEAR_ASK   "Видалити всі знімки з журналу? Цю дію не можна скасувати."
 END
 
 // ---------------------------------------------------------------------------
@@ -696,6 +813,15 @@ BEGIN
     IDS_LANG_AUTO           "自動"
     IDS_ABOUT_TAGLINE       "くっきりしたままのスクリーンショット。"
     IDS_EDITOR_TITLE        "Crisp — 注釈"
+    IDS_MENU_HISTORY        "履歴"
+    IDS_HISTORY_TITLE       "キャプチャ履歴"
+    IDS_HISTORY_EMPTY       "まだキャプチャがありません。"
+    IDS_HISTORY_EDIT        "編集"
+    IDS_HISTORY_COPY        "コピー"
+    IDS_HISTORY_REVEAL      "フォルダーで表示"
+    IDS_HISTORY_DELETE      "削除"
+    IDS_HISTORY_CLEAR       "すべて消去"
+    IDS_HISTORY_CLEAR_ASK   "履歴内のすべてのキャプチャを削除しますか？この操作は元に戻せません。"
 END
 
 // ---------------------------------------------------------------------------
@@ -744,6 +870,15 @@ BEGIN
     IDS_LANG_AUTO           "자동"
     IDS_ABOUT_TAGLINE       "선명하게 유지되는 스크린샷."
     IDS_EDITOR_TITLE        "Crisp — 주석"
+    IDS_MENU_HISTORY        "기록"
+    IDS_HISTORY_TITLE       "캡처 기록"
+    IDS_HISTORY_EMPTY       "아직 캡처가 없습니다."
+    IDS_HISTORY_EDIT        "편집"
+    IDS_HISTORY_COPY        "복사"
+    IDS_HISTORY_REVEAL      "폴더에서 표시"
+    IDS_HISTORY_DELETE      "삭제"
+    IDS_HISTORY_CLEAR       "모두 지우기"
+    IDS_HISTORY_CLEAR_ASK   "기록의 모든 캡처를 삭제할까요? 이 작업은 취소할 수 없습니다."
 END
 
 // ---------------------------------------------------------------------------
@@ -792,4 +927,13 @@ BEGIN
     IDS_LANG_AUTO           "自动"
     IDS_ABOUT_TAGLINE       "始终清晰的屏幕截图。"
     IDS_EDITOR_TITLE        "Crisp — 标注"
+    IDS_MENU_HISTORY        "历史记录"
+    IDS_HISTORY_TITLE       "截图历史记录"
+    IDS_HISTORY_EMPTY       "暂无截图。"
+    IDS_HISTORY_EDIT        "编辑"
+    IDS_HISTORY_COPY        "复制"
+    IDS_HISTORY_REVEAL      "在文件夹中显示"
+    IDS_HISTORY_DELETE      "删除"
+    IDS_HISTORY_CLEAR       "全部清除"
+    IDS_HISTORY_CLEAR_ASK   "要删除历史记录中的所有截图吗？此操作无法撤销。"
 END

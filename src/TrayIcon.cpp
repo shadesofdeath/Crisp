@@ -172,6 +172,7 @@ int TrayIcon::ShowMenu(HWND owner) {
     add(IDM_CAPTURE_OCR, IDS_MENU_REGION_TEXT, 0);
     add(IDM_PICK_COLOR, IDS_MENU_PICK_COLOR, 0);
     separator();
+    add(IDM_HISTORY, IDS_MENU_HISTORY, 0);
     add(IDM_OPEN_FOLDER, IDS_MENU_OPEN_FOLDER, 0);
     separator();
     add(IDM_ABOUT, IDS_MENU_ABOUT, 0);

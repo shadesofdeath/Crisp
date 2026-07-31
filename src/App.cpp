@@ -42,6 +42,7 @@ bool App::Initialize(HINSTANCE instance) {
     ::InitCommonControlsEx(&controls);
 
     m_settings.Load(SettingsStore::ForApp());
+    m_history.SetFolder(HistoryStore::DefaultFolder());
 
     // Dil, HER ŞEYDEN ÖNCE kurulur: bundan sonraki her hata iletisi ve menü
     // metni Loc::Str'den gelir ve dil kurulmadan çağrılırsa boş döner.
@@ -209,6 +210,9 @@ void App::OnCommand(int command) {
             break;
         case IDM_PICK_COLOR:
             PickColorToClipboard();
+            break;
+        case IDM_HISTORY:
+            ShowHistory();
             break;
         case IDM_OPEN_FOLDER:
             OpenSaveFolder();

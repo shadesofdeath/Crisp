@@ -4,6 +4,7 @@
 #include "ClipboardImage.h"
 #include "EditorWindow.h"
 #include "Geometry.h"
+#include "HistoryWindow.h"
 #include "ImageCodec.h"
 #include "Localization.h"
 #include "Messages.h"
@@ -297,6 +298,7 @@ void App::DeliverCapture(const Image& image, POINT origin) {
             !PinImageToScreen(m_instance, edited, origin)) {
             LogV(L"İğneleme başarısız");
         }
+        RememberInHistory(edited);
         return;
     }
 
@@ -321,7 +323,49 @@ void App::DeliverCapture(const Image& image, POINT origin) {
         }
     }
 
+    RememberInHistory(image);
+}
 
+void App::RememberInHistory(const Image& image) {
+    // GEÇMİŞ, TESLİM EDİLENİ SAKLAR: düzenleyici açıksa işaretlenmiş hâli,
+    // değilse ham yakalamayı. Kullanıcı iptal ettiyse hiçbir şey saklanmaz —
+    // vazgeçilen bir yakalamayı diskte tutmak, "sildiğimi sandığım şey neden
+    // hâlâ duruyor" sorusunu doğururdu.
+    std::wstring written;
+    if (!m_history.Record(image, written)) {
+        LogV(L"Geçmişe yazılamadı");
+    }
+}
+
+void App::ShowHistory() {
+    if (m_busy) {
+        return;
+    }
+    m_busy = true;
+    HistoryResult chosen = ShowHistoryWindow(m_instance, m_history);
+    m_busy = false;
+
+    if (chosen.choice != HistoryChoice::Edit || !chosen.image.Valid()) {
+        return;
+    }
+
+    // Geçmişten gelen bir görüntü düzenlendiğinde YENİ bir kayıt doğar; eskisi
+    // yerinde kalır. Üzerine yazmak, kullanıcının elindeki tek kopyayı
+    // farkında olmadan değiştirmesi olurdu.
+    const EditorResult result = RunEditor(m_instance, m_settings, chosen.image);
+    if (!result.accepted) {
+        return;
+    }
+    if (result.copyToClipboard && !CopyImageToClipboard(chosen.image, m_window)) {
+        LogV(L"Geçmişten düzenlenen görüntü panoya kopyalanamadı");
+    }
+    if (result.saveToFile) {
+        std::wstring savedPath;
+        if (SaveCapture(chosen.image, savedPath)) {
+            FlashSaved(savedPath);
+        }
+    }
+    RememberInHistory(chosen.image);
 }
 
 void App::OpenSaveFolder() {

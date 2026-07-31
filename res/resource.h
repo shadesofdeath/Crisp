@@ -21,6 +21,7 @@
 #define IDM_SETTINGS            209
 #define IDM_ABOUT               210
 #define IDM_EXIT                211
+#define IDM_HISTORY             212
 
 // --- Dizeler (1000+) ---------------------------------------------------------
 // TEK BLOK HÂLİNDE ARTAR: RT_STRING kaynakları 16'lık kümeler hâlinde saklanır,
@@ -76,6 +77,17 @@
 #define IDS_LANG_AUTO           1037
 #define IDS_ABOUT_TAGLINE       1038
 #define IDS_EDITOR_TITLE        1039
+
+// Geçmiş penceresi
+#define IDS_MENU_HISTORY        1040
+#define IDS_HISTORY_TITLE       1041
+#define IDS_HISTORY_EMPTY       1042
+#define IDS_HISTORY_EDIT        1043
+#define IDS_HISTORY_COPY        1044
+#define IDS_HISTORY_REVEAL      1045
+#define IDS_HISTORY_DELETE      1046
+#define IDS_HISTORY_CLEAR       1047
+#define IDS_HISTORY_CLEAR_ASK   1048
 
 // --- Kısayol etiketleri (1104-1119) ------------------------------------------
 // AYRI BLOKTA ve YALNIZCA DİLDEN BAĞIMSIZ tanımlı. "Ctrl+Shift+S" her dilde
