@@ -1,0 +1,64 @@
+// Geometry.h — Kaplamanın kullandığı saf dikdörtgen matematiği.
+//
+// BU BAŞLIKTAKİ HİÇBİR FONKSİYON WIN32 ÇAĞIRMAZ. Yalnızca RECT/POINT/SIZE
+// tiplerini kullanır, ekran durumunu okumaz, pencere oluşturmaz. Bunun sebebi
+// tamamen test edilebilirlik: seçim mantığındaki bir hata, kaplamayı elle açıp
+// sürüklemeden, doğrudan girdi-çıktı karşılaştırmasıyla yakalanabilmeli.
+#pragma once
+
+#include <windows.h>
+
+namespace crisp {
+namespace geom {
+
+[[nodiscard]] constexpr LONG Width(const RECT& r) noexcept { return r.right - r.left; }
+[[nodiscard]] constexpr LONG Height(const RECT& r) noexcept { return r.bottom - r.top; }
+
+[[nodiscard]] constexpr bool IsEmpty(const RECT& r) noexcept {
+    return Width(r) <= 0 || Height(r) <= 0;
+}
+
+// İki köşeden normalleştirilmiş dikdörtgen: kullanıcı hangi yöne sürüklerse
+// sürüklesin left<right ve top<bottom garanti edilir.
+//
+// SAĞ/ALT KENAR DIŞLAYICIDIR (Windows RECT geleneği): (10,10)-(20,20) seçimi
+// 10 piksel genişliğindedir, 11 değil. Buradaki bir kapsayıcı/dışlayıcı karışımı
+// yakalanan görüntüyü bir piksel kaydırır ve gözle fark edilmez.
+[[nodiscard]] RECT FromCorners(POINT a, POINT b) noexcept;
+
+// r'yi bounds içine hapseder. r, bounds'tan büyükse bounds döner.
+[[nodiscard]] RECT ClampTo(const RECT& r, const RECT& bounds) noexcept;
+
+// Dikdörtgeni her yönde d kadar büyütür (negatif d küçültür), sonra bounds'a
+// hapseder.
+[[nodiscard]] RECT InflateClamped(const RECT& r, LONG d, const RECT& bounds) noexcept;
+
+// Seçim kullanılabilir mi? Tek tıklama (0x0) ve kaza eseri bir-iki piksellik
+// sürüklemeler yakalama başlatmamalı.
+[[nodiscard]] bool IsUsableSelection(const RECT& r, LONG minSide) noexcept;
+
+// Büyütecin okuyacağı kaynak dikdörtgen: imlecin çevresinde sourceSide x
+// sourceSide'lık kare, ekran sınırlarına hapsedilmiş.
+//
+// KENARDA KAYDIRILIR, KIRPILMAZ: imleç sol kenardayken kare sola taşarsa
+// pencere sağa kaydırılır ve boyutu KORUNUR. Kırpsaydık büyüteç kenarlarda
+// farklı bir ölçekte çizerdi ve piksel sayımı yanlış olurdu.
+[[nodiscard]] RECT MagnifierSource(POINT cursor, LONG sourceSide,
+                                   const RECT& bounds) noexcept;
+
+// Büyüteç panelinin sol-üst köşesi. Varsayılan olarak imlecin sağ-altına
+// yerleşir; oraya sığmıyorsa o eksende karşı tarafa geçer.
+[[nodiscard]] POINT MagnifierPlacement(POINT cursor, SIZE panelSize, LONG gap,
+                                       const RECT& bounds) noexcept;
+
+// Seçim ölçüsünü gösteren etiketin sol-üst köşesi. Seçimin üstüne oturur;
+// yukarıda yer yoksa içine, o da olmuyorsa altına iner.
+[[nodiscard]] POINT SizeLabelPlacement(const RECT& selection, SIZE labelSize,
+                                       LONG gap, const RECT& bounds) noexcept;
+
+// İki nokta arasındaki dikdörtgeni, kenar oranını koruyacak biçimde ayarlar
+// (Shift ile kare seçim). anchor sabit kalır, other en yakın kareye çekilir.
+[[nodiscard]] POINT SnapToSquare(POINT anchor, POINT other) noexcept;
+
+}  // namespace geom
+}  // namespace crisp

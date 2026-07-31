@@ -1,0 +1,41 @@
+# Build çıktıları
+build/
+out/
+bin/
+obj/
+*.user
+*.vcxproj*
+CMakeCache.txt
+CMakeFiles/
+CMakeUserPresets.json
+.ninja_deps
+.ninja_log
+install_manifest.txt
+_CPack_Packages/
+*.zip
+*.log
+
+# MSIX
+*.msix
+*.appx
+*.pfx
+*.cer
+AppPackages/
+
+# IDE
+.vs/
+.vscode/
+*.sln
+
+# Taşınabilir kip ayar dosyası — kullanıcıya ait, depoya girmez
+Crisp.ini
+
+# --- BİLEREK DEPOYA DAHİL EDİLENLER ----------------------------------------
+# Aşağıdakiler ikili dosya olmalarına rağmen dışlanmaz: RC derlemesi ve MSIX
+# paketleme onlara bağımlıdır, dışlanırsa depoyu klonlayan projeyi derleyemez.
+# Negatif kalıplar yalnızca niyeti belgelemek içindir; üstteki hiçbir kural
+# bunları zaten eşlemiyor.
+!res/icons/*.ico
+!packaging/Assets/*.png
+!docs/screenshots/*.png
+!docs/images/*.png
