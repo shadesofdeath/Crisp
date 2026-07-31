@@ -123,6 +123,7 @@ well. Crisp exists for the parts they do not:
 | Text on screen — boxed lines, drag/word/line select, context menu | done |
 | Colour picker | done |
 | 16 interface languages, follows the Windows display language | done |
+| Light and dark theme, follows Windows live | done |
 | Annotation editor | not started |
 | Capture history | not started |
 
@@ -138,6 +139,25 @@ explicitly.
 <div align="center">
 <img src="docs/screenshots/languages.png" width="900" alt="The tray menu in German, Japanese, Russian and Turkish">
 </div>
+
+### Theme
+
+Menus, dialogs and title bars follow the Windows theme, and switch live when you
+change it.
+
+<div align="center">
+<img src="docs/screenshots/theme.png" width="820" alt="The tray menu in dark and light">
+</div>
+
+Win32's own menus do not follow the system theme, so this is done by resolving
+uxtheme's undocumented dark-mode ordinals at runtime. The alternative was
+owner-drawn menus, which would have meant re-implementing the accelerator
+column, check marks, keyboard navigation and high-contrast support by hand. The
+ordinals are looked up with `GetProcAddress` and degrade to no-ops if missing —
+linking them statically would mean the application refuses to start on a Windows
+build that dropped one.
+
+Set it to `system`, `light` or `dark`.
 
 Adding one is a `LANGUAGE`/`STRINGTABLE` block in `res/strings.rc` and a row in
 `Loc::Languages()`. Nothing else. A half-finished translation is safe: a missing

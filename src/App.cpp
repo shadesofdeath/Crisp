@@ -6,6 +6,7 @@
 #include "Messages.h"
 #include "Ocr.h"
 #include "PinWindow.h"
+#include "Theme.h"
 #include "Util.h"
 #include "resource.h"
 
@@ -44,6 +45,10 @@ bool App::Initialize(HINSTANCE instance) {
     // Dil, HER ŞEYDEN ÖNCE kurulur: bundan sonraki her hata iletisi ve menü
     // metni Loc::Str'den gelir ve dil kurulmadan çağrılırsa boş döner.
     Loc::Initialize(instance, m_settings.language);
+
+    // Tema, PENCERE OLUŞTURULMADAN önce kurulur: SetPreferredAppMode
+    // sonradan çağrılırsa mevcut pencereler açık temada kalır.
+    theme::Initialize(theme::ModeFromString(m_settings.theme.c_str()));
 
     WNDCLASSEXW wc{};
     wc.cbSize = sizeof(wc);
@@ -137,6 +142,19 @@ LRESULT App::HandleMessage(HWND window, UINT message, WPARAM wParam,
         case WM_COMMAND:
             OnCommand(LOWORD(wParam));
             return 0;
+
+        // Kullanıcı Windows'un tema ayarını değiştirdiğinde kabuk bunu
+        // yayımlar. lParam "ImmersiveColorSet" olmayan bildirimler bizi
+        // ilgilendirmez; her WM_SETTINGCHANGE'de menü temasını boşaltmak
+        // gereksiz iş olurdu.
+        case WM_SETTINGCHANGE: {
+            const auto* section = reinterpret_cast<const wchar_t*>(lParam);
+            if (section != nullptr && ::wcscmp(section, L"ImmersiveColorSet") == 0) {
+                (void)theme::RefreshFromSystem();
+                m_tray.RefreshTheme();
+            }
+            return 0;
+        }
 
         case WM_TIMER: {
             if (wParam == TIMER_THEME) {

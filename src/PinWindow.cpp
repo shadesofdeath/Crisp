@@ -5,6 +5,7 @@
 #include "Geometry.h"
 #include "ImageCodec.h"
 #include "Localization.h"
+#include "Theme.h"
 #include "resource.h"
 #include "Util.h"
 
@@ -21,7 +22,7 @@ namespace crisp {
 namespace {
 
 constexpr const wchar_t* kWindowClass = L"CrispPinWindow";
-constexpr COLORREF kBorder = RGB(10, 132, 255);
+
 
 // Menü komutları yalnızca bu dosyada anlamlı; resource.h'yi kirletmezler.
 enum PinCommand {
@@ -200,7 +201,7 @@ LRESULT CALLBACK PinProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
 
                 // İnce çerçeve: iğnenin nerede bitip masaüstünün nerede
                 // başladığı, benzer renkli bir arka planda belirsiz kalırdı.
-                const HBRUSH brush = ::CreateSolidBrush(kBorder);
+                const HBRUSH brush = ::CreateSolidBrush(theme::Colors().accent);
                 if (brush != nullptr) {
                     ::FrameRect(dc, &client, brush);
                     ::DeleteObject(brush);
@@ -357,6 +358,7 @@ bool PinImageToScreen(HINSTANCE instance, const Image& image, POINT topLeft) {
     }
 
     raw->window = window;
+    theme::ApplyToWindow(window);
     ::SetLayeredWindowAttributes(window, 0, raw->opacity, LWA_ALPHA);
     Pins().push_back(std::move(state));
 

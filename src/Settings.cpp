@@ -206,6 +206,9 @@ void Settings::Clamp() {
     if (language.empty()) {
         language = L"auto";
     }
+    if (theme != L"light" && theme != L"dark") {
+        theme = L"system";
+    }
 
     // Hiçbir eylem seçili değilse araç yakalar ve sonucu sessizce atar.
     // Kullanıcı bunu isteyerek yapmış olamaz; en beklenen davranışa dönülür.
@@ -230,6 +233,7 @@ void Settings::Clamp() {
 void Settings::Load(const SettingsStore& store) {
     store.ReadString(L"SaveFolder", saveFolder);
     store.ReadString(L"Language", language);
+    store.ReadString(L"Theme", theme);
 
     store.ReadBool(L"CopyToClipboard", after.copyToClipboard);
     store.ReadBool(L"SaveToFile", after.saveToFile);
@@ -263,6 +267,7 @@ bool Settings::Save(const SettingsStore& store) const {
     bool ok = true;
     ok = store.WriteString(L"SaveFolder", saveFolder) && ok;
     ok = store.WriteString(L"Language", language) && ok;
+    ok = store.WriteString(L"Theme", theme) && ok;
 
     ok = store.WriteBool(L"CopyToClipboard", after.copyToClipboard) && ok;
     ok = store.WriteBool(L"SaveToFile", after.saveToFile) && ok;

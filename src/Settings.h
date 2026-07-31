@@ -82,6 +82,8 @@ struct Settings {
     std::wstring saveFolder;          // boşsa Resimler\Crisp kullanılır
     // Arayüz dili: "auto" ya da Loc::Languages() tablosundaki bir kod.
     std::wstring language = L"auto";
+    // Tema: "system" | "light" | "dark".
+    std::wstring theme = L"system";
     AfterCapture after{};
 
     unsigned delaySeconds = 3;        // gecikmeli yakalama; 1..30
