@@ -52,6 +52,7 @@ set(CRISP_CORE_SOURCES
     src/ImageTransform.cpp
     src/Annotation.cpp
     src/History.cpp
+    src/Sound.cpp
 )
 
 set(CRISP_CORE_HEADERS
@@ -67,6 +68,7 @@ set(CRISP_CORE_HEADERS
     src/ImageTransform.h
     src/Annotation.h
     src/History.h
+    src/Sound.h
 )
 
 add_library(crisp_core STATIC ${CRISP_CORE_SOURCES} ${CRISP_CORE_HEADERS})
@@ -184,7 +186,7 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES
 # runtimeobject : WinRT etkinleştirme (Windows.Media.Ocr), ham ABI ile —
 #                 C++/WinRT bağımlılığı YOK, yalnızca RoGetActivationFactory.
 # comdlg32      : iğne penceresindeki "Farklı kaydet" iletişim kutusu.
-target_link_libraries(crisp PRIVATE crisp_core comctl32 runtimeobject comdlg32 msimg32)
+target_link_libraries(crisp PRIVATE crisp_core comctl32 runtimeobject comdlg32 msimg32 winmm)
 
 target_link_options(crisp PRIVATE
     # Manifest RC üzerinden gömülür (res/app.rc → RT_MANIFEST); linker'ın kendi
@@ -231,8 +233,10 @@ if(CRISP_TESTS)
         tests/TestAnnotation.cpp
         tests/TestTransform.cpp
         tests/TestHistory.cpp
+        tests/TestSound.cpp
     )
-    target_link_libraries(crisp_tests PRIVATE crisp_core)
+    # winmm: TestSound sesi gerçekten çalarak biçimi doğrular.
+    target_link_libraries(crisp_tests PRIVATE crisp_core winmm)
     target_include_directories(crisp_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
     set_target_properties(crisp_tests PROPERTIES OUTPUT_NAME "crisp_tests")
 

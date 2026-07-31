@@ -162,9 +162,27 @@ void BuildControls(HWND window, State& state) {
     const HWND format =
         left.Labelled(kIdFormat, Loc::Str(IDS_SET_FORMAT).c_str(), L"COMBOBOX",
                       CBS_DROPDOWNLIST, Scale(110, dpi));
-    for (const wchar_t* name : {L"PNG", L"JPEG", L"WebP"}) {
+
+    // KULLANILAMAYAN BİÇİM LİSTEYE GİRMEZ. Windows WebP için yalnızca çözücü
+    // taşır; kodlayıcı isteğe bağlı bir mağaza bileşenidir ve çoğu kurulumda
+    // yoktur. Seçeneği listede bırakmak, kullanıcının WebP seçip PNG almasına
+    // ve bunu hiç öğrenmemesine yol açıyordu. Denetim çalışma zamanında
+    // yapıldığı için, bileşen sonradan kurulursa seçenek kendiliğinden belirir.
+    struct FormatEntry {
+        const wchar_t* label;
+        const wchar_t* code;
+        ImageFormat format;
+    };
+    for (const FormatEntry& entry :
+         {FormatEntry{L"PNG", L"png", ImageFormat::Png},
+          FormatEntry{L"JPEG", L"jpg", ImageFormat::Jpeg},
+          FormatEntry{L"WebP", L"webp", ImageFormat::WebP}}) {
+        if (entry.format != ImageFormat::Png && !IsFormatAvailable(entry.format)) {
+            continue;
+        }
         ::SendMessageW(format, CB_ADDSTRING, 0,
-                       reinterpret_cast<LPARAM>(name));
+                       reinterpret_cast<LPARAM>(entry.label));
+        state.formatCodes.emplace_back(entry.code);
     }
     (void)left.Labelled(kIdQuality, Loc::Str(IDS_SET_QUALITY).c_str(), L"EDIT",
                         ES_NUMBER | WS_BORDER, Scale(70, dpi));

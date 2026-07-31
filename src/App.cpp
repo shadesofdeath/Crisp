@@ -3,6 +3,7 @@
 #include "App.h"
 
 #include "AboutWindow.h"
+#include "HotkeyEdit.h"
 #include "Localization.h"
 #include "Messages.h"
 #include "Ocr.h"
@@ -272,7 +273,47 @@ void App::ShowSettings() {
     const int failed = m_hotkeys.Apply(m_window, m_settings);
     if (failed > 0) {
         LogV(L"%d kısayol kaydedilemedi", failed);
+        ReportHotkeyFailures();
     }
+}
+
+void App::ReportHotkeyFailures() {
+    // HANGİSİNİN ÇALIŞMADIĞI SÖYLENİR, kaç tane olduğu değil: "2 kısayol
+    // kaydedilemedi" kullanıcıya hangi tuşu değiştireceğini söylemez.
+    // RegisterHotKey'in başarısızlığı bir hata değil, bir ÇAKIŞMADIR — başka
+    // bir uygulama o kombinasyonu almıştır ve çözüm kullanıcıdadır.
+    struct Entry {
+        int id;
+        const Hotkey* hotkey;
+        UINT labelId;
+    };
+    const Entry entries[] = {
+        {HOTKEY_REGION, &m_settings.hotkeyRegion, IDS_SET_HK_REGION},
+        {HOTKEY_FULLSCREEN, &m_settings.hotkeyFullScreen, IDS_SET_HK_FULLSCREEN},
+        {HOTKEY_WINDOW, &m_settings.hotkeyWindow, IDS_SET_HK_WINDOW},
+        {HOTKEY_DELAYED, &m_settings.hotkeyDelayed, IDS_SET_HK_DELAYED},
+    };
+
+    std::wstring list;
+    for (const Entry& entry : entries) {
+        if (!entry.hotkey->assigned() || m_hotkeys.IsRegistered(entry.id)) {
+            continue;
+        }
+        list += L"\n    ";
+        list += Loc::Str(entry.labelId);
+        list += L"  —  ";
+        list += HotkeyText(*entry.hotkey);
+    }
+
+    if (list.empty()) {
+        // Yalnızca Print Screen kaydedilememiş olabilir; onun için ayrı bir
+        // uyarı doğru değil, çünkü Print Screen'i başka bir ekran alıntısı
+        // aracının alması çok yaygın ve kullanıcının seçtiği bir tuş değil.
+        return;
+    }
+
+    ::MessageBoxW(m_window, (Loc::Str(IDS_HOTKEY_FAILED) + list).c_str(),
+                  Loc::Str(IDS_APP_TITLE).c_str(), MB_OK | MB_ICONWARNING);
 }
 
 void App::OnHotkey(int id) {

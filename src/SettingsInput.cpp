@@ -69,22 +69,16 @@ void SetHotkey(HWND window, int id, const Hotkey& hotkey) {
     return GetHotkeyValue(::GetDlgItem(window, id));
 }
 
-[[nodiscard]] int FormatIndex(const std::wstring& format) noexcept {
-    if (format == L"jpg") {
-        return 1;
-    }
-    if (format == L"webp") {
-        return 2;
+// Kod → listedeki dizin. Ayarda kayıtlı biçim artık listede yoksa (WebP
+// kodlayıcısı kaldırılmışsa) ilk öğeye düşer; sessizce yanlış bir satırı
+// seçili göstermekten iyidir.
+[[nodiscard]] int FormatIndex(const State& state, const std::wstring& format) {
+    for (size_t i = 0; i < state.formatCodes.size(); ++i) {
+        if (state.formatCodes[i] == format) {
+            return static_cast<int>(i);
+        }
     }
     return 0;
-}
-
-[[nodiscard]] const wchar_t* FormatCode(int index) noexcept {
-    switch (index) {
-        case 1:  return L"jpg";
-        case 2:  return L"webp";
-        default: return L"png";
-    }
 }
 
 [[nodiscard]] int ThemeIndex(const std::wstring& theme) noexcept {
@@ -299,7 +293,8 @@ void LoadIntoControls(HWND window, const State& state) {
 
     ::SetDlgItemTextW(window, kIdFolder, s.EffectiveSaveFolder().c_str());
     ::SendDlgItemMessageW(window, kIdFormat, CB_SETCURSEL,
-                          static_cast<WPARAM>(FormatIndex(s.saveFormat)), 0);
+                          static_cast<WPARAM>(FormatIndex(state, s.saveFormat)),
+                          0);
     SetNumber(window, kIdQuality, s.saveQuality);
     SetNumber(window, kIdHistoryLimit, s.historyLimit);
     SetNumber(window, kIdDelay, s.delaySeconds);
@@ -332,8 +327,12 @@ void ReadFromControls(HWND window, State& state) {
 
     s.theme = ThemeCode(static_cast<int>(
         ::SendDlgItemMessageW(window, kIdTheme, CB_GETCURSEL, 0, 0)));
-    s.saveFormat = FormatCode(static_cast<int>(
-        ::SendDlgItemMessageW(window, kIdFormat, CB_GETCURSEL, 0, 0)));
+    const LRESULT formatIndex =
+        ::SendDlgItemMessageW(window, kIdFormat, CB_GETCURSEL, 0, 0);
+    if (formatIndex >= 0 &&
+        static_cast<size_t>(formatIndex) < state.formatCodes.size()) {
+        s.saveFormat = state.formatCodes[static_cast<size_t>(formatIndex)];
+    }
 
     s.saveFolder = GetText(window, kIdFolder);
     s.saveQuality = GetNumber(window, kIdQuality, s.saveQuality);

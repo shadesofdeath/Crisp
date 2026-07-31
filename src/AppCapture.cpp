@@ -11,14 +11,18 @@
 #include "Ocr.h"
 #include "Overlay.h"
 #include "PinWindow.h"
+#include "Sound.h"
 #include "Toast.h"
 #include "Util.h"
 #include "WindowPick.h"
 #include "resource.h"
 
+#include <mmsystem.h>
 #include <shellapi.h>
 
+#include <cstdint>
 #include <string>
+#include <vector>
 
 namespace crisp {
 namespace {
@@ -27,6 +31,17 @@ namespace {
 // tetiklediyse menü daha kapanmamış olabilir ve dondurulmuş ekranda menünün
 // kendisi görünürdü.
 constexpr DWORD kMenuSettleMs = 120;
+
+void PlayShutter() {
+    // TAMPON ÇALMA BİTENE KADAR YAŞAMALI: SND_ASYNC ile PlaySound hemen döner
+    // ve belleği kendisi kopyalamaz. Yerel bir vektör kullanmak, sesin yarısı
+    // çalınmışken serbest bırakılan bellekten okumak olurdu.
+    static const std::vector<uint8_t> shutter = BuildShutterWav();
+    // SND_NODEFAULT: ses aygıtı yoksa Windows kendi uyarı sesini çalmasın —
+    // yakalama alındığında "ding" duymak, sessizlikten kötü.
+    ::PlaySoundW(reinterpret_cast<LPCWSTR>(shutter.data()), nullptr,
+                 SND_MEMORY | SND_ASYNC | SND_NODEFAULT);
+}
 
 void FlashSaved(const std::wstring& path) {
     // Kayıt yerini sessizce bildirmenin en ucuz yolu: hata ayıklama günlüğü.
@@ -273,6 +288,13 @@ void App::DeliverCapture(const Image& image, POINT origin) {
         return;
     }
 
+    // SES BURADA, teslim yollarının BAŞINDA: her yakalama kipi buradan geçer
+    // ve düzenleyici açılmadan önce çalar — çünkü ses yakalamanın alındığını
+    // bildirir, düzenlemenin bittiğini değil.
+    if (m_settings.playShutterSound) {
+        PlayShutter();
+    }
+
     // DÜZENLEYİCİ VARSA ÖNCE O ÇALIŞIR: kullanıcı işaretlemesini yaptıktan
     // sonra hangi hedeflere gideceğine kendisi karar verir. Önce panoya
     // kopyalayıp sonra düzenleyici açmak, panoda işaretlenmemiş bir görüntü
@@ -289,8 +311,12 @@ void App::DeliverCapture(const Image& image, POINT origin) {
         const bool copied =
             result.copyToClipboard && CopyImageToClipboard(edited, m_window);
         std::wstring savedPath;
-        if (result.saveToFile && SaveCapture(edited, savedPath)) {
-            FlashSaved(savedPath);
+        if (result.saveToFile) {
+            if (SaveCapture(edited, savedPath)) {
+                FlashSaved(savedPath);
+            } else {
+                ReportSaveFailure();
+            }
         }
         const bool pinned = m_settings.after.pinToScreen &&
                             PinImageToScreen(m_instance, edited, origin);
@@ -306,8 +332,12 @@ void App::DeliverCapture(const Image& image, POINT origin) {
     }
 
     std::wstring savedPath;
-    if (m_settings.after.saveToFile && SaveCapture(image, savedPath)) {
-        FlashSaved(savedPath);
+    if (m_settings.after.saveToFile) {
+        if (SaveCapture(image, savedPath)) {
+            FlashSaved(savedPath);
+        } else {
+            ReportSaveFailure();
+        }
     }
 
     // İğne, yakalamanın ALINDIĞI yere açılır: kullanıcı sonucu gözüyle takip
@@ -354,6 +384,14 @@ void App::Announce(const Image& image, bool copied, bool pinned,
     ShowCaptureToast(m_instance, image, Loc::Str(titleId), detail, savedPath);
 }
 
+void App::ReportSaveFailure() {
+    // GÜNLÜĞE YAZMAK YETMEZ: kullanıcı "dosyaya kaydet" seçmişse ve disk dolu
+    // ya da klasör yazılamıyorsa, yakalamayı kaybettiğini ÖĞRENMELİ. Sessiz
+    // kalmak, saatler sonra klasörü açıp boş bulmak demek.
+    ::MessageBoxW(nullptr, Loc::Str(IDS_SAVE_FAILED).c_str(),
+                  Loc::Str(IDS_APP_TITLE).c_str(), MB_OK | MB_ICONERROR);
+}
+
 void App::RememberInHistory(const Image& image) {
     // GEÇMİŞ, TESLİM EDİLENİ SAKLAR: düzenleyici açıksa işaretlenmiş hâli,
     // değilse ham yakalamayı. Kullanıcı iptal ettiyse hiçbir şey saklanmaz —
@@ -395,6 +433,8 @@ void App::ShowHistory() {
         std::wstring savedPath;
         if (SaveCapture(chosen.image, savedPath)) {
             FlashSaved(savedPath);
+        } else {
+            ReportSaveFailure();
         }
     }
     RememberInHistory(chosen.image);

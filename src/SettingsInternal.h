@@ -65,6 +65,9 @@ struct State {
 
     std::vector<GroupTitle> groups;
     std::vector<std::wstring> languageCodes;   // birleşik kutudaki sıra
+    // Biçim listesi ÇALIŞMA ZAMANINDA kurulur (kullanılamayan biçimler
+    // atlanır), bu yüzden dizin→kod eşlemesi sabit olamaz.
+    std::vector<std::wstring> formatCodes;
 
     unsigned dpi = 96;
     bool accepted = false;

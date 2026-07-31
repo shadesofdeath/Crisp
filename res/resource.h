@@ -134,6 +134,7 @@
 #define IDS_SET_CANCEL          1088
 #define IDS_SET_RESET           1089
 #define IDS_SET_FOLDER_PROMPT   1090
+#define IDS_HOTKEY_FAILED       1091
 
 // --- Kısayol etiketleri (1104-1119) ------------------------------------------
 // AYRI BLOKTA ve YALNIZCA DİLDEN BAĞIMSIZ tanımlı. "Ctrl+Shift+S" her dilde

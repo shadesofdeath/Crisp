@@ -69,6 +69,11 @@ private:
     void PickColorToClipboard();
 
     [[nodiscard]] bool SaveCapture(const Image& image, std::wstring& savedPath);
+    void ReportSaveFailure();
+
+    // Kaydedilemeyen kısayolları kullanıcıya bildirir; hepsi kaydedildiyse
+    // hiçbir şey yapmaz.
+    void ReportHotkeyFailures();
 
     HINSTANCE m_instance = nullptr;
     HWND m_window = nullptr;
