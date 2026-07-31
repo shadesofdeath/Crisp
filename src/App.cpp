@@ -7,7 +7,9 @@
 #include "Messages.h"
 #include "Ocr.h"
 #include "PinWindow.h"
+#include "SettingsWindow.h"
 #include "Theme.h"
+#include "Toast.h"
 #include "Util.h"
 #include "resource.h"
 
@@ -38,7 +40,7 @@ bool App::Initialize(HINSTANCE instance) {
 
     INITCOMMONCONTROLSEX controls{};
     controls.dwSize = sizeof(controls);
-    controls.dwICC = ICC_STANDARD_CLASSES;
+    controls.dwICC = ICC_STANDARD_CLASSES | ICC_HOTKEY_CLASS;
     ::InitCommonControlsEx(&controls);
 
     m_settings.Load(SettingsStore::ForApp());
@@ -214,6 +216,9 @@ void App::OnCommand(int command) {
         case IDM_HISTORY:
             ShowHistory();
             break;
+        case IDM_SETTINGS:
+            ShowSettings();
+            break;
         case IDM_OPEN_FOLDER:
             OpenSaveFolder();
             break;
@@ -222,10 +227,51 @@ void App::OnCommand(int command) {
             break;
         case IDM_EXIT:
             CloseAllPins();
+            CloseCaptureToast();
             ::DestroyWindow(m_window);
             break;
         default:
             break;
+    }
+}
+
+void App::ShowSettings() {
+    if (m_busy) {
+        return;
+    }
+    m_busy = true;
+    Settings edited = m_settings;
+    const bool accepted = ShowSettingsWindow(m_instance, edited);
+    m_busy = false;
+    if (!accepted) {
+        return;
+    }
+
+    // NE DEĞİŞTİĞİ ÖNEMLİ: dili ve temayı her onayda yeniden kurmak, hiçbir
+    // şeye dokunulmadan kapatılan bir ayar penceresinden sonra bile bütün
+    // pencerelerin yeniden çizilmesi demek olurdu.
+    const bool languageChanged = edited.language != m_settings.language;
+    const bool themeChanged = edited.theme != m_settings.theme;
+    m_settings = edited;
+
+    if (!m_settings.Save(SettingsStore::ForApp())) {
+        LogV(L"Ayarlar kaydedilemedi");
+    }
+    if (languageChanged) {
+        Loc::SetLanguage(m_settings.language);
+    }
+    if (themeChanged) {
+        theme::SetMode(theme::ModeFromString(m_settings.theme.c_str()));
+        m_tray.RefreshTheme();
+    }
+    m_history.SetLimit(m_settings.historyLimit);
+
+    // KISAYOLLAR HER ZAMAN YENİDEN UYGULANIR: kullanıcı bir kısayolu
+    // değiştirmediyse bile eski kayıt duruyor olabilir ve yeni bir kısayol
+    // eskisiyle çakışırsa sessizce kaydedilemezdi.
+    const int failed = m_hotkeys.Apply(m_window, m_settings);
+    if (failed > 0) {
+        LogV(L"%d kısayol kaydedilemedi", failed);
     }
 }
 

@@ -214,6 +214,11 @@ void Settings::Clamp() {
     }
     saveQuality = ClampUnsigned(saveQuality, 1u, 100u);
 
+    // Üst sınır keyfi değil: geçmiş penceresi açılırken her kaydı çözdüğü
+    // için yüzlerce kayıt açılışı fark edilir biçimde yavaşlatırdı. 0 ise
+    // geçmiş kapalıdır ve bu geçerli bir seçimdir.
+    historyLimit = ClampUnsigned(historyLimit, 0u, 200u);
+
     // Hiçbir eylem seçili değilse araç yakalar ve sonucu sessizce atar.
     // Kullanıcı bunu isteyerek yapmış olamaz; en beklenen davranışa dönülür.
     if (!after.copyToClipboard && !after.saveToFile && !after.pinToScreen &&
@@ -251,6 +256,8 @@ void Settings::Load(const SettingsStore& store) {
     store.ReadBool(L"ShowWindowHighlight", showWindowHighlight);
     store.ReadBool(L"PlayShutterSound", playShutterSound);
     store.ReadBool(L"PrintScreenCapture", printScreenCapture);
+    store.ReadBool(L"ShowNotification", showNotification);
+    store.ReadUnsigned(L"HistoryLimit", historyLimit);
 
     auto readHotkey = [&store](const wchar_t* name, Hotkey& target) {
         unsigned packed = 0;
@@ -288,6 +295,8 @@ bool Settings::Save(const SettingsStore& store) const {
     ok = store.WriteBool(L"ShowWindowHighlight", showWindowHighlight) && ok;
     ok = store.WriteBool(L"PlayShutterSound", playShutterSound) && ok;
     ok = store.WriteBool(L"PrintScreenCapture", printScreenCapture) && ok;
+    ok = store.WriteBool(L"ShowNotification", showNotification) && ok;
+    ok = store.WriteUnsigned(L"HistoryLimit", historyLimit) && ok;
 
     ok = store.WriteUnsigned(L"HotkeyRegion", hotkeyRegion.packed()) && ok;
     ok = store.WriteUnsigned(L"HotkeyFullScreen", hotkeyFullScreen.packed()) && ok;

@@ -89,6 +89,52 @@
 #define IDS_HISTORY_CLEAR       1047
 #define IDS_HISTORY_CLEAR_ASK   1048
 
+// Yakalama bildirimi
+#define IDS_TOAST_COPIED        1049
+#define IDS_TOAST_SAVED         1050
+#define IDS_TOAST_COPIED_SAVED  1051
+#define IDS_TOAST_PINNED        1052
+#define IDS_TOAST_CAPTURED      1053
+
+// Ayarlar penceresi
+#define IDS_SETTINGS_TITLE      1054
+#define IDS_SET_GROUP_GENERAL   1055
+#define IDS_SET_LANGUAGE        1056
+#define IDS_SET_THEME           1057
+#define IDS_SET_THEME_SYSTEM    1058
+#define IDS_SET_THEME_LIGHT     1059
+#define IDS_SET_THEME_DARK      1060
+#define IDS_SET_GROUP_CAPTURE   1061
+#define IDS_SET_DELAY           1062
+#define IDS_SET_MAGNIFIER       1063
+#define IDS_SET_HIGHLIGHT       1064
+#define IDS_SET_PRINTSCREEN     1065
+#define IDS_SET_SHUTTER         1066
+#define IDS_SET_GROUP_AFTER     1067
+#define IDS_SET_AFTER_COPY      1068
+#define IDS_SET_AFTER_SAVE      1069
+#define IDS_SET_AFTER_PIN       1070
+#define IDS_SET_AFTER_EDITOR    1071
+#define IDS_SET_NOTIFY          1072
+#define IDS_SET_GROUP_SAVE      1073
+#define IDS_SET_FOLDER          1074
+#define IDS_SET_BROWSE          1075
+#define IDS_SET_FORMAT          1076
+#define IDS_SET_QUALITY         1077
+#define IDS_SET_GROUP_HISTORY   1078
+#define IDS_SET_HISTORY_LIMIT   1079
+#define IDS_SET_HISTORY_CLEAR   1080
+#define IDS_SET_HISTORY_CLEARED 1081
+#define IDS_SET_GROUP_HOTKEYS   1082
+#define IDS_SET_HK_REGION       1083
+#define IDS_SET_HK_WINDOW       1084
+#define IDS_SET_HK_FULLSCREEN   1085
+#define IDS_SET_HK_DELAYED      1086
+#define IDS_SET_OK              1087
+#define IDS_SET_CANCEL          1088
+#define IDS_SET_RESET           1089
+#define IDS_SET_FOLDER_PROMPT   1090
+
 // --- Kısayol etiketleri (1104-1119) ------------------------------------------
 // AYRI BLOKTA ve YALNIZCA DİLDEN BAĞIMSIZ tanımlı. "Ctrl+Shift+S" her dilde
 // aynı yazılır; 16 tabloya kopyalamak 16 kat bakım demek olurdu.

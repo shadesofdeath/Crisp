@@ -11,6 +11,7 @@
 #include "Ocr.h"
 #include "Overlay.h"
 #include "PinWindow.h"
+#include "Toast.h"
 #include "Util.h"
 #include "WindowPick.h"
 #include "resource.h"
@@ -285,45 +286,72 @@ void App::DeliverCapture(const Image& image, POINT origin) {
         if (!result.accepted) {
             return;   // kullanıcı iptal etti
         }
-        if (result.copyToClipboard && !CopyImageToClipboard(edited, m_window)) {
-            LogV(L"Düzenlenen görüntü panoya kopyalanamadı");
+        const bool copied =
+            result.copyToClipboard && CopyImageToClipboard(edited, m_window);
+        std::wstring savedPath;
+        if (result.saveToFile && SaveCapture(edited, savedPath)) {
+            FlashSaved(savedPath);
         }
-        if (result.saveToFile) {
-            std::wstring savedPath;
-            if (SaveCapture(edited, savedPath)) {
-                FlashSaved(savedPath);
-            }
-        }
-        if (m_settings.after.pinToScreen &&
-            !PinImageToScreen(m_instance, edited, origin)) {
-            LogV(L"İğneleme başarısız");
-        }
+        const bool pinned = m_settings.after.pinToScreen &&
+                            PinImageToScreen(m_instance, edited, origin);
         RememberInHistory(edited);
+        Announce(edited, copied, pinned, savedPath);
         return;
     }
 
-    if (m_settings.after.copyToClipboard) {
-        if (!CopyImageToClipboard(image, m_window)) {
-            LogV(L"Panoya kopyalama başarısız");
-        }
+    const bool copied = m_settings.after.copyToClipboard &&
+                        CopyImageToClipboard(image, m_window);
+    if (m_settings.after.copyToClipboard && !copied) {
+        LogV(L"Panoya kopyalama başarısız");
     }
 
-    if (m_settings.after.saveToFile) {
-        std::wstring savedPath;
-        if (SaveCapture(image, savedPath)) {
-            FlashSaved(savedPath);
-        }
+    std::wstring savedPath;
+    if (m_settings.after.saveToFile && SaveCapture(image, savedPath)) {
+        FlashSaved(savedPath);
     }
 
-    if (m_settings.after.pinToScreen) {
-        // İğne, yakalamanın ALINDIĞI yere açılır: kullanıcı sonucu gözüyle
-        // takip ettiği yerde bulur, ekranın ortasında değil.
-        if (!PinImageToScreen(m_instance, image, origin)) {
-            LogV(L"İğneleme başarısız");
-        }
-    }
+    // İğne, yakalamanın ALINDIĞI yere açılır: kullanıcı sonucu gözüyle takip
+    // ettiği yerde bulur, ekranın ortasında değil.
+    const bool pinned = m_settings.after.pinToScreen &&
+                        PinImageToScreen(m_instance, image, origin);
 
     RememberInHistory(image);
+    Announce(image, copied, pinned, savedPath);
+}
+
+void App::Announce(const Image& image, bool copied, bool pinned,
+                   const std::wstring& savedPath) {
+    if (!m_settings.showNotification) {
+        return;
+    }
+
+    // BAŞLIK NE OLDUĞUNU SÖYLER, ne olmasını istediğimizi değil: kopyalama
+    // başarısız olduysa "kopyalandı" yazmak kullanıcıyı olmayan bir panoya
+    // güvendirirdi.
+    const bool saved = !savedPath.empty();
+    UINT titleId = IDS_TOAST_CAPTURED;
+    if (copied && saved) {
+        titleId = IDS_TOAST_COPIED_SAVED;
+    } else if (saved) {
+        titleId = IDS_TOAST_SAVED;
+    } else if (copied) {
+        titleId = IDS_TOAST_COPIED;
+    } else if (pinned) {
+        titleId = IDS_TOAST_PINNED;
+    }
+
+    std::wstring detail;
+    if (saved) {
+        const size_t slash = savedPath.find_last_of(L'\\');
+        detail = slash == std::wstring::npos ? savedPath
+                                             : savedPath.substr(slash + 1);
+    } else {
+        wchar_t size[64];
+        ::swprintf_s(size, L"%d × %d", image.Width(), image.Height());
+        detail = size;
+    }
+
+    ShowCaptureToast(m_instance, image, Loc::Str(titleId), detail, savedPath);
 }
 
 void App::RememberInHistory(const Image& image) {
@@ -331,6 +359,10 @@ void App::RememberInHistory(const Image& image) {
     // değilse ham yakalamayı. Kullanıcı iptal ettiyse hiçbir şey saklanmaz —
     // vazgeçilen bir yakalamayı diskte tutmak, "sildiğimi sandığım şey neden
     // hâlâ duruyor" sorusunu doğururdu.
+    if (m_settings.historyLimit == 0) {
+        return;   // kullanıcı geçmişi kapatmış
+    }
+    m_history.SetLimit(m_settings.historyLimit);
     std::wstring written;
     if (!m_history.Record(image, written)) {
         LogV(L"Geçmişe yazılamadı");

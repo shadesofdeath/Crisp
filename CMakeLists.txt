@@ -132,6 +132,10 @@ set(CRISP_APP_SOURCES
     src/EditorRender.cpp
     src/HistoryWindow.cpp
     src/HistoryInput.cpp
+    src/SettingsWindow.cpp
+    src/HotkeyEdit.cpp
+    src/SettingsInput.cpp
+    src/Toast.cpp
     src/PinWindow.cpp
     src/Ocr.cpp
     src/TrayIcon.cpp
@@ -151,6 +155,10 @@ set(CRISP_APP_HEADERS
     src/EditorRender.h
     src/HistoryWindow.h
     src/HistoryInternal.h
+    src/SettingsWindow.h
+    src/HotkeyEdit.h
+    src/SettingsInternal.h
+    src/Toast.h
     src/PinWindow.h
     src/Ocr.h
     src/TrayIcon.h

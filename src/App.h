@@ -43,6 +43,9 @@ private:
     void OnCommand(int command);
     void OnHotkey(int id);
 
+    // Ayarlar penceresini açar ve onaylanırsa değişiklikleri uygular.
+    void ShowSettings();
+
     // --- AppCapture.cpp ------------------------------------------------------
     void StartCapture(CaptureMode mode);
     void CaptureRegionOrWindow(bool preferWindowPick);
@@ -53,6 +56,10 @@ private:
     // Geçmiş penceresini açar; kullanıcı bir kayıt seçerse düzenleyiciye taşır.
     void ShowHistory();
     void RememberInHistory(const Image& image);
+
+    // Yakalamadan sonra köşede kısa bir bildirim gösterir.
+    void Announce(const Image& image, bool copied, bool pinned,
+                  const std::wstring& savedPath);
 
     // Bölge seçtirip içindeki metni panoya kopyalar.
     void CaptureTextToClipboard();

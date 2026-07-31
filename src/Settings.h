@@ -96,6 +96,10 @@ struct Settings {
     bool playShutterSound = false;
     // Print Screen tuşu bölge yakalamayı açsın mı?
     bool printScreenCapture = true;
+    // Yakalamadan sonra köşede kısa bir bildirim gösterilsin mi?
+    bool showNotification = true;
+    // Geçmişte saklanacak yakalama sayısı; 0 = geçmiş kapalı.
+    unsigned historyLimit = 24;
 
     Hotkey hotkeyRegion{MOD_CONTROL | MOD_SHIFT, 'S'};
     Hotkey hotkeyFullScreen{MOD_CONTROL | MOD_SHIFT, 'F'};
