@@ -60,5 +60,27 @@ namespace geom {
 // (Shift ile kare seçim). anchor sabit kalır, other en yakın kareye çekilir.
 [[nodiscard]] POINT SnapToSquare(POINT anchor, POINT other) noexcept;
 
+// --- İğnelenmiş pencere yakınlaştırması --------------------------------------
+
+inline constexpr int kZoomMin = 10;
+inline constexpr int kZoomMax = 800;
+
+// Tekerlek adımından yeni yakınlaştırma yüzdesi.
+//
+// ADIM ÇARPANSAL, SABİT DEĞİL: %10 iken +10 eklemek boyutu ikiye katlar,
+// %400 iken aynı ekleme fark ettirmez. Her adım yaklaşık %20 büyütür/küçültür,
+// böylece kullanıcı her ölçekte aynı hızda yaklaşmış hisseder.
+[[nodiscard]] int ZoomStep(int currentPercent, int wheelDelta) noexcept;
+
+// Yakınlaştırılmış boyut. En az 1x1 döner: sıfır boyutlu pencere oluşturulamaz.
+[[nodiscard]] SIZE ScaledSize(SIZE original, int percent) noexcept;
+
+// Pencereyi, verilen ekran noktası görüntüde AYNI yerde kalacak biçimde
+// yeniden konumlandırır. İmleç altındaki nokta sabit kalarak yakınlaştırma
+// hissi verir; onsuz pencere sol-üst köşeden büyür ve kullanıcı baktığı yeri
+// kaybeder.
+[[nodiscard]] POINT ZoomAnchoredOrigin(POINT windowTopLeft, POINT anchorScreen,
+                                       SIZE oldSize, SIZE newSize) noexcept;
+
 }  // namespace geom
 }  // namespace crisp

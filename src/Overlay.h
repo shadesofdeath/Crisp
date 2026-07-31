@@ -17,20 +17,30 @@
 
 namespace crisp {
 
+enum class OverlayMode {
+    // Sürükleyerek alan, tek tıkla pencere seçilir.
+    Region,
+    // Sürükleme yok; tek tık imlecin altındaki pikselin rengini alır.
+    // Aynı dondurulmuş görüntü ve aynı büyüteç kullanılır — renk seçici için
+    // ayrı bir kaplama yazmak, büyüteci ve piksel okumayı ikinci kez
+    // uygulamak olurdu.
+    ColorPick,
+};
+
 struct OverlayResult {
     bool accepted = false;
-    RECT selection{};   // ekran koordinatı
+    RECT selection{};        // Region kipinde; ekran koordinatı
+    uint32_t pickedColor = 0;   // ColorPick kipinde; 0xAARRGGBB
 };
 
 // Seçim arayüzünü çalıştırır ve KULLANICI KARAR VERENE KADAR DÖNMEZ; kendi
 // mesaj döngüsünü işletir. Dönüşte `frozen`, sanal ekranın dondurulmuş
 // görüntüsüdür ve seçim ondan kırpılabilir.
 //
-// preferWindowPick: pencere yakalama kipinde açılır — kullanıcı sürüklemeden
-// tek tıkla pencere seçebilir (aynı davranış bölge kipinde de vardır, bu
-// bayrak yalnızca başlangıçta vurgulamayı açar).
+// preferWindowPick: Region kipinde pencere vurgulamasını ayardan bağımsız açar.
 [[nodiscard]] OverlayResult RunSelectionOverlay(HINSTANCE instance,
                                                 const Settings& settings,
+                                                OverlayMode mode,
                                                 bool preferWindowPick,
                                                 Image& frozen);
 

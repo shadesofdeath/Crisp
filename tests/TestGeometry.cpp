@@ -187,3 +187,112 @@ CRISP_TEST(Geometry, SnapToSquare_yonu_korur) {
 CRISP_TEST(Geometry, SnapToSquare_sifir_surukleme) {
     CHECK_POINT(SnapToSquare(POINT{100, 100}, POINT{100, 100}), 100, 100);
 }
+
+CRISP_TEST(Zoom, ZoomStep_carpansal_buyur) {
+    // Adım SABİT olsaydı %10'da +20 boyutu üçe katlar, %400'de fark etmezdi.
+    const int fromSmall = ZoomStep(100, WHEEL_DELTA);
+    CHECK(fromSmall > 100);
+    CHECK(fromSmall <= 130);
+
+    // Aynı çentik büyük ölçekte ORANSAL olarak benzer bir artış vermeli.
+    const int fromLarge = ZoomStep(400, WHEEL_DELTA);
+    CHECK(fromLarge > 400);
+    CHECK(fromLarge <= 500);
+}
+
+CRISP_TEST(Zoom, ZoomStep_sinirlarda_durur) {
+    // Üst sınırda takılı kalmalı, taşmamalı.
+    int value = kZoomMax;
+    for (int i = 0; i < 10; ++i) {
+        value = ZoomStep(value, WHEEL_DELTA);
+    }
+    CHECK_EQ(value, kZoomMax);
+
+    value = kZoomMin;
+    for (int i = 0; i < 10; ++i) {
+        value = ZoomStep(value, -WHEEL_DELTA);
+    }
+    CHECK_EQ(value, kZoomMin);
+}
+
+CRISP_TEST(Zoom, ZoomStep_kucultme_daima_ilerler) {
+    // +1/-1 sabitleri olmasaydı küçük değerlerde tam sayı bölmesi 0 verir ve
+    // yakınlaştırma bir yerde SIKIŞIRDI.
+    int value = 100;
+    for (int i = 0; i < 40; ++i) {
+        const int next = ZoomStep(value, -WHEEL_DELTA);
+        CHECK(next < value || next == kZoomMin);
+        value = next;
+    }
+    CHECK_EQ(value, kZoomMin);
+}
+
+CRISP_TEST(Zoom, ZoomStep_buyutme_daima_ilerler) {
+    int value = kZoomMin;
+    for (int i = 0; i < 60; ++i) {
+        const int next = ZoomStep(value, WHEEL_DELTA);
+        CHECK(next > value || next == kZoomMax);
+        value = next;
+    }
+    CHECK_EQ(value, kZoomMax);
+}
+
+CRISP_TEST(Zoom, ZoomStep_sifir_delta_degistirmez) {
+    CHECK_EQ(ZoomStep(137, 0), 137);
+}
+
+CRISP_TEST(Zoom, ZoomStep_kucuk_delta_en_az_bir_adim) {
+    // Yüksek çözünürlüklü tekerlekler 120'den küçük değerler gönderir;
+    // tam sayı bölmesi 0 verirse hiç yakınlaştırma olmazdı.
+    CHECK(ZoomStep(100, 30) > 100);
+    CHECK(ZoomStep(100, -30) < 100);
+}
+
+CRISP_TEST(Zoom, ZoomStep_araligin_disindaki_girdiyi_duzeltir) {
+    CHECK(ZoomStep(-50, 0) >= kZoomMin);
+    CHECK(ZoomStep(99999, 0) <= kZoomMax);
+}
+
+CRISP_TEST(Zoom, ScaledSize_orani_korur) {
+    const SIZE half = ScaledSize(SIZE{400, 300}, 50);
+    CHECK_EQ(half.cx, 200);
+    CHECK_EQ(half.cy, 150);
+
+    const SIZE same = ScaledSize(SIZE{400, 300}, 100);
+    CHECK_EQ(same.cx, 400);
+    CHECK_EQ(same.cy, 300);
+
+    const SIZE twice = ScaledSize(SIZE{400, 300}, 200);
+    CHECK_EQ(twice.cx, 800);
+    CHECK_EQ(twice.cy, 600);
+}
+
+CRISP_TEST(Zoom, ScaledSize_asla_sifir_donmez) {
+    // Sıfır boyutlu pencere oluşturulamaz; 1x1'e yuvarlanmalı.
+    const SIZE tiny = ScaledSize(SIZE{5, 3}, kZoomMin);
+    CHECK(tiny.cx >= 1);
+    CHECK(tiny.cy >= 1);
+}
+
+CRISP_TEST(Zoom, ZoomAnchoredOrigin_capayi_sabit_tutar) {
+    // Pencere (100,100)'de 200x200. Çapa tam ortada: (200,200).
+    // İki katına çıkınca çapa yine (200,200) ekran noktasında kalmalı.
+    const POINT origin = ZoomAnchoredOrigin(POINT{100, 100}, POINT{200, 200},
+                                            SIZE{200, 200}, SIZE{400, 400});
+    // Çapa pencerenin ortasındaydı (%50); yeni boyutta da ortada olmalı:
+    // origin = 200 - 400*0.5 = 0
+    CHECK_POINT(origin, 0, 0);
+}
+
+CRISP_TEST(Zoom, ZoomAnchoredOrigin_sol_ust_kosede_sabit) {
+    // Çapa pencerenin sol-üst köşesindeyse köşe hiç oynamamalı.
+    const POINT origin = ZoomAnchoredOrigin(POINT{300, 200}, POINT{300, 200},
+                                            SIZE{100, 100}, SIZE{500, 500});
+    CHECK_POINT(origin, 300, 200);
+}
+
+CRISP_TEST(Zoom, ZoomAnchoredOrigin_bozuk_eski_boyut_guvenli) {
+    const POINT origin = ZoomAnchoredOrigin(POINT{10, 20}, POINT{50, 60},
+                                            SIZE{0, 0}, SIZE{100, 100});
+    CHECK_POINT(origin, 10, 20);
+}

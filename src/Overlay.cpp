@@ -31,6 +31,7 @@ struct OverlayState {
     bool shiftHeld = false;
     bool decided = false;
     bool allowHover = true;
+    OverlayMode mode = OverlayMode::Region;
     OverlayResult result{};
 };
 
@@ -75,6 +76,15 @@ void Finish(HWND window, OverlayState& state, bool accepted, const RECT& selecti
     state.result.accepted = accepted;
     state.result.selection = selection;
     ::DestroyWindow(window);
+}
+
+// ColorPick kipinde tıklama: imlecin altındaki pikselin rengini alıp biter.
+void PickColor(HWND window, OverlayState& state) {
+    const int x = static_cast<int>(state.visual.cursor.x - state.visual.screen.left);
+    const int y = static_cast<int>(state.visual.cursor.y - state.visual.screen.top);
+
+    state.result.pickedColor = state.frozen.Pixel(x, y);
+    Finish(window, state, true, RECT{});
 }
 
 // Sürükleme bittiğinde: yeterince büyük bir alan varsa onu, yoksa imlecin
@@ -172,6 +182,10 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam,
         case WM_LBUTTONDOWN: {
             if (state == nullptr) {
                 break;
+            }
+            if (state->mode == OverlayMode::ColorPick) {
+                PickColor(window, *state);
+                return 0;
             }
             state->anchor = CursorInScreen();
             state->dragging = true;
@@ -302,7 +316,8 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam,
 }  // namespace
 
 OverlayResult RunSelectionOverlay(HINSTANCE instance, const Settings& settings,
-                                  bool preferWindowPick, Image& frozen) {
+                                  OverlayMode mode, bool preferWindowPick,
+                                  Image& frozen) {
     OverlayResult result{};
 
     if (!EnsureWindowClass(instance)) {
@@ -317,11 +332,19 @@ OverlayResult RunSelectionOverlay(HINSTANCE instance, const Settings& settings,
     }
 
     OverlayState state;
+    state.mode = mode;
     state.visual.screen = screen;
-    state.visual.showMagnifier = settings.showMagnifier;
     state.visual.showHint = true;
-    // Pencere kipinde vurgulama zorunlu; bölge kipinde ayara bağlı.
-    state.allowHover = preferWindowPick || settings.showWindowHighlight;
+    state.visual.colorPick = (mode == OverlayMode::ColorPick);
+
+    // Renk seçmenin tek yolu büyüteç: ayar kapalı olsa bile açılır, yoksa
+    // kullanıcı hangi pikseli aldığını göremez.
+    state.visual.showMagnifier =
+        settings.showMagnifier || mode == OverlayMode::ColorPick;
+
+    // Pencere vurgulaması yalnızca bölge kipinde anlamlı.
+    state.allowHover = (mode == OverlayMode::Region) &&
+                       (preferWindowPick || settings.showWindowHighlight);
 
     if (!BuildDimmedCopy(frozen, state.dimmed)) {
         return result;

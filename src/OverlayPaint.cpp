@@ -199,8 +199,10 @@ void DrawMagnifier(HDC dc, const OverlayVisual& visual, HDC frozenDc,
 void DrawHint(HDC dc, const OverlayVisual& visual, HFONT font) {
     const RECT monitor = visual.screen;
     const wchar_t* text =
-        L"Sürükle: alan seç      Tıkla: pencere yakala      "
-        L"Shift: kare      Esc / sağ tık: iptal";
+        visual.colorPick
+            ? L"Tıkla: rengi kopyala      Esc / sağ tık: iptal"
+            : L"Sürükle: alan seç      Tıkla: pencere yakala      "
+              L"Shift: kare      Esc / sağ tık: iptal";
 
     const HGDIOBJ oldFont = ::SelectObject(dc, font);
     RECT measure{0, 0, 0, 0};
@@ -307,8 +309,11 @@ void PaintOverlay(HDC target, const OverlayVisual& visual, HDC frozenDc,
         DrawMagnifier(target, visual, frozenDc, frozen, font, fontBold);
     }
 
-    // 5. İpucu yalnızca kullanıcı henüz bir şey yapmadıysa.
-    if (visual.showHint && !visual.dragging && geom::IsEmpty(visual.selection)) {
+    // 5. İpucu yalnızca kullanıcı henüz bir şey yapmadıysa. Renk seçmede
+    // sürükleme olmadığı için ipucu hep durur.
+    if (visual.showHint &&
+        (visual.colorPick ||
+         (!visual.dragging && geom::IsEmpty(visual.selection)))) {
         DrawHint(target, visual, font);
     }
 

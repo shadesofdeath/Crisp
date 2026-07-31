@@ -156,6 +156,9 @@ int TrayIcon::ShowMenu(HWND owner) {
     ::AppendMenuW(menu, MF_STRING, IDM_CAPTURE_FULLSCREEN, L"Tam ekran\tCtrl+Shift+F");
     ::AppendMenuW(menu, MF_STRING, IDM_CAPTURE_DELAYED, L"Gecikmeli yakala\tCtrl+Shift+D");
     ::AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    ::AppendMenuW(menu, MF_STRING, IDM_CAPTURE_OCR, L"Metni kopyala (OCR)");
+    ::AppendMenuW(menu, MF_STRING, IDM_PICK_COLOR, L"Renk seç");
+    ::AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     ::AppendMenuW(menu, MF_STRING, IDM_OPEN_FOLDER, L"Kayıt klasörünü aç");
     ::AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     ::AppendMenuW(menu, MF_STRING, IDM_ABOUT, L"Hakkında");

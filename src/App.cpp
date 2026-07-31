@@ -3,10 +3,14 @@
 #include "App.h"
 
 #include "Messages.h"
+#include "Ocr.h"
+#include "PinWindow.h"
 #include "Util.h"
 #include "resource.h"
 
 #include <commctrl.h>
+
+#include <string>
 
 namespace crisp {
 namespace {
@@ -142,6 +146,7 @@ LRESULT App::HandleMessage(HWND window, UINT message, WPARAM wParam,
         // Ayarlar penceresi başka bir örnekten açılma isteği gönderebilir;
         // şimdilik yalnızca bölge yakalamayı tetikler.
         case WM_DESTROY:
+            CloseAllPins();
             m_hotkeys.UnregisterAll();
             m_tray.Remove();
             ::PostQuitMessage(0);
@@ -168,20 +173,33 @@ void App::OnCommand(int command) {
         case IDM_CAPTURE_DELAYED:
             StartCapture(CaptureMode::Delayed);
             break;
+        case IDM_CAPTURE_OCR:
+            CaptureTextToClipboard();
+            break;
+        case IDM_PICK_COLOR:
+            PickColorToClipboard();
+            break;
         case IDM_OPEN_FOLDER:
             OpenSaveFolder();
             break;
         case IDM_ABOUT: {
-            ::MessageBoxW(nullptr,
-                          L"Crisp 0.1.0\n\n"
-                          L"Ekran alıntısı aracı.\n"
-                          L"Bölge, pencere ve tam ekran yakalama; büyüteç, "
-                          L"pano ve PNG kaydı.\n\n"
-                          L"MIT lisanslı · © 2026 ShadesOfDeath",
-                          L"Crisp hakkında", MB_OK | MB_ICONINFORMATION);
+            const std::wstring ocr =
+                IsOcrAvailable()
+                    ? L"OCR: kullanılabilir"
+                    : L"OCR: bu makinede OCR dil paketi kurulu değil";
+            const std::wstring text =
+                L"Crisp 0.2.0\n\n"
+                L"Ekran alıntısı aracı.\n"
+                L"Bölge, pencere ve tam ekran yakalama; büyüteç, ekrana "
+                L"iğneleme, renk seçici ve OCR.\n\n" +
+                ocr +
+                L"\n\nMIT lisanslı · © 2026 ShadesOfDeath";
+            ::MessageBoxW(nullptr, text.c_str(), L"Crisp hakkında",
+                          MB_OK | MB_ICONINFORMATION);
             break;
         }
         case IDM_EXIT:
+            CloseAllPins();
             ::DestroyWindow(m_window);
             break;
         default:

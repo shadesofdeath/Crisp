@@ -25,6 +25,7 @@ struct OverlayVisual {
     bool dragging = false;
     bool showMagnifier = true;
     bool showHint = true;
+    bool colorPick = false;   // ipucu metnini ve seçim çizimini değiştirir
     unsigned dpi = 96;
 };
 

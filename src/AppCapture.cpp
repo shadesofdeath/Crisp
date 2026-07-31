@@ -5,7 +5,9 @@
 #include "Geometry.h"
 #include "ImageCodec.h"
 #include "Messages.h"
+#include "Ocr.h"
 #include "Overlay.h"
+#include "PinWindow.h"
 #include "Util.h"
 #include "WindowPick.h"
 
@@ -25,6 +27,36 @@ void FlashSaved(const std::wstring& path) {
     // Kayıt yerini sessizce bildirmenin en ucuz yolu: hata ayıklama günlüğü.
     // Bir bildirim balonu, her yakalamada kullanıcıyı rahatsız ederdi.
     LogV(L"Kaydedildi: %s", path.c_str());
+}
+
+// Kaplamayı çalıştırıp seçili alanı kırpar. Kullanıcı iptal ederse ya da
+// bir şey ters giderse false döner ve `origin` dokunulmaz.
+[[nodiscard]] bool RunRegionCapture(HINSTANCE instance, const Settings& settings,
+                                    bool preferWindowPick, Image& out,
+                                    POINT& origin) {
+    Image frozen;
+    const OverlayResult result = RunSelectionOverlay(
+        instance, settings, OverlayMode::Region, preferWindowPick, frozen);
+
+    if (!result.accepted || !frozen.Valid()) {
+        return false;
+    }
+
+    // Kaplama ekran koordinatı döndürür; dondurulmuş görüntü sanal ekranın
+    // sol-üst köşesinden başlar, bu yüzden köken çıkarılmalı.
+    const RECT screen = VirtualScreenRect();
+    const int x = static_cast<int>(result.selection.left - screen.left);
+    const int y = static_cast<int>(result.selection.top - screen.top);
+    const int width = static_cast<int>(geom::Width(result.selection));
+    const int height = static_cast<int>(geom::Height(result.selection));
+
+    if (!CropImage(frozen, x, y, width, height, out)) {
+        LogV(L"Seçim kırpılamadı (%d,%d %dx%d)", x, y, width, height);
+        return false;
+    }
+
+    origin = POINT{result.selection.left, result.selection.top};
+    return true;
 }
 
 }  // namespace
@@ -64,38 +96,90 @@ void App::StartCapture(CaptureMode mode) {
 }
 
 void App::CaptureRegionOrWindow(bool preferWindowPick) {
-    Image frozen;
-    const OverlayResult result =
-        RunSelectionOverlay(m_instance, m_settings, preferWindowPick, frozen);
-
-    if (!result.accepted || !frozen.Valid()) {
-        return;
-    }
-
-    // Kaplama ekran koordinatı döndürür; dondurulmuş görüntü sanal ekranın
-    // sol-üst köşesinden başlar, bu yüzden köken çıkarılmalı.
-    const RECT screen = VirtualScreenRect();
-    const int x = static_cast<int>(result.selection.left - screen.left);
-    const int y = static_cast<int>(result.selection.top - screen.top);
-    const int width = static_cast<int>(geom::Width(result.selection));
-    const int height = static_cast<int>(geom::Height(result.selection));
-
     Image capture;
-    if (!CropImage(frozen, x, y, width, height, capture)) {
-        LogV(L"Seçim kırpılamadı (%d,%d %dx%d)", x, y, width, height);
+    POINT origin{};
+    if (!RunRegionCapture(m_instance, m_settings, preferWindowPick, capture,
+                          origin)) {
         return;
     }
-
-    DeliverCapture(capture);
+    DeliverCapture(capture, origin);
 }
 
 void App::CaptureCurrentMonitor() {
+    const RECT monitor = MonitorRectAtCursor();
     Image capture;
-    if (!CaptureRect(MonitorRectAtCursor(), capture)) {
+    if (!CaptureRect(monitor, capture)) {
         LogV(L"Tam ekran yakalama başarısız");
         return;
     }
-    DeliverCapture(capture);
+    DeliverCapture(capture, POINT{monitor.left, monitor.top});
+}
+
+void App::CaptureTextToClipboard() {
+    if (m_busy) {
+        return;
+    }
+    m_busy = true;
+    ::Sleep(kMenuSettleMs);
+
+    Image capture;
+    POINT origin{};
+    const bool captured =
+        RunRegionCapture(m_instance, m_settings, false, capture, origin);
+    m_busy = false;
+
+    if (!captured) {
+        return;
+    }
+
+    std::wstring text;
+    if (!RecognizeText(capture, text)) {
+        ::MessageBoxW(nullptr,
+                      L"Metin tanıma çalıştırılamadı.\n\n"
+                      L"Windows'un OCR motoru, dil profilinde OCR destekli bir "
+                      L"dil bulunmadığında kullanılamaz. Ayarlar > Saat ve dil > "
+                      L"Dil ve bölge üzerinden bir dil paketi ekleyin.",
+                      L"Crisp — OCR", MB_OK | MB_ICONWARNING);
+        return;
+    }
+
+    if (text.empty()) {
+        // Boş sonuç bir hata değil: kullanıcı metin içermeyen bir alan seçmiş
+        // olabilir. Panoyu boş metinle EZMEK ise veri kaybı olurdu.
+        ::MessageBoxW(nullptr, L"Seçilen alanda metin bulunamadı.",
+                      L"Crisp — OCR", MB_OK | MB_ICONINFORMATION);
+        return;
+    }
+
+    if (!CopyTextToClipboard(text.c_str(), m_window)) {
+        LogV(L"OCR metni panoya kopyalanamadı");
+    }
+}
+
+void App::PickColorToClipboard() {
+    if (m_busy) {
+        return;
+    }
+    m_busy = true;
+    ::Sleep(kMenuSettleMs);
+
+    Image frozen;
+    const OverlayResult result = RunSelectionOverlay(
+        m_instance, m_settings, OverlayMode::ColorPick, false, frozen);
+    m_busy = false;
+
+    if (!result.accepted) {
+        return;
+    }
+
+    const uint32_t color = result.pickedColor;
+    wchar_t hex[16];
+    ::swprintf_s(hex, L"#%02X%02X%02X", (color >> 16) & 0xFFu,
+                 (color >> 8) & 0xFFu, color & 0xFFu);
+
+    if (!CopyTextToClipboard(hex, m_window)) {
+        LogV(L"Renk panoya kopyalanamadı");
+    }
 }
 
 bool App::SaveCapture(const Image& image, std::wstring& savedPath) {
@@ -122,7 +206,7 @@ bool App::SaveCapture(const Image& image, std::wstring& savedPath) {
     return true;
 }
 
-void App::DeliverCapture(const Image& image) {
+void App::DeliverCapture(const Image& image, POINT origin) {
     if (!image.Valid()) {
         return;
     }
@@ -140,12 +224,19 @@ void App::DeliverCapture(const Image& image) {
         }
     }
 
-    // Ekrana iğneleme ve düzenleyici sonraki kilometre taşlarında; ayar açık
-    // olsa bile şimdilik sessizce atlanır. Kullanıcının yakalaması yine de
-    // panoya ya da dosyaya gitmiş olur (Settings::Clamp en az birini garanti
-    // eder), yani hiçbir yakalama kaybolmaz.
-    if (m_settings.after.pinToScreen || m_settings.after.openEditor) {
-        LogV(L"İğneleme/düzenleyici bu sürümde yok; yakalama diğer eylemlerle işlendi");
+    if (m_settings.after.pinToScreen) {
+        // İğne, yakalamanın ALINDIĞI yere açılır: kullanıcı sonucu gözüyle
+        // takip ettiği yerde bulur, ekranın ortasında değil.
+        if (!PinImageToScreen(m_instance, image, origin)) {
+            LogV(L"İğneleme başarısız");
+        }
+    }
+
+    // Düzenleyici sonraki kilometre taşında; ayar açık olsa bile şimdilik
+    // sessizce atlanır. Settings::Clamp en az bir hedef garanti ettiği için
+    // yakalama yine de bir yere gitmiş olur.
+    if (m_settings.after.openEditor) {
+        LogV(L"Düzenleyici bu sürümde yok; yakalama diğer eylemlerle işlendi");
     }
 }
 

@@ -112,6 +112,8 @@ set(CRISP_APP_SOURCES
     src/AppCapture.cpp
     src/Overlay.cpp
     src/OverlayPaint.cpp
+    src/PinWindow.cpp
+    src/Ocr.cpp
     src/TrayIcon.cpp
     src/Hotkeys.cpp
 )
@@ -120,6 +122,8 @@ set(CRISP_APP_HEADERS
     src/App.h
     src/Overlay.h
     src/OverlayPaint.h
+    src/PinWindow.h
+    src/Ocr.h
     src/TrayIcon.h
     src/Hotkeys.h
     src/Messages.h
@@ -136,7 +140,10 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES
     ${CRISP_CORE_SOURCES} ${CRISP_CORE_HEADERS}
     ${CRISP_APP_SOURCES}  ${CRISP_APP_HEADERS})
 
-target_link_libraries(crisp PRIVATE crisp_core comctl32)
+# runtimeobject : WinRT etkinleştirme (Windows.Media.Ocr), ham ABI ile —
+#                 C++/WinRT bağımlılığı YOK, yalnızca RoGetActivationFactory.
+# comdlg32      : iğne penceresindeki "Farklı kaydet" iletişim kutusu.
+target_link_libraries(crisp PRIVATE crisp_core comctl32 runtimeobject comdlg32)
 
 target_link_options(crisp PRIVATE
     # Manifest RC üzerinden gömülür (res/app.rc → RT_MANIFEST); linker'ın kendi

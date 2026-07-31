@@ -122,6 +122,62 @@ POINT SizeLabelPlacement(const RECT& selection, SIZE labelSize, LONG gap,
     return p;
 }
 
+int ZoomStep(int currentPercent, int wheelDelta) noexcept {
+    int value = Clamp(currentPercent, kZoomMin, kZoomMax);
+    if (wheelDelta == 0) {
+        return value;
+    }
+
+    // 120 birim = bir çentik. Yüksek çözünürlüklü tekerlekler daha küçük
+    // değerler gönderir; en az bir adım uygulanır ki yavaş kaydırma hiç
+    // yakınlaştırmamaya dönüşmesin.
+    int notches = wheelDelta / WHEEL_DELTA;
+    if (notches == 0) {
+        notches = wheelDelta > 0 ? 1 : -1;
+    }
+
+    for (int i = 0; i < (notches > 0 ? notches : -notches); ++i) {
+        if (notches > 0) {
+            const int next = value + (value / 5) + 1;   // ≈ %20 büyüt
+            value = next > kZoomMax ? kZoomMax : next;
+        } else {
+            const int next = value - (value / 6) - 1;   // ≈ %20 küçült
+            value = next < kZoomMin ? kZoomMin : next;
+        }
+    }
+    return value;
+}
+
+SIZE ScaledSize(SIZE original, int percent) noexcept {
+    const int clamped = static_cast<int>(Clamp(percent, kZoomMin, kZoomMax));
+    SIZE out{};
+    out.cx = ::MulDiv(original.cx, clamped, 100);
+    out.cy = ::MulDiv(original.cy, clamped, 100);
+    if (out.cx < 1) {
+        out.cx = 1;
+    }
+    if (out.cy < 1) {
+        out.cy = 1;
+    }
+    return out;
+}
+
+POINT ZoomAnchoredOrigin(POINT windowTopLeft, POINT anchorScreen, SIZE oldSize,
+                         SIZE newSize) noexcept {
+    if (oldSize.cx <= 0 || oldSize.cy <= 0) {
+        return windowTopLeft;
+    }
+
+    // Çapanın pencere içindeki oranı korunur.
+    const LONG offsetX = anchorScreen.x - windowTopLeft.x;
+    const LONG offsetY = anchorScreen.y - windowTopLeft.y;
+
+    const LONG scaledX = ::MulDiv(offsetX, newSize.cx, oldSize.cx);
+    const LONG scaledY = ::MulDiv(offsetY, newSize.cy, oldSize.cy);
+
+    return POINT{anchorScreen.x - scaledX, anchorScreen.y - scaledY};
+}
+
 POINT SnapToSquare(POINT anchor, POINT other) noexcept {
     const LONG dx = other.x - anchor.x;
     const LONG dy = other.y - anchor.y;

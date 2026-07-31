@@ -79,12 +79,13 @@ well. Crisp exists for the parts they do not:
 | Tray icon, context menu, global hotkeys | done |
 | Delayed capture | done |
 | Save as PNG, copy to clipboard | done |
-| Pin to screen | not started |
+| Pin to screen — drag, wheel zoom, opacity, copy, save as | done |
+| OCR — text out of the image, offline | done |
+| Colour picker | done |
 | Annotation editor | not started |
-| OCR | not started |
 | Capture history | not started |
 
-86 tests pass. See [Tests](#tests).
+98 tests pass. See [Tests](#tests).
 
 ### Shortcuts
 
@@ -98,6 +99,15 @@ well. Crisp exists for the parts they do not:
 While the overlay is open: drag to select, click to take the highlighted window,
 hold `Shift` to lock the selection square, `Enter` to accept, `Esc` or
 right-click to cancel.
+
+**Metni kopyala (OCR)** and **Renk seç** are in the tray menu. OCR runs on the
+engine already in Windows — nothing is uploaded and nothing extra is installed,
+but it needs an OCR-capable language in your language profile. About → tells you
+whether this machine has one.
+
+On a pinned window: drag anywhere to move it, wheel to zoom, double-click for
+actual size, `Ctrl+C` to copy, `Ctrl+S` to save, `Esc` to close, right-click for
+the rest.
 
 <br>
 

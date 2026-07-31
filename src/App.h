@@ -46,8 +46,13 @@ private:
     void StartCapture(CaptureMode mode);
     void CaptureRegionOrWindow(bool preferWindowPick);
     void CaptureCurrentMonitor();
-    void DeliverCapture(const Image& image);
+    void DeliverCapture(const Image& image, POINT origin);
     void OpenSaveFolder();
+
+    // Bölge seçtirip içindeki metni panoya kopyalar.
+    void CaptureTextToClipboard();
+    // Ekrandan bir pikselin rengini seçtirip panoya kopyalar.
+    void PickColorToClipboard();
 
     [[nodiscard]] bool SaveCapture(const Image& image, std::wstring& savedPath);
 
