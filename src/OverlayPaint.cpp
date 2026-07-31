@@ -252,46 +252,56 @@ void DrawMagnifier(HDC dc, const OverlayVisual& visual, HDC frozenDc,
     DrawFrame(dc, swatch, 1, kPanelBorder);
 }
 
-// Tanınan kelimeleri kutular, seçili olanları vurgular.
+// Metin katmanı: her SATIR yuvarlatılmış bir kutuya alınır, imlecin altındaki
+// satır belirginleşir, seçili kelimeler metin seçimi gibi vurgulanır.
 //
-// KUTULAR KIRPILMADAN ÇİZİLİR: kelime kutusu bir piksel eksik olsa kullanıcının
-// kenara yaptığı tıklama ıskalar. Ocr.cpp kutuları yukarı yuvarlayarak üretir,
-// burada da olduğu gibi kullanılır.
-void DrawTextLayer(HDC dc, const OverlayVisual& visual) {
+// SATIR KUTUSU, KELİME KUTUSU DEĞİL: kullanıcı bir metin satırını tek bir blok
+// olarak görür. Her kelimeyi ayrı kutulamak ekranı tel kafese çevirir ve
+// "burada metin var" bilgisini vermek yerine görüntüyü boğar.
+void DrawTextLayer(AlphaLayer& layer, const OverlayVisual& visual) {
     if (visual.layout == nullptr || visual.layout->empty()) {
         return;
     }
 
-    const LONG pad = Scale(2, visual.dpi);
-    const int count = visual.layout->count();
+    const int pad = static_cast<int>(Scale(4, visual.dpi));
+    const int radius = static_cast<int>(Scale(6, visual.dpi));
+    const int lineCount = ocrsel::LineCount(*visual.layout);
 
-    for (int i = 0; i < count; ++i) {
-        const OcrWord& word = visual.layout->words[static_cast<size_t>(i)];
-        // Kelime kutuları GÖRÜNTÜ koordinatında; istemci koordinatı da
-        // görüntünün sol-üstünden başladığı için dönüşüm gerekmez.
-        RECT box = word.bounds;
-        box.left -= pad;
-        box.top -= pad;
-        box.right += pad;
-        box.bottom += pad;
-
-        const bool selected = visual.selectionFirst >= 0 &&
-                              i >= visual.selectionFirst &&
-                              i <= visual.selectionLast;
-
-        if (selected) {
-            // Metin seçimi görünümü: dolgu, altındaki yazı okunur kalacak
-            // kadar saydam.
-            FillRectAlpha(dc, box, kAccent, 110);
-        } else if (i == visual.hoverWord) {
-            FillRectAlpha(dc, box, kAccent, 55);
-        } else {
-            // Tanınan ama seçilmemiş kelimeler: yalnızca ince bir alt çizgi.
-            // Her kelimeyi kutulamak ekranı kafes gibi gösterirdi.
-            const RECT underline{box.left, box.bottom - Scale(1, visual.dpi) - 1,
-                                 box.right, box.bottom - 1};
-            FillRectAlpha(dc, underline, kAccent, 90);
+    // 1. Satır kutuları — tanınan her metin bloğunun sınırı.
+    for (int line = 0; line < lineCount; ++line) {
+        RECT box = ocrsel::LineBounds(*visual.layout, line);
+        if (geom::IsEmpty(box)) {
+            continue;
         }
+        ::InflateRect(&box, pad, pad);
+
+        const bool hovered = (line == visual.hoverLine);
+        if (hovered) {
+            // İmlecin altındaki satır: hafif dolgu + belirgin çerçeve.
+            layer.FillRoundRect(box, kAccent, 34, radius);
+            layer.StrokeRoundRect(box, kAccent, 200, radius,
+                                  static_cast<int>(Scale(1, visual.dpi)) + 1);
+        } else {
+            // Diğerleri: yalnızca ince çerçeve. Metnin okunmasını engellemeyecek
+            // kadar soluk, "burada metin var" demeye yetecek kadar görünür.
+            layer.StrokeRoundRect(box, kAccent, 90, radius,
+                                  static_cast<int>(Scale(1, visual.dpi)));
+        }
+    }
+
+    // 2. Seçim — kelime kelime, çünkü seçim satırın ortasında başlayıp
+    // bitebilir.
+    if (visual.selectionFirst < 0) {
+        return;
+    }
+
+    const int selectPad = static_cast<int>(Scale(2, visual.dpi));
+    const int selectRadius = static_cast<int>(Scale(3, visual.dpi));
+    for (int i = visual.selectionFirst;
+         i <= visual.selectionLast && i < visual.layout->count(); ++i) {
+        RECT box = visual.layout->words[static_cast<size_t>(i)].bounds;
+        ::InflateRect(&box, selectPad, selectPad);
+        layer.FillRoundRect(box, kAccent, 120, selectRadius);
     }
 }
 
@@ -368,12 +378,17 @@ void PaintOverlay(HDC target, const OverlayVisual& visual, HDC frozenDc,
     const HFONT font = CreateUiFont(visual.dpi, 9, false);
     const HFONT fontBold = CreateUiFont(visual.dpi, 10, true);
 
-    // Metin seçmede masaüstü KARARTILMAZ: kullanıcı okuyacağı metni seçiyor,
-    // %40'a düşürülmüş bir ekranda hangi kelimeyi aldığını göremez. Diğer
-    // kiplerde karartma, seçimin nerede bittiğini gösteren şeyin ta kendisi.
+    // Metin seçmede masaüstü hafifçe karartılır: kutular ve vurgular üstünde
+    // ayrışsın diye. Tam karartma olmaz — kullanıcı okuyacağı metni seçiyor ve
+    // %40'a düşürülmüş bir ekranda hangi kelimeyi aldığını göremez.
     if (visual.textSelect) {
         ::BitBlt(target, 0, 0, width, height, frozenDc, 0, 0, SRCCOPY);
-        DrawTextLayer(target, visual);
+
+        if (visual.layer != nullptr && visual.layer->valid()) {
+            visual.layer->Clear();
+            DrawTextLayer(*visual.layer, visual);
+            visual.layer->BlendTo(target);
+        }
 
         if (visual.showHint) {
             DrawHint(target, visual, font);

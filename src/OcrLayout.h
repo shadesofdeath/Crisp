@@ -32,6 +32,16 @@ struct OcrLayout {
 
 namespace ocrsel {
 
+// Kelimeleri GÖRSEL okuma sırasına sokar: satırlar üstten alta, satır içindeki
+// kelimeler soldan sağa. Satır indeksleri 0'dan başlayarak yeniden atanır.
+//
+// NEDEN GEREKLİ: aralık seçimi kelime sırasına dayanır. Motor tüm ekranı
+// tararken satırları ekrandaki konumlarına göre değil kendi bölge analizine
+// göre sıralar; birden çok pencere açıkken sıra ekranda zıplar. O hâlde
+// kullanıcı iki nokta arasını seçtiğinde vurgulanan kelimeler ekranın
+// dört bir yanına dağılır ve seçim anlamsız görünür.
+void NormalizeReadingOrder(OcrLayout& layout);
+
 // Noktanın ÜZERİNDE bulunduğu kelime; yoksa -1.
 [[nodiscard]] int WordAt(const OcrLayout& layout, POINT point) noexcept;
 
@@ -53,6 +63,27 @@ void NormalizeRange(int a, int b, int& lo, int& hi) noexcept;
 
 // Tüm yerleşimin metni.
 [[nodiscard]] std::wstring AllText(const OcrLayout& layout);
+
+// --- Satır işlemleri ---------------------------------------------------------
+
+// Yerleşimdeki satır sayısı (son kelimenin satır indeksi + 1).
+[[nodiscard]] int LineCount(const OcrLayout& layout) noexcept;
+
+// Verilen kelimenin ait olduğu satırın ilk ve son kelime indeksi.
+// wordIndex geçersizse first/last -1 kalır.
+void LineRange(const OcrLayout& layout, int wordIndex, int& first,
+               int& last) noexcept;
+
+// Bir satırın tüm kelimelerini kapsayan dikdörtgen. Satır boşsa boş dikdörtgen.
+//
+// SATIR KUTUSU KELİMELERİN BİRLEŞİMİDİR, kelime kutularının ayrı ayrı
+// çizilmesi değil: kullanıcı bir metin satırını tek bir blok olarak görür,
+// kelime kelime kutulanmış bir satır tel kafese benzer.
+[[nodiscard]] RECT LineBounds(const OcrLayout& layout, int line) noexcept;
+
+// Noktanın üzerinde bulunduğu satır; yoksa -1. Kelimeler arası boşluklar da
+// satıra dahildir — kullanıcı iki kelime arasına tıkladığında satırı seçebilmeli.
+[[nodiscard]] int LineAt(const OcrLayout& layout, POINT point) noexcept;
 
 }  // namespace ocrsel
 }  // namespace crisp

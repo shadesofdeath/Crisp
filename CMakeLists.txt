@@ -114,6 +114,7 @@ set(CRISP_APP_SOURCES
     src/AppCapture.cpp
     src/Overlay.cpp
     src/OverlayPaint.cpp
+    src/AlphaLayer.cpp
     src/PinWindow.cpp
     src/Ocr.cpp
     src/TrayIcon.cpp
@@ -124,6 +125,7 @@ set(CRISP_APP_HEADERS
     src/App.h
     src/Overlay.h
     src/OverlayPaint.h
+    src/AlphaLayer.h
     src/PinWindow.h
     src/Ocr.h
     src/TrayIcon.h

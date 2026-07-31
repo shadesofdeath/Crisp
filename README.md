@@ -13,8 +13,8 @@ pixel magnifier, annotation, OCR and pin-to-screen.
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=cplusplus&logoColor=white)
 ![Win32](https://img.shields.io/badge/Win32-native-1a1a1a?style=flat-square)
 ![No dependencies](https://img.shields.io/badge/dependencies-none-2ea44f?style=flat-square)
-![Tests](https://img.shields.io/badge/tests-113%20passing-2ea44f?style=flat-square)
-![Size](https://img.shields.io/badge/exe-249%20KB-2ea44f?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-124%20passing-2ea44f?style=flat-square)
+![Size](https://img.shields.io/badge/exe-255%20KB-2ea44f?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-1a1a1a?style=flat-square)
 
 <br>
@@ -54,32 +54,40 @@ selection stays dimmed.
 
 ### Text on screen
 
-**Ekrandan metin seç** reads the whole screen, boxes every word it found, and
-lets you select across them the way you would select text in a document.
+**Ekrandan metin seç** reads the screen, draws a box around every line of text it
+found, and lets you select across them the way you would in a document.
 
 <div align="center">
-<img src="docs/screenshots/text-select-scan.png" width="820" alt="Every recognised word underlined">
+<img src="docs/screenshots/text-select-selection.png" width="820" alt="Lines boxed, three selected">
 </div>
 
-The screen is **not dimmed** in this mode — you are choosing words to read, and
-at 40 % brightness you could not tell which ones. Unrecognised areas simply have
-no underline. Drag across words to select, `Ctrl+A` for everything, `Enter` or
-`Ctrl+C` to copy, `Esc` to cancel.
+Lines are boxed, not words. Boxing every word turns the screen into a wire grid;
+a line is the unit a reader actually sees. The line under the cursor gets a
+stronger border and a light fill, the selection is filled like text selection,
+and the boxes are drawn with antialiased rounded corners on a single composited
+alpha layer rather than a few hundred separate blits.
+
+Releasing the mouse **keeps** the selection. Elsewhere in the app letting go
+means "done"; here it would take away the chance to look at what you selected.
+Right-click for the rest:
 
 <div align="center">
-<img src="docs/screenshots/text-select-selection.png" width="820" alt="Two lines selected">
+<img src="docs/screenshots/text-select-menu.png" width="820" alt="Context menu">
 </div>
 
-Line breaks survive the round trip. Selecting the two lines above puts exactly
-two lines on the clipboard, because the text is rebuilt from `OcrResult.Lines`;
-`OcrResult.Text` joins every word with a single space and turns an invoice into
-one unreadable strip.
+Drag to select, double-click a word, double-click again for the whole line,
+`Ctrl+A` for everything, `Ctrl+C` or `Enter` to copy, `Esc` to cancel.
 
-Accuracy is whatever the Windows engine gives you — in the screenshot it misread
-`Siparis` and one digit of the amount. That is the engine, not the plumbing.
+Reading order is fixed before anything is drawn. The engine orders lines by its
+own region analysis, not by where they sit on screen, so with several windows
+open a range selection lands on words scattered across the display. Lines are
+re-sorted top-to-bottom and words left-to-right first.
 
-**Bölgedeki metni kopyala** is the older, blunter path: drag a region, get all of
-its text at once, no selection step.
+Line breaks survive the round trip — selecting three lines puts three lines on
+the clipboard. Accuracy is whatever the Windows engine gives you.
+
+**Bölgedeki metni kopyala** is the blunter path: drag a region, get all of its
+text at once, no selection step.
 
 <br>
 
@@ -112,12 +120,12 @@ well. Crisp exists for the parts they do not:
 | Save as PNG, copy to clipboard | done |
 | Pin to screen — drag, wheel zoom, opacity, copy, save as | done |
 | OCR — region to text | done |
-| Text on screen — scan, box, select, copy | done |
+| Text on screen — boxed lines, drag/word/line select, context menu | done |
 | Colour picker | done |
 | Annotation editor | not started |
 | Capture history | not started |
 
-113 tests pass. See [Tests](#tests).
+124 tests pass. See [Tests](#tests).
 
 ### Shortcuts
 

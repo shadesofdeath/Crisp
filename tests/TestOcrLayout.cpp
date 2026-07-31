@@ -122,6 +122,120 @@ CRISP_TEST(OcrLayout, AllText_tumunu_verir) {
     CHECK_STR(AllText(layout), L"Fatura No\r\nToplam 14 TL");
 }
 
+CRISP_TEST(OcrLayout, NormalizeReadingOrder_satirlari_ustten_alta_sirlar) {
+    // Motorun verdiği sıra ekrandaki sırayla ters: alt satır önce gelmiş.
+    OcrLayout layout;
+    layout.words.push_back(OcrWord{L"alt", RECT{10, 100, 40, 120}, 0});
+    layout.words.push_back(OcrWord{L"ust", RECT{10, 10, 40, 30}, 1});
+
+    NormalizeReadingOrder(layout);
+
+    CHECK_STR(layout.words[0].text, L"ust");
+    CHECK_STR(layout.words[1].text, L"alt");
+    CHECK_EQ(layout.words[0].line, 0);
+    CHECK_EQ(layout.words[1].line, 1);
+    CHECK_STR(AllText(layout), L"ust\r\nalt");
+}
+
+CRISP_TEST(OcrLayout, NormalizeReadingOrder_satir_icinde_soldan_saga) {
+    OcrLayout layout;
+    layout.words.push_back(OcrWord{L"uc", RECT{200, 10, 230, 30}, 0});
+    layout.words.push_back(OcrWord{L"bir", RECT{10, 10, 40, 30}, 0});
+    layout.words.push_back(OcrWord{L"iki", RECT{100, 10, 130, 30}, 0});
+
+    NormalizeReadingOrder(layout);
+
+    CHECK_STR(AllText(layout), L"bir iki uc");
+}
+
+CRISP_TEST(OcrLayout, NormalizeReadingOrder_ayni_satirdakileri_birlikte_tutar) {
+    // İki satır, motorun sırası karışık. Düzeltmeden sonra her satırın
+    // kelimeleri ARDIŞIK olmalı; aksi hâlde aralık seçimi satır atlar.
+    OcrLayout layout;
+    layout.words.push_back(OcrWord{L"b1", RECT{10, 100, 40, 120}, 5});
+    layout.words.push_back(OcrWord{L"a1", RECT{10, 10, 40, 30}, 2});
+    layout.words.push_back(OcrWord{L"b2", RECT{50, 100, 80, 120}, 5});
+    layout.words.push_back(OcrWord{L"a2", RECT{50, 10, 80, 30}, 2});
+
+    NormalizeReadingOrder(layout);
+
+    CHECK_STR(AllText(layout), L"a1 a2\r\nb1 b2");
+    CHECK_EQ(layout.words[0].line, 0);
+    CHECK_EQ(layout.words[1].line, 0);
+    CHECK_EQ(layout.words[2].line, 1);
+    CHECK_EQ(layout.words[3].line, 1);
+}
+
+CRISP_TEST(OcrLayout, NormalizeReadingOrder_bos_yerlesim_guvenli) {
+    OcrLayout empty;
+    NormalizeReadingOrder(empty);
+    CHECK(empty.empty());
+}
+
+CRISP_TEST(OcrLayout, LineCount_satir_sayisi) {
+    CHECK_EQ(LineCount(SampleLayout()), 2);
+    const OcrLayout empty;
+    CHECK_EQ(LineCount(empty), 0);
+}
+
+CRISP_TEST(OcrLayout, LineRange_satirin_ucunu_bulur) {
+    const OcrLayout layout = SampleLayout();
+    int first = 0;
+    int last = 0;
+
+    // Satır 0: kelime 0..1
+    LineRange(layout, 0, first, last);
+    CHECK_EQ(first, 0);
+    CHECK_EQ(last, 1);
+    LineRange(layout, 1, first, last);
+    CHECK_EQ(first, 0);
+    CHECK_EQ(last, 1);
+
+    // Satır 1: kelime 2..4 — ORTADAKİ kelimeden de aynı aralık çıkmalı
+    LineRange(layout, 3, first, last);
+    CHECK_EQ(first, 2);
+    CHECK_EQ(last, 4);
+}
+
+CRISP_TEST(OcrLayout, LineRange_gecersiz_indeks) {
+    const OcrLayout layout = SampleLayout();
+    int first = 99;
+    int last = 99;
+    LineRange(layout, -1, first, last);
+    CHECK_EQ(first, -1);
+    CHECK_EQ(last, -1);
+    LineRange(layout, 100, first, last);
+    CHECK_EQ(first, -1);
+}
+
+CRISP_TEST(OcrLayout, LineBounds_kelimelerin_birlesimi) {
+    const OcrLayout layout = SampleLayout();
+    // Satır 0: (10,10)-(70,30) ∪ (80,10)-(110,30)
+    CHECK_RECT(LineBounds(layout, 0), 10, 10, 110, 30);
+    // Satır 1: (10,40)-(80,60) ∪ (90,40)-(115,60) ∪ (125,40)-(150,60)
+    CHECK_RECT(LineBounds(layout, 1), 10, 40, 150, 60);
+}
+
+CRISP_TEST(OcrLayout, LineBounds_olmayan_satir_bos) {
+    const OcrLayout layout = SampleLayout();
+    const RECT bounds = LineBounds(layout, 7);
+    CHECK(bounds.left == 0 && bounds.right == 0);
+}
+
+CRISP_TEST(OcrLayout, LineAt_kelimeler_arasi_bosluk_da_satira_dahil) {
+    // Kullanıcı iki kelime ARASINA tıkladığında satırı seçebilmeli; kelime
+    // kutularına bakan bir arama burada -1 döner ve satır seçimi çalışmaz.
+    const OcrLayout layout = SampleLayout();
+    CHECK_EQ(WordAt(layout, POINT{75, 20}), -1);   // kelimeler arası
+    CHECK_EQ(LineAt(layout, POINT{75, 20}), 0);    // ama satır 0
+}
+
+CRISP_TEST(OcrLayout, LineAt_satir_disi) {
+    const OcrLayout layout = SampleLayout();
+    CHECK_EQ(LineAt(layout, POINT{20, 35}), -1);   // satırlar arası boşluk
+    CHECK_EQ(LineAt(layout, POINT{500, 500}), -1);
+}
+
 CRISP_TEST(OcrLayout, Satir_atlamasi_birden_fazla_satirda) {
     OcrLayout layout;
     layout.words.push_back(OcrWord{L"bir", RECT{0, 0, 30, 20}, 0});

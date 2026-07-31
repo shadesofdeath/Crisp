@@ -442,6 +442,11 @@ bool RecognizeLayout(const Image& image, OcrLayout& layout) {
         }
     }
 
+    // Motorun verdiği sıra tüm ekranda taranırken ekrandaki görsel sırayla
+    // örtüşmez; birden çok pencere açıkken satırlar zıplar. Aralık seçimi
+    // kelime sırasına dayandığı için bu düzeltme olmadan seçim ekranın dört
+    // bir yanına dağılır.
+    ocrsel::NormalizeReadingOrder(layout);
     return true;
 }
 

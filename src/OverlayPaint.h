@@ -10,6 +10,7 @@
 // kullanım yerinde bir işaret hatası riskinden iyidir.
 #pragma once
 
+#include "AlphaLayer.h"
 #include "Capture.h"
 #include "OcrLayout.h"
 
@@ -31,7 +32,9 @@ struct OverlayVisual {
     // --- Metin seçme kipi ----------------------------------------------------
     bool textSelect = false;
     const OcrLayout* layout = nullptr;   // sahibi kaplama durumudur
+    AlphaLayer* layer = nullptr;         // yeniden kullanılan çizim yüzeyi
     int hoverWord = -1;
+    int hoverLine = -1;
     int selectionFirst = -1;   // -1: seçim yok
     int selectionLast = -1;
 
