@@ -2,6 +2,7 @@
 #include "App.h"
 
 #include "ClipboardImage.h"
+#include "EditorWindow.h"
 #include "Geometry.h"
 #include "ImageCodec.h"
 #include "Localization.h"
@@ -270,6 +271,35 @@ void App::DeliverCapture(const Image& image, POINT origin) {
         return;
     }
 
+    // DÜZENLEYİCİ VARSA ÖNCE O ÇALIŞIR: kullanıcı işaretlemesini yaptıktan
+    // sonra hangi hedeflere gideceğine kendisi karar verir. Önce panoya
+    // kopyalayıp sonra düzenleyici açmak, panoda işaretlenmemiş bir görüntü
+    // bırakırdı.
+    if (m_settings.after.openEditor) {
+        Image edited;
+        if (!CropImage(image, 0, 0, image.Width(), image.Height(), edited)) {
+            return;
+        }
+        const EditorResult result = RunEditor(m_instance, m_settings, edited);
+        if (!result.accepted) {
+            return;   // kullanıcı iptal etti
+        }
+        if (result.copyToClipboard && !CopyImageToClipboard(edited, m_window)) {
+            LogV(L"Düzenlenen görüntü panoya kopyalanamadı");
+        }
+        if (result.saveToFile) {
+            std::wstring savedPath;
+            if (SaveCapture(edited, savedPath)) {
+                FlashSaved(savedPath);
+            }
+        }
+        if (m_settings.after.pinToScreen &&
+            !PinImageToScreen(m_instance, edited, origin)) {
+            LogV(L"İğneleme başarısız");
+        }
+        return;
+    }
+
     if (m_settings.after.copyToClipboard) {
         if (!CopyImageToClipboard(image, m_window)) {
             LogV(L"Panoya kopyalama başarısız");
@@ -291,12 +321,7 @@ void App::DeliverCapture(const Image& image, POINT origin) {
         }
     }
 
-    // Düzenleyici sonraki kilometre taşında; ayar açık olsa bile şimdilik
-    // sessizce atlanır. Settings::Clamp en az bir hedef garanti ettiği için
-    // yakalama yine de bir yere gitmiş olur.
-    if (m_settings.after.openEditor) {
-        LogV(L"Düzenleyici bu sürümde yok; yakalama diğer eylemlerle işlendi");
-    }
+
 }
 
 void App::OpenSaveFolder() {

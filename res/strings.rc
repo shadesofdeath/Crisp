@@ -71,6 +71,7 @@ BEGIN
     IDS_ABOUT_TITLE         "About Crisp"
     IDS_LANG_AUTO           "Automatic"
     IDS_ABOUT_TAGLINE       "Screenshots that stay sharp."
+    IDS_EDITOR_TITLE        "Crisp — annotate"
 END
 
 // ---------------------------------------------------------------------------
@@ -118,6 +119,7 @@ BEGIN
     IDS_ABOUT_TITLE         "Crisp hakkında"
     IDS_LANG_AUTO           "Otomatik"
     IDS_ABOUT_TAGLINE       "Keskin kalan ekran görüntüleri."
+    IDS_EDITOR_TITLE        "Crisp — işaretle"
 END
 
 // ---------------------------------------------------------------------------
@@ -165,6 +167,7 @@ BEGIN
     IDS_ABOUT_TITLE         "Über Crisp"
     IDS_LANG_AUTO           "Automatisch"
     IDS_ABOUT_TAGLINE       "Bildschirmfotos, die scharf bleiben."
+    IDS_EDITOR_TITLE        "Crisp — kommentieren"
 END
 
 // ---------------------------------------------------------------------------
@@ -212,6 +215,7 @@ BEGIN
     IDS_ABOUT_TITLE         "À propos de Crisp"
     IDS_LANG_AUTO           "Automatique"
     IDS_ABOUT_TAGLINE       "Des captures d'écran qui restent nettes."
+    IDS_EDITOR_TITLE        "Crisp — annoter"
 END
 
 // ---------------------------------------------------------------------------
@@ -259,6 +263,7 @@ BEGIN
     IDS_ABOUT_TITLE         "Acerca de Crisp"
     IDS_LANG_AUTO           "Automático"
     IDS_ABOUT_TAGLINE       "Capturas que se mantienen nítidas."
+    IDS_EDITOR_TITLE        "Crisp — anotar"
 END
 
 // ---------------------------------------------------------------------------
@@ -306,6 +311,7 @@ BEGIN
     IDS_ABOUT_TITLE         "Informazioni su Crisp"
     IDS_LANG_AUTO           "Automatico"
     IDS_ABOUT_TAGLINE       "Schermate che restano nitide."
+    IDS_EDITOR_TITLE        "Crisp — annota"
 END
 
 // ---------------------------------------------------------------------------
@@ -353,6 +359,7 @@ BEGIN
     IDS_ABOUT_TITLE         "Sobre o Crisp"
     IDS_LANG_AUTO           "Automático"
     IDS_ABOUT_TAGLINE       "Capturas que continuam nítidas."
+    IDS_EDITOR_TITLE        "Crisp — anotar"
 END
 
 // ---------------------------------------------------------------------------
@@ -400,6 +407,7 @@ BEGIN
     IDS_ABOUT_TITLE         "О программе Crisp"
     IDS_LANG_AUTO           "Автоматически"
     IDS_ABOUT_TAGLINE       "Снимки экрана, которые остаются чёткими."
+    IDS_EDITOR_TITLE        "Crisp — разметка"
 END
 
 // ---------------------------------------------------------------------------
@@ -447,6 +455,7 @@ BEGIN
     IDS_ABOUT_TITLE         "Informacje o programie Crisp"
     IDS_LANG_AUTO           "Automatycznie"
     IDS_ABOUT_TAGLINE       "Zrzuty ekranu, które pozostają ostre."
+    IDS_EDITOR_TITLE        "Crisp — adnotacje"
 END
 
 // ---------------------------------------------------------------------------
@@ -494,6 +503,7 @@ BEGIN
     IDS_ABOUT_TITLE         "Over Crisp"
     IDS_LANG_AUTO           "Automatisch"
     IDS_ABOUT_TAGLINE       "Schermafbeeldingen die scherp blijven."
+    IDS_EDITOR_TITLE        "Crisp — annoteren"
 END
 
 // ---------------------------------------------------------------------------
@@ -541,6 +551,7 @@ BEGIN
     IDS_ABOUT_TITLE         "O aplikaci Crisp"
     IDS_LANG_AUTO           "Automaticky"
     IDS_ABOUT_TAGLINE       "Snímky obrazovky, které zůstávají ostré."
+    IDS_EDITOR_TITLE        "Crisp — poznámky"
 END
 
 // ---------------------------------------------------------------------------
@@ -588,6 +599,7 @@ BEGIN
     IDS_ABOUT_TITLE         "Om Crisp"
     IDS_LANG_AUTO           "Automatiskt"
     IDS_ABOUT_TAGLINE       "Skärmbilder som förblir skarpa."
+    IDS_EDITOR_TITLE        "Crisp — anteckna"
 END
 
 // ---------------------------------------------------------------------------
@@ -635,6 +647,7 @@ BEGIN
     IDS_ABOUT_TITLE         "Про програму Crisp"
     IDS_LANG_AUTO           "Автоматично"
     IDS_ABOUT_TAGLINE       "Знімки екрана, які лишаються чіткими."
+    IDS_EDITOR_TITLE        "Crisp — розмітка"
 END
 
 // ---------------------------------------------------------------------------
@@ -682,6 +695,7 @@ BEGIN
     IDS_ABOUT_TITLE         "Crisp について"
     IDS_LANG_AUTO           "自動"
     IDS_ABOUT_TAGLINE       "くっきりしたままのスクリーンショット。"
+    IDS_EDITOR_TITLE        "Crisp — 注釈"
 END
 
 // ---------------------------------------------------------------------------
@@ -729,6 +743,7 @@ BEGIN
     IDS_ABOUT_TITLE         "Crisp 정보"
     IDS_LANG_AUTO           "자동"
     IDS_ABOUT_TAGLINE       "선명하게 유지되는 스크린샷."
+    IDS_EDITOR_TITLE        "Crisp — 주석"
 END
 
 // ---------------------------------------------------------------------------
@@ -776,4 +791,5 @@ BEGIN
     IDS_ABOUT_TITLE         "关于 Crisp"
     IDS_LANG_AUTO           "自动"
     IDS_ABOUT_TAGLINE       "始终清晰的屏幕截图。"
+    IDS_EDITOR_TITLE        "Crisp — 标注"
 END

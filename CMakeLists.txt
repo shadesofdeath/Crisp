@@ -48,6 +48,8 @@ set(CRISP_CORE_SOURCES
     src/ClipboardImage.cpp
     src/Settings.cpp
     src/OcrLayout.cpp
+    src/ImageEffects.cpp
+    src/Annotation.cpp
 )
 
 set(CRISP_CORE_HEADERS
@@ -59,6 +61,8 @@ set(CRISP_CORE_HEADERS
     src/ClipboardImage.h
     src/Settings.h
     src/OcrLayout.h
+    src/ImageEffects.h
+    src/Annotation.h
 )
 
 add_library(crisp_core STATIC ${CRISP_CORE_SOURCES} ${CRISP_CORE_HEADERS})
@@ -118,6 +122,9 @@ set(CRISP_APP_SOURCES
     src/Localization.cpp
     src/Theme.cpp
     src/AboutWindow.cpp
+    src/EditorWindow.cpp
+    src/EditorInput.cpp
+    src/EditorRender.cpp
     src/PinWindow.cpp
     src/Ocr.cpp
     src/TrayIcon.cpp
@@ -132,6 +139,9 @@ set(CRISP_APP_HEADERS
     src/Localization.h
     src/Theme.h
     src/AboutWindow.h
+    src/EditorWindow.h
+    src/EditorInternal.h
+    src/EditorRender.h
     src/PinWindow.h
     src/Ocr.h
     src/TrayIcon.h
@@ -197,6 +207,7 @@ if(CRISP_TESTS)
         tests/TestSettings.cpp
         tests/TestWindowPick.cpp
         tests/TestOcrLayout.cpp
+        tests/TestAnnotation.cpp
     )
     target_link_libraries(crisp_tests PRIVATE crisp_core)
     target_include_directories(crisp_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")

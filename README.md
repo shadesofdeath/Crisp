@@ -13,8 +13,8 @@ pixel magnifier, annotation, OCR and pin-to-screen.
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=cplusplus&logoColor=white)
 ![Win32](https://img.shields.io/badge/Win32-native-1a1a1a?style=flat-square)
 ![No dependencies](https://img.shields.io/badge/dependencies-none-2ea44f?style=flat-square)
-![Tests](https://img.shields.io/badge/tests-124%20passing-2ea44f?style=flat-square)
-![Size](https://img.shields.io/badge/exe-317%20KB-2ea44f?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-152%20passing-2ea44f?style=flat-square)
+![Size](https://img.shields.io/badge/exe-367%20KB-2ea44f?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-1a1a1a?style=flat-square)
 
 <br>
@@ -127,10 +127,12 @@ well. Crisp exists for the parts they do not:
 | PNG and JPEG saving with a quality setting | done |
 | Print Screen opens the region overlay | done |
 | Custom About window | done |
-| Annotation editor | not started |
+| Annotation editor — arrow, box, ellipse, pen, highlighter, text, step badges | done |
+| Blur and mosaic | done |
+| Undo / redo | done |
 | Capture history | not started |
 
-129 tests pass. See [Tests](#tests).
+152 tests pass. See [Tests](#tests).
 
 ### Languages
 
@@ -142,6 +144,32 @@ explicitly.
 <div align="center">
 <img src="docs/screenshots/languages.png" width="900" alt="The tray menu in German, Japanese, Russian and Turkish">
 </div>
+
+### Annotation
+
+Turn on "open the editor" and a capture lands here instead of going straight to
+the clipboard.
+
+<div align="center">
+<img src="docs/screenshots/editor.png" width="860" alt="The annotation editor">
+</div>
+
+Arrow, rectangle, ellipse, pen, highlighter, text, numbered step badges, blur
+and mosaic. `Ctrl+Z` / `Ctrl+Y`, `Ctrl+C` to copy, `Ctrl+S` to save, `Esc` to
+discard.
+
+Undo restores **pixels**, not just the shape list:
+
+<div align="center">
+<img src="docs/screenshots/editor-undo.png" width="860" alt="After two undos the mosaic is gone and the text is readable again">
+</div>
+
+Two undos removed the mosaic and the second badge — and the text under the
+mosaic is readable again. Every repaint starts from the untouched capture and
+replays the shape list, because painting on top of the current image would leave
+a permanent smear where an undone blur used to be.
+
+<br>
 
 ### About
 
