@@ -127,6 +127,8 @@ set(CRISP_APP_SOURCES
     src/AppCapture.cpp
     src/AppText.cpp
     src/Overlay.cpp
+    src/OverlayInput.cpp
+    src/OverlaySession.cpp
     src/OverlayPaint.cpp
     src/AlphaLayer.cpp
     src/Localization.cpp
@@ -134,6 +136,7 @@ set(CRISP_APP_SOURCES
     src/AboutWindow.cpp
     src/AboutPaint.cpp
     src/MessageWindow.cpp
+    src/MessagePaint.cpp
     src/EditorWindow.cpp
     src/EditorInput.cpp
     src/EditorSession.cpp
@@ -154,6 +157,7 @@ set(CRISP_APP_SOURCES
     src/Toast.cpp
     src/PinWindow.cpp
     src/Ocr.cpp
+    src/OcrScan.cpp
     src/TrayIcon.cpp
     src/Hotkeys.cpp
 )
@@ -161,6 +165,7 @@ set(CRISP_APP_SOURCES
 set(CRISP_APP_HEADERS
     src/App.h
     src/Overlay.h
+    src/OverlayInternal.h
     src/OverlayPaint.h
     src/AlphaLayer.h
     src/Localization.h
@@ -168,6 +173,7 @@ set(CRISP_APP_HEADERS
     src/AboutWindow.h
     src/AboutInternal.h
     src/MessageWindow.h
+    src/MessageInternal.h
     src/EditorWindow.h
     src/EditorInternal.h
     src/EditorRender.h
@@ -179,6 +185,7 @@ set(CRISP_APP_HEADERS
     src/Toast.h
     src/PinWindow.h
     src/Ocr.h
+    src/OcrInternal.h
     src/TrayIcon.h
     src/Hotkeys.h
     src/Messages.h

@@ -1,6 +1,8 @@
 // MessageWindow.cpp — bkz. MessageWindow.h.
 #include "MessageWindow.h"
 
+#include "MessageInternal.h"
+
 #include "Geometry.h"
 #include "Localization.h"
 #include "Theme.h"
@@ -16,34 +18,14 @@ namespace {
 
 constexpr const wchar_t* kWindowClass = L"CrispMessageBox";
 
-// Tasarım ölçüleri (96 DPI mantıksal piksel).
-constexpr int kWidth = 420;
-constexpr int kPad = 22;
-constexpr int kIconSide = 34;
-constexpr int kIconGap = 18;
-constexpr int kButtonWidth = 104;
-constexpr int kButtonHeight = 32;
-constexpr int kButtonGap = 10;
-constexpr int kMinTextHeight = 34;
 
-enum ControlId { kIdPrimary = 100, kIdSecondary };
+}  // namespace
 
-struct MessageState {
-    std::wstring text;
-    MessageIcon icon = MessageIcon::Information;
-    MessageButtons buttons = MessageButtons::Ok;
-    MessageResult result = MessageResult::Ok;
-    unsigned dpi = 96;
-    int textHeight = 0;
-    HFONT font = nullptr;
-    HBRUSH background = nullptr;
-};
-
-[[nodiscard]] int Scale(int value, unsigned dpi) noexcept {
+int MsgScale(int value, unsigned dpi) noexcept {
     return ::MulDiv(value, static_cast<int>(dpi), 96);
 }
 
-[[nodiscard]] HFONT CreateUiFont(unsigned dpi, int pointSize, int weight) {
+[[nodiscard]] HFONT MsgCreateUiFont(unsigned dpi, int pointSize, int weight) {
     LOGFONTW font{};
     font.lfHeight = -::MulDiv(pointSize, static_cast<int>(dpi), 72);
     font.lfWeight = weight;
@@ -53,166 +35,10 @@ struct MessageState {
     return ::CreateFontIndirectW(&font);
 }
 
+namespace {
+
 // Simge glifi ve rengi. Renk temadan DEĞİL sabit gelir: bir hata simgesinin
 // koyu temada da kırmızı olması gerekir, yoksa uyarıyla hatanın farkı kalmaz.
-[[nodiscard]] const wchar_t* IconGlyph(MessageIcon icon) noexcept {
-    switch (icon) {
-        case MessageIcon::Warning:  return L"";
-        case MessageIcon::Error:    return L"";
-        case MessageIcon::Question: return L"";
-        default:                    return L"";
-    }
-}
-
-[[nodiscard]] COLORREF IconColor(MessageIcon icon) noexcept {
-    switch (icon) {
-        case MessageIcon::Warning:  return RGB(255, 170, 20);
-        case MessageIcon::Error:    return RGB(232, 72, 62);
-        default:                    return theme::Colors().accent;
-    }
-}
-
-// Metnin verilen genişlikte kaplayacağı yükseklik. Pencere oluşturulmadan
-// önce gerekli, bu yüzden ekran DC'siyle ölçülür.
-[[nodiscard]] int MeasureText(const std::wstring& text, int width, HFONT font) {
-    const HDC screen = ::GetDC(nullptr);
-    if (screen == nullptr) {
-        return 0;
-    }
-    const HGDIOBJ old = ::SelectObject(screen, font);
-    RECT area{0, 0, width, 0};
-    ::DrawTextW(screen, text.c_str(), -1, &area,
-                DT_CALCRECT | DT_WORDBREAK | DT_NOPREFIX);
-    ::SelectObject(screen, old);
-    ::ReleaseDC(nullptr, screen);
-    return static_cast<int>(geom::Height(area));
-}
-
-void Paint(HWND window, const MessageState& state) {
-    PAINTSTRUCT paint{};
-    const HDC dc = ::BeginPaint(window, &paint);
-    if (dc == nullptr) {
-        return;
-    }
-
-    RECT client{};
-    ::GetClientRect(window, &client);
-    const Palette& colors = theme::Colors();
-    const unsigned dpi = state.dpi;
-    const int pad = Scale(kPad, dpi);
-    const int iconSide = Scale(kIconSide, dpi);
-
-    const HDC memory = ::CreateCompatibleDC(dc);
-    const HBITMAP buffer = ::CreateCompatibleBitmap(dc, geom::Width(client),
-                                                    geom::Height(client));
-    const HGDIOBJ oldBitmap = ::SelectObject(memory, buffer);
-
-    const HBRUSH surface = ::CreateSolidBrush(colors.surface);
-    if (surface != nullptr) {
-        ::FillRect(memory, &client, surface);
-        ::DeleteObject(surface);
-    }
-
-    // DÜĞME ŞERİDİ AYRI ZEMİNDE: sistem ileti kutusunun da yaptığı gibi, metin
-    // alanıyla eylem alanını ayırmak kutuyu okunur kılıyor.
-    const int stripTop = static_cast<int>(geom::Height(client)) -
-                         Scale(kButtonHeight + kPad * 2, dpi);
-    const RECT strip{0, stripTop, static_cast<LONG>(geom::Width(client)),
-                     static_cast<LONG>(geom::Height(client))};
-    const HBRUSH stripBrush = ::CreateSolidBrush(colors.surfaceAlt);
-    if (stripBrush != nullptr) {
-        ::FillRect(memory, &strip, stripBrush);
-        ::DeleteObject(stripBrush);
-    }
-    const RECT rule{0, stripTop, strip.right, stripTop + 1};
-    const HBRUSH border = ::CreateSolidBrush(colors.border);
-    if (border != nullptr) {
-        ::FillRect(memory, &rule, border);
-        ::DeleteObject(border);
-    }
-
-    ::SetBkMode(memory, TRANSPARENT);
-
-    const HFONT iconFont = CreateUiFont(dpi, 22, FW_NORMAL);
-    if (iconFont != nullptr) {
-        const HGDIOBJ old = ::SelectObject(memory, iconFont);
-        LOGFONTW logical{};
-        ::GetObjectW(iconFont, sizeof(logical), &logical);
-        ::wcscpy_s(logical.lfFaceName, L"Segoe MDL2 Assets");
-        const HFONT glyphFont = ::CreateFontIndirectW(&logical);
-        if (glyphFont != nullptr) {
-            ::SelectObject(memory, glyphFont);
-            ::SetTextColor(memory, IconColor(state.icon));
-            RECT box{pad, pad, pad + iconSide, pad + iconSide};
-            ::DrawTextW(memory, IconGlyph(state.icon), -1, &box,
-                        DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
-            ::SelectObject(memory, iconFont);
-            ::DeleteObject(glyphFont);
-        }
-        ::SelectObject(memory, old);
-        ::DeleteObject(iconFont);
-    }
-
-    const HGDIOBJ oldFont = ::SelectObject(memory, state.font);
-    ::SetTextColor(memory, colors.text);
-    const int textLeft = pad + iconSide + Scale(kIconGap, dpi);
-    RECT textArea{textLeft, pad, static_cast<LONG>(geom::Width(client)) - pad,
-                  pad + state.textHeight};
-    ::DrawTextW(memory, state.text.c_str(), -1, &textArea,
-                DT_WORDBREAK | DT_NOPREFIX);
-    ::SelectObject(memory, oldFont);
-
-    ::BitBlt(dc, 0, 0, geom::Width(client), geom::Height(client), memory, 0, 0,
-             SRCCOPY);
-
-    ::SelectObject(memory, oldBitmap);
-    ::DeleteObject(buffer);
-    ::DeleteDC(memory);
-    ::EndPaint(window, &paint);
-}
-
-void BuildButtons(HWND window, MessageState& state) {
-    const unsigned dpi = state.dpi;
-    RECT client{};
-    ::GetClientRect(window, &client);
-
-    const int pad = Scale(kPad, dpi);
-    const int width = Scale(kButtonWidth, dpi);
-    const int height = Scale(kButtonHeight, dpi);
-    const int top = static_cast<int>(geom::Height(client)) - pad - height;
-    int right = static_cast<int>(geom::Width(client)) - pad;
-
-    const bool twoButtons = state.buttons == MessageButtons::YesNo;
-    const UINT primaryText = twoButtons ? IDS_MSG_NO : IDS_SET_OK;
-
-    // BİRİNCİL DÜĞME SAĞDA ve varsayılan odaktadır. YesNo biçiminde sağdaki
-    // "Hayır"dır; kutu yalnızca geri alınamayan işlemler için kullanılıyor.
-    (void)::CreateWindowExW(
-        0, L"BUTTON", Loc::Str(primaryText).c_str(),
-        WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_DEFPUSHBUTTON, right - width, top,
-        width, height, window,
-        reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdPrimary)), nullptr,
-        nullptr);
-
-    if (twoButtons) {
-        right -= width + Scale(kButtonGap, dpi);
-        (void)::CreateWindowExW(
-            0, L"BUTTON", Loc::Str(IDS_MSG_YES).c_str(),
-            WS_CHILD | WS_VISIBLE | WS_TABSTOP | BS_PUSHBUTTON, right - width,
-            top, width, height, window,
-            reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdSecondary)), nullptr,
-            nullptr);
-    }
-
-    for (HWND child = ::GetWindow(window, GW_CHILD); child != nullptr;
-         child = ::GetWindow(child, GW_HWNDNEXT)) {
-        ::SendMessageW(child, WM_SETFONT, reinterpret_cast<WPARAM>(state.font),
-                       TRUE);
-        if (theme::IsDark()) {
-            (void)::SetWindowTheme(child, L"DarkMode_Explorer", nullptr);
-        }
-    }
-}
 
 LRESULT CALLBACK MessageProc(HWND window, UINT message, WPARAM wParam,
                              LPARAM lParam) {
@@ -229,13 +55,13 @@ LRESULT CALLBACK MessageProc(HWND window, UINT message, WPARAM wParam,
 
         case WM_CREATE:
             if (state != nullptr) {
-                BuildButtons(window, *state);
+                MsgBuildButtons(window, *state);
             }
             return 0;
 
         case WM_PAINT:
             if (state != nullptr) {
-                Paint(window, *state);
+                MsgPaint(window, *state);
             }
             return 0;
 
@@ -371,20 +197,20 @@ MessageResult ShowMessage(HINSTANCE instance, HWND owner,
         dpiX = 96;
     }
     state.dpi = dpiX;
-    state.font = CreateUiFont(state.dpi, 10, FW_NORMAL);
+    state.font = MsgCreateUiFont(state.dpi, 10, FW_NORMAL);
     state.background = ::CreateSolidBrush(theme::Colors().surfaceAlt);
 
-    const int pad = Scale(kPad, state.dpi);
-    const int textWidth = Scale(kWidth, state.dpi) - pad * 2 -
-                          Scale(kIconSide + kIconGap, state.dpi);
-    state.textHeight = MeasureText(text, textWidth, state.font);
-    if (state.textHeight < Scale(kMinTextHeight, state.dpi)) {
-        state.textHeight = Scale(kMinTextHeight, state.dpi);
+    const int pad = MsgScale(kMsgPad, state.dpi);
+    const int textWidth = MsgScale(kMsgWidth, state.dpi) - pad * 2 -
+                          MsgScale(kMsgIconSide + kMsgIconGap, state.dpi);
+    state.textHeight = MsgMeasureText(text, textWidth, state.font);
+    if (state.textHeight < MsgScale(kMsgMinTextHeight, state.dpi)) {
+        state.textHeight = MsgScale(kMsgMinTextHeight, state.dpi);
     }
 
-    RECT desired{0, 0, Scale(kWidth, state.dpi),
+    RECT desired{0, 0, MsgScale(kMsgWidth, state.dpi),
                  pad * 2 + state.textHeight +
-                     Scale(kButtonHeight + kPad * 2, state.dpi)};
+                     MsgScale(kMsgButtonHeight + kMsgPad * 2, state.dpi)};
     const DWORD style = WS_POPUP | WS_CAPTION | WS_SYSMENU;
     ::AdjustWindowRectEx(&desired, style, FALSE, WS_EX_DLGMODALFRAME);
     const int width = static_cast<int>(geom::Width(desired));

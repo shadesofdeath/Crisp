@@ -9,6 +9,8 @@
 // çağrı ekler (milisaniyeler) ama tamamı belgelenmiş arayüzlerden oluşur.
 #include "Ocr.h"
 
+#include "OcrInternal.h"
+
 #include "ImageCodec.h"
 #include "Util.h"
 
@@ -35,14 +37,8 @@ using ABI::Windows::Graphics::Imaging::IBitmapDecoderStatics;
 using ABI::Windows::Graphics::Imaging::IBitmapFrameWithSoftwareBitmap;
 using ABI::Windows::Graphics::Imaging::ISoftwareBitmap;
 using ABI::Windows::Graphics::Imaging::SoftwareBitmap;
-using ABI::Windows::Foundation::Collections::IVectorView;
-using ABI::Windows::Foundation::Rect;
 using ABI::Windows::Media::Ocr::IOcrEngine;
 using ABI::Windows::Media::Ocr::IOcrEngineStatics;
-using ABI::Windows::Media::Ocr::IOcrLine;
-using ABI::Windows::Media::Ocr::IOcrResult;
-using ABI::Windows::Media::Ocr::IOcrWord;
-using ABI::Windows::Media::Ocr::OcrLine;
 using ABI::Windows::Media::Ocr::OcrResult;
 
 // WinRT'nin OcrWord'ü İÇERİ ALINMAZ: bu dosya `namespace crisp` içinde ve
@@ -73,32 +69,6 @@ private:
     HSTRING m_value = nullptr;
 };
 
-// Sahiplenilen HSTRING (çıkış parametreleri için).
-class HStringOwner {
-public:
-    HStringOwner() noexcept = default;
-    HStringOwner(const HStringOwner&) = delete;
-    HStringOwner& operator=(const HStringOwner&) = delete;
-    ~HStringOwner() {
-        if (m_value != nullptr) {
-            ::WindowsDeleteString(m_value);
-        }
-    }
-
-    [[nodiscard]] HSTRING* put() noexcept { return &m_value; }
-
-    [[nodiscard]] std::wstring str() const {
-        if (m_value == nullptr) {
-            return std::wstring();
-        }
-        UINT32 length = 0;
-        const wchar_t* raw = ::WindowsGetStringRawBuffer(m_value, &length);
-        return raw == nullptr ? std::wstring() : std::wstring(raw, length);
-    }
-
-private:
-    HSTRING m_value = nullptr;
-};
 
 // STA üzerinde kısa senkron bekleme. Completed handler sınıfı yazmamak için
 // IAsyncInfo durumu yoklanır. OCR bir kullanıcı eylemiyle tetiklenir ve
@@ -270,7 +240,9 @@ template <typename TFactory>
 
 // Görüntüyü motora verip sonucu döndürür. İki genel fonksiyon da bunu
 // kullanır: tanıma boru hattı tek yerde durur, iki kopya arasında ayrışamaz.
-[[nodiscard]] bool RunRecognition(const Image& image, ComPtr<IOcrResult>& out) {
+}  // namespace
+
+bool RunRecognition(const Image& image, ComPtr<IOcrResult>& out) {
     if (!image.Valid()) {
         return false;
     }
@@ -315,6 +287,8 @@ template <typename TFactory>
     hr = operation->GetResults(out.GetAddressOf());
     return SUCCEEDED(hr) && out;
 }
+
+namespace {
 
 }  // namespace
 
@@ -372,82 +346,5 @@ bool RecognizeText(const Image& image, std::wstring& text) {
     return true;
 }
 
-bool RecognizeLayout(const Image& image, OcrLayout& layout) {
-    layout.words.clear();
-
-    ComPtr<IOcrResult> result;
-    if (!RunRecognition(image, result)) {
-        return false;
-    }
-
-    ComPtr<IVectorView<OcrLine*>> lines;
-    if (FAILED(result->get_Lines(lines.GetAddressOf())) || !lines) {
-        return false;
-    }
-
-    unsigned lineCount = 0;
-    if (FAILED(lines->get_Size(&lineCount))) {
-        return false;
-    }
-
-    for (unsigned lineIndex = 0; lineIndex < lineCount; ++lineIndex) {
-        ComPtr<IOcrLine> line;
-        if (FAILED(lines->GetAt(lineIndex, line.GetAddressOf())) || !line) {
-            continue;
-        }
-
-        ComPtr<IVectorView<WinOcr::OcrWord*>> words;
-        if (FAILED(line->get_Words(words.GetAddressOf())) || !words) {
-            continue;
-        }
-
-        unsigned wordCount = 0;
-        if (FAILED(words->get_Size(&wordCount))) {
-            continue;
-        }
-
-        for (unsigned wordIndex = 0; wordIndex < wordCount; ++wordIndex) {
-            ComPtr<IOcrWord> word;
-            if (FAILED(words->GetAt(wordIndex, word.GetAddressOf())) || !word) {
-                continue;
-            }
-
-            HStringOwner wordText;
-            if (FAILED(word->get_Text(wordText.put()))) {
-                continue;
-            }
-
-            Rect box{};
-            if (FAILED(word->get_BoundingRect(&box))) {
-                continue;
-            }
-
-            OcrWord entry;
-            entry.text = wordText.str();
-            entry.line = static_cast<int>(lineIndex);
-            // Rect KAYAR NOKTA ve genişlik/yükseklik taşır; RECT tam sayı ve
-            // sağ/alt kenar taşır. Sol/üst aşağı, sağ/alt yukarı yuvarlanır ki
-            // kutu tanınan pikselleri asla KIRPMASIN — bir piksel eksik kutu,
-            // kelimenin kenarında yapılan tıklamayı ıskalatır.
-            entry.bounds.left = static_cast<LONG>(box.X);
-            entry.bounds.top = static_cast<LONG>(box.Y);
-            entry.bounds.right =
-                static_cast<LONG>(box.X + box.Width + 0.999f);
-            entry.bounds.bottom =
-                static_cast<LONG>(box.Y + box.Height + 0.999f);
-
-            if (!entry.text.empty()) {
-                layout.words.push_back(std::move(entry));
-            }
-        }
-    }
-
-    // Motorun verdiği sıra tüm ekranda taranırken ekrandaki görsel sırayla
-    // örtüşmez; birden çok pencere açıkken satırlar zıplar. Aralık seçimi
-    // kelime sırasına dayandığı için bu düzeltme olmadan seçim ekranın dört
-    // bir yanına dağılır.
-    ocrsel::NormalizeReadingOrder(layout);
-    return true;
-}
 
 }  // namespace crisp
