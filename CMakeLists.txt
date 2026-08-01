@@ -45,6 +45,7 @@ set(CRISP_CORE_SOURCES
     src/Capture.cpp
     src/WindowPick.cpp
     src/ImageCodec.cpp
+    src/ImageDecode.cpp
     src/ClipboardImage.cpp
     src/Settings.cpp
     src/OcrLayout.cpp
@@ -61,6 +62,7 @@ set(CRISP_CORE_HEADERS
     src/Capture.h
     src/WindowPick.h
     src/ImageCodec.h
+    src/ImageCodecInternal.h
     src/ClipboardImage.h
     src/Settings.h
     src/OcrLayout.h
@@ -130,6 +132,7 @@ set(CRISP_APP_SOURCES
     src/Localization.cpp
     src/Theme.cpp
     src/AboutWindow.cpp
+    src/AboutPaint.cpp
     src/MessageWindow.cpp
     src/EditorWindow.cpp
     src/EditorInput.cpp
@@ -141,6 +144,7 @@ set(CRISP_APP_SOURCES
     src/EditorOcr.cpp
     src/EditorTooltip.cpp
     src/HistoryWindow.cpp
+    src/HistoryPaint.cpp
     src/HistoryInput.cpp
     src/HistoryActions.cpp
     src/SettingsWindow.cpp
@@ -162,6 +166,7 @@ set(CRISP_APP_HEADERS
     src/Localization.h
     src/Theme.h
     src/AboutWindow.h
+    src/AboutInternal.h
     src/MessageWindow.h
     src/EditorWindow.h
     src/EditorInternal.h

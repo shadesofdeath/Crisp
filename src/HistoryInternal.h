@@ -10,6 +10,7 @@
 #include "History.h"
 #include "HistoryWindow.h"
 
+#include <string>
 #include <vector>
 
 #include <windows.h>
@@ -61,6 +62,17 @@ struct State {
 void ReloadTiles(HWND window, State& state);
 
 void Layout(HWND window, State& state);
+// --- Ortak çizim yardımcıları (HistoryWindow.cpp) ---------------------------
+// Hem yerleşim hem çizim kullanıyor ve ikisi ayrı dosyada.
+[[nodiscard]] HFONT CreateUiFont(unsigned dpi, int pointSize, int weight);
+void FillRectColor(HDC dc, const RECT& r, COLORREF color);
+[[nodiscard]] COLORREF Mix(COLORREF base, COLORREF over, int amount) noexcept;
+void DrawText(HDC dc, const std::wstring& text, RECT area, HFONT font,
+              COLORREF color, UINT format);
+[[nodiscard]] std::wstring SizeLabel(const Tile& tile);
+[[nodiscard]] std::wstring TimeLabel(const HistoryEntry& entry);
+
+// Çizim (HistoryPaint.cpp)
 void Paint(HWND window, State& state);
 
 // Kaydırma çubuğunu içerik yüksekliğine göre günceller ve kaydırmayı sınırlar.

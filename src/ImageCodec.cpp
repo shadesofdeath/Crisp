@@ -1,6 +1,7 @@
 // ImageCodec.cpp — bkz. ImageCodec.h.
 #include "ImageCodec.h"
 
+#include "ImageCodecInternal.h"
 #include "Util.h"
 
 #include <shlwapi.h>
@@ -9,9 +10,8 @@
 #include <wincodec.h>
 
 namespace crisp {
-namespace {
 
-[[nodiscard]] bool CreateFactory(ComPtr<IWICImagingFactory>& factory) {
+bool CreateFactory(ComPtr<IWICImagingFactory>& factory) {
     const HRESULT hr = ::CoCreateInstance(CLSID_WICImagingFactory, nullptr,
                                           CLSCTX_INPROC_SERVER,
                                           IID_PPV_ARGS(factory.GetAddressOf()));
@@ -21,6 +21,8 @@ namespace {
     }
     return true;
 }
+
+namespace {
 
 // WebP kapsayıcı kimliği eski SDK başlıklarında yoktur; elle tanımlanır.
 // {1F122A9-...} değil — WIC'in yayımladığı kimlik budur.
@@ -162,7 +164,9 @@ const GUID kContainerFormatWebp = {
 }
 
 // Herhangi bir kaynağı 32 bpp BGRA'ya çevirip Image'a kopyalar.
-[[nodiscard]] bool CopyToImage(IWICImagingFactory* factory,
+}  // namespace
+
+bool CopyToImage(IWICImagingFactory* factory,
                                IWICBitmapSource* source, Image& out) {
     ComPtr<IWICFormatConverter> converter;
     HRESULT hr = factory->CreateFormatConverter(converter.GetAddressOf());
@@ -210,7 +214,7 @@ const GUID kContainerFormatWebp = {
 // Kontrol ucuzdur: imza + son yığının IEND olması. Tam bir CRC doğrulaması
 // PNG'nin tamamını taramayı gerektirirdi ve kesilmiş dosyayı yakalamak için
 // gereken şey yalnızca sonun yerinde olmasıdır.
-[[nodiscard]] bool LooksLikeCompletePng(const uint8_t* data, size_t size) noexcept {
+bool LooksLikeCompletePng(const uint8_t* data, size_t size) noexcept {
     constexpr uint8_t kSignature[8] = {0x89, 0x50, 0x4E, 0x47,
                                        0x0D, 0x0A, 0x1A, 0x0A};
     // İmza (8) + en az bir yığın başlığı + IEND (12) olmadan geçerli olamaz.
@@ -228,28 +232,8 @@ const GUID kContainerFormatWebp = {
     return tail[4] == 'I' && tail[5] == 'E' && tail[6] == 'N' && tail[7] == 'D';
 }
 
-[[nodiscard]] bool DecodeFromStream(IStream* stream, Image& out) {
-    ComPtr<IWICImagingFactory> factory;
-    if (!CreateFactory(factory)) {
-        return false;
-    }
+namespace {
 
-    ComPtr<IWICBitmapDecoder> decoder;
-    HRESULT hr = factory->CreateDecoderFromStream(stream, nullptr,
-                                                  WICDecodeMetadataCacheOnDemand,
-                                                  decoder.GetAddressOf());
-    if (FAILED(hr)) {
-        return false;
-    }
-
-    ComPtr<IWICBitmapFrameDecode> frame;
-    hr = decoder->GetFrame(0, frame.GetAddressOf());
-    if (FAILED(hr)) {
-        return false;
-    }
-
-    return CopyToImage(factory.Get(), frame.Get(), out);
-}
 
 }  // namespace
 
@@ -392,40 +376,5 @@ ImageFormat FormatFromString(const wchar_t* value) noexcept {
     return ImageFormat::Png;
 }
 
-bool DecodePng(const uint8_t* data, size_t size, Image& out) {
-    out.Reset();
-    if (data == nullptr || size == 0 || size > MAXUINT32) {
-        return false;
-    }
-    if (!LooksLikeCompletePng(data, size)) {
-        LogV(L"PNG eksik ya da bozuk (%zu bayt); çözme denenmedi", size);
-        return false;
-    }
-
-    ComPtr<IStream> stream;
-    *stream.GetAddressOf() = ::SHCreateMemStream(data, static_cast<UINT>(size));
-    if (!stream) {
-        return false;
-    }
-
-    return DecodeFromStream(stream.Get(), out);
-}
-
-bool LoadPng(const std::wstring& path, Image& out) {
-    out.Reset();
-    if (path.empty()) {
-        return false;
-    }
-
-    ComPtr<IStream> stream;
-    const HRESULT hr = ::SHCreateStreamOnFileEx(
-        path.c_str(), STGM_READ | STGM_SHARE_DENY_WRITE, FILE_ATTRIBUTE_NORMAL,
-        FALSE, nullptr, stream.GetAddressOf());
-    if (FAILED(hr)) {
-        return false;
-    }
-
-    return DecodeFromStream(stream.Get(), out);
-}
 
 }  // namespace crisp
