@@ -48,62 +48,6 @@ void FillRectColor(HDC dc, const RECT& r, COLORREF color) {
     ::DeleteObject(brush);
 }
 
-// Yarı saydam dolgu. GDI'nin FillRect'i alfa bilmez; AlphaBlend bir KAYNAK
-// bitmap ister, bu yüzden tek pikselli bir DIB üretilip hedefe gerilir.
-// Bitmap statiktir: her kelime kutusu için yeniden tahsis etmek, ekran dolusu
-// metinde yüzlerce gereksiz GDI nesnesi demek olurdu.
-void FillRectAlpha(HDC dc, const RECT& r, COLORREF color, BYTE alpha) {
-    if (geom::IsEmpty(r)) {
-        return;
-    }
-
-    static HDC sourceDc = nullptr;
-    static HBITMAP sourceBitmap = nullptr;
-    static void* sourceBits = nullptr;
-
-    if (sourceDc == nullptr) {
-        BITMAPINFO info{};
-        info.bmiHeader.biSize = sizeof(BITMAPINFOHEADER);
-        info.bmiHeader.biWidth = 1;
-        info.bmiHeader.biHeight = -1;
-        info.bmiHeader.biPlanes = 1;
-        info.bmiHeader.biBitCount = 32;
-        info.bmiHeader.biCompression = BI_RGB;
-
-        sourceDc = ::CreateCompatibleDC(dc);
-        if (sourceDc == nullptr) {
-            return;
-        }
-        sourceBitmap = ::CreateDIBSection(nullptr, &info, DIB_RGB_COLORS,
-                                          &sourceBits, nullptr, 0);
-        if (sourceBitmap == nullptr) {
-            ::DeleteDC(sourceDc);
-            sourceDc = nullptr;
-            return;
-        }
-        ::SelectObject(sourceDc, sourceBitmap);
-    }
-    if (sourceBits == nullptr) {
-        return;
-    }
-
-    // AlphaBlend ÖNCEDEN ÇARPILMIŞ alfa bekler: renk bileşenleri alfaya göre
-    // ölçeklenmezse karışım açık renklerde beyaza doğru taşar.
-    const uint32_t r8 = (GetRValue(color) * alpha) / 255u;
-    const uint32_t g8 = (GetGValue(color) * alpha) / 255u;
-    const uint32_t b8 = (GetBValue(color) * alpha) / 255u;
-    *static_cast<uint32_t*>(sourceBits) =
-        (static_cast<uint32_t>(alpha) << 24) | (r8 << 16) | (g8 << 8) | b8;
-
-    BLENDFUNCTION blend{};
-    blend.BlendOp = AC_SRC_OVER;
-    blend.SourceConstantAlpha = 255;
-    blend.AlphaFormat = AC_SRC_ALPHA;
-
-    ::AlphaBlend(dc, r.left, r.top, static_cast<int>(geom::Width(r)),
-                 static_cast<int>(geom::Height(r)), sourceDc, 0, 0, 1, 1, blend);
-}
-
 // İçi boş dikdörtgen çerçeve. FrameRect fırça boyutunu kullanmadığı için
 // kalınlık dört ayrı FillRect ile verilir.
 void DrawFrame(HDC dc, const RECT& r, LONG thickness, COLORREF color) {

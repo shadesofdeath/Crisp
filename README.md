@@ -130,7 +130,16 @@ well. Crisp exists for the parts they do not:
 | Annotation editor — arrow, box, ellipse, pen, highlighter, text, step badges | done |
 | Blur and mosaic | done |
 | Undo / redo | done |
-| Capture history | not started |
+| Capture history — thumbnail grid, edit / copy / reveal / delete | done |
+| Settings window — every setting, 16 languages, dark and light | done |
+| Capture notification — thumbnail, what happened, click to open | done |
+| Editor zoom — buttons, wheel, `Ctrl +/-/0`, middle-drag to pan | done |
+| Editor text recognition — boxed words, drag to select, copy | done |
+| Editor crop, rotate and resize | done |
+| Custom message box — themed, replaces every MessageBoxW | done |
+| Shutter sound — synthesised, no asset, off by default | done |
+| Toolbar tooltips and number-key tool shortcuts | done |
+| Scrolling capture | removed — see Known limits |
 
 152 tests pass. See [Tests](#tests).
 
@@ -230,24 +239,41 @@ On a pinned window: drag anywhere to move it, wheel to zoom, double-click for
 actual size, `Ctrl+C` to copy, `Ctrl+S` to save, `Esc` to close, right-click for
 the rest.
 
+In the annotation editor: `1`–`0` pick a tool in toolbar order, the wheel zooms
+around the pointer, the middle button pans, `Ctrl +` / `Ctrl -` / `Ctrl+0` zoom
+in, out and fit, `Ctrl+Z` / `Ctrl+Y` undo and redo, `Ctrl+C` copies and `Ctrl+S`
+saves. Every toolbar button has a tooltip that also shows its shortcut.
+
 <br>
 
-## Planned features
+## Known limits
 
-**Capture** — drag a region, pick a window under the cursor, whole screen or one
-monitor, and a countdown capture for menus and tooltips that vanish when you
-click.
+**Scrolling capture was removed.** The stitching side worked: measure the
+static chrome at the top and bottom of two frames, find the vertical offset of
+the content between them, append the new rows. The driving side did not. Sending
+a wheel event and waiting for the window to finish redrawing behaves differently
+in every application — Windows 11 Notepad animates its scroll, so a fixed delay
+lands mid-animation, and waiting for two identical frames instead can settle
+*before* the scroll has started. Runs of the same test produced 837, 932 and
+1087 pixels of output. A feature that works sometimes is worse than one that is
+absent, so it is out.
 
-**After capture** — copy to the clipboard, save as PNG, pin the result on screen
-as a floating window, or open it in the annotation editor. Any combination.
+**WebP saving needs the Windows codec.** Windows ships a WebP decoder but the
+encoder is an optional component. If it is missing the format is not offered at
+all, rather than being offered and silently saving PNG.
 
-**Annotation** — arrows and rectangles, text and highlighter, step number
-badges, and blur or pixelate for the parts of a screenshot that should not be
-shared.
+**Text recognition needs an OCR language pack.** It uses the engine already in
+Windows — nothing is uploaded and nothing extra is installed — but the language
+has to be present in your profile. About → says whether this machine has one.
 
-**Extras** — OCR that lifts text out of the image and onto the clipboard, a pixel
-magnifier with live coordinates during selection, a colour picker, and a history
-of recent captures.
+**Print Screen integration is unverified.** The code registers the key and the
+path is the same one the tray menu uses, but synthetic key presses are not
+delivered for `VK_SNAPSHOT`, so it has never been confirmed by a test — only by
+inspection. It needs a physical key press to prove.
+
+**Tested at 150% DPI on one monitor.** Every window is per-monitor DPI aware and
+scales its own metrics, and the multi-monitor paths use the monitor under the
+cursor, but neither has been exercised on real hardware with mixed scaling.
 
 <br>
 

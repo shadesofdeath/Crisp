@@ -211,12 +211,22 @@ LRESULT CALLBACK SettingsProc(HWND window, UINT message, WPARAM wParam,
                 break;
             }
             switch (LOWORD(wParam)) {
+                // IDOK / IDCANCEL, IsDialogMessage'ın Enter ve Esc için
+                // gönderdiği kimliklerdir.
+                //
+                // BUNLAR OLMADAN ESC ÇALIŞMIYORDU: odak bir açılır kutudayken
+                // WM_KEYDOWN pencereye değil denetime gider ve pencerenin
+                // kendi Esc dalı hiç çalışmaz. Duman testinde ayarlar penceresi
+                // Esc'e rağmen açık kaldı ve arkasındaki bütün denemeleri
+                // engelledi.
+                case IDOK:
                 case kIdOk:
                     ReadFromControls(window, *state);
                     state->working.Clamp();
                     state->accepted = true;
                     ::DestroyWindow(window);
                     return 0;
+                case IDCANCEL:
                 case kIdCancel:
                     ::DestroyWindow(window);
                     return 0;

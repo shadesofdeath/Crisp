@@ -258,6 +258,15 @@ LRESULT CALLBACK MessageProc(HWND window, UINT message, WPARAM wParam,
                 break;
             }
             const int id = LOWORD(wParam);
+            // IsDialogMessage Esc için IDCANCEL gönderir; kutunun kendi
+            // WM_KEYDOWN dalı, odak düğmedeyken hiç çalışmaz.
+            if (id == IDCANCEL) {
+                state->result = state->buttons == MessageButtons::YesNo
+                                    ? MessageResult::No
+                                    : MessageResult::Ok;
+                ::DestroyWindow(window);
+                return 0;
+            }
             if (id == kIdPrimary) {
                 state->result = state->buttons == MessageButtons::YesNo
                                     ? MessageResult::No

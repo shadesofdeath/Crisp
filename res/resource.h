@@ -153,7 +153,6 @@
 #define IDS_ACCEL_SELECT_ALL    1109
 #define IDS_ACCEL_SAVE          1110
 #define IDS_ACCEL_ESC           1111
-#define IDS_ACCEL_DBLCLICK      1112
 
 // --- Düzenleyici ipuçları (1120+) --------------------------------------------
 // AYRI BLOK: 1120, RT_STRING blok sınırına hizalıdır (16'nın katı) ve bu
