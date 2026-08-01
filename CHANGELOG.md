@@ -5,6 +5,245 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.4.0 — the gaps ShareX fills
+
+A feature-by-feature comparison against ShareX, then the parts worth having
+that this tool did not. Not everything ShareX does: uploading, video and the
+utilities unrelated to screen capture stay out, because "no upload, no account,
+one 600 KB exe" is the product.
+
+### Added — capture
+
+- **Last region.** Re-captures the exact rectangle you dragged last time,
+  without opening the overlay. Only *dragged* regions are remembered: after
+  clicking a window you do not expect "last region" to repeat where that window
+  happened to be, since it may have moved.
+- **Active window.** Takes the foreground window directly, no overlay. The
+  window is read *before* anything of ours can take focus, and the desktop and
+  shell classes are rejected — otherwise "active window" would hand back an
+  empty wallpaper.
+- **All monitors.** The whole virtual desktop in one shot. What used to be
+  called "full screen" only ever captured the monitor under the cursor; both are
+  now separate, correctly named actions.
+- **Capture the cursor**, off by default. `BitBlt` does not include it —
+  `CAPTUREBLT` adds layered windows, not the pointer — so the icon is queried
+  and drawn with its hotspot subtracted; without that correction the arrow lands
+  a few pixels below what it is pointing at.
+- **Delay applies to every mode**, not just region, with an on-screen countdown
+  in the notification window. Waiting for a menu to open before capturing a
+  window was previously impossible.
+- **Overlay: crosshair, `Ctrl+C` for coordinates, monitor keys.** Two thin lines
+  across the screen for aligning an edge with something far away; `Ctrl+C`
+  copies `x, y  w × h` as text; `Space` takes the monitor under the cursor,
+  `1`–`9` a numbered monitor (left to right), `0` everything. All of it reads
+  from the already-frozen screen — no second capture.
+- **Dimming strength is a setting** (0–80 %). One fixed value cannot suit both a
+  dark and a light desktop.
+
+### Added — after capture
+
+- Four more tasks: **copy the file path**, **copy the file itself** (`CF_HDROP`,
+  so it pastes into Explorer or a chat as an attachment), **show in the folder**,
+  and **recognise the text and copy it**.
+- **File name and subfolder templates** with `%y %mo %d %h %mi %s %px %py %pn
+  %i %ra %un %cn`. The name used to be hard-coded and everything landed in one
+  folder; after a month that folder tells you nothing. The expander is pure
+  string work in the core with its own tests, and `..` is stripped from
+  subfolder templates so a template cannot write outside the save folder.
+
+### Added — hotkeys and launching
+
+- **An action per hotkey**, chosen from a list of twelve, across six slots. The
+  mapping used to be fixed at compile time: OCR, screen text, the colour picker,
+  history and last region could not have a hotkey at all. Existing bindings
+  migrate on first run.
+- **Command line**: `Crisp.exe -region | -window | -active | -monitor | -all |
+  -last | -delayed | -text | -ocr | -color | -history`, and `Crisp.exe foto.png`
+  to open a file in the editor. A second instance forwards the request to the
+  running one. The command line was not read at all before.
+- **Edit the clipboard image** from the tray, and **drop an image file onto the
+  editor** to open it. `ReadImageFromClipboard` had existed for a year with only
+  the tests using it.
+
+### Added — editor
+
+- **Selection tool** (`V`): click a shape to select it, drag to move it, `Delete`
+  to remove it, and the colour/thickness/fill controls restyle it. Until now a
+  misplaced arrow could only be undone — taking everything drawn after it with
+  it. Hit-testing measures distance *to the stroke*, not to the bounding box, so
+  a thin diagonal arrow is not a screen-sized target.
+- **Line tool** (`2`), **shape fill** toggle, and **`Shift` locks** rectangles to
+  squares, ellipses to circles and lines to 45°. Snapping rotates rather than
+  projects: holding `Shift` should fix the angle, not shorten the line.
+- **Effects menu**: flip horizontally/vertically, trim the borders, add a
+  margin, greyscale, invert, sepia, sharpen, and ± brightness, contrast and
+  saturation. One button rather than fourteen — none of them is used more than
+  once per session, while the arrow is used twenty times.
+- **The highlighter is really translucent now.** It was faked with `R2_MASKPEN`,
+  a bitwise AND that does not blend colours but extinguishes them: yellow over
+  blue came out black. The stroke is now drawn opaque on a copy and blended
+  back.
+- **Blur and mosaic strength** are settings, recorded *on the shape* so undo
+  replays what you actually drew rather than the current setting.
+
+### Changed
+
+- Tool shortcuts shift by one: `1` arrow, `2` line, `3` rectangle, `4` ellipse,
+  `5` pen, `6` highlighter, `7` text, `8` step, `9` blur, `0` mosaic, plus `V`
+  select and `C` crop. Twelve tools do not fit ten digits.
+- The settings window is three columns; the label column is wider because
+  "Bulanıklık (%)" was sliding under its own edit box.
+- 27 new interface strings, translated into all 16 languages.
+- The shortcut list carries a line stating the rule ("Ctrl, Alt or Shift is
+  needed; `F1`–`F12` and `Print Screen` also work on their own"). A rule that is
+  only enforced, never stated, is discovered by having it applied to you.
+
+### Added — Explorer integration
+
+- **"Edit with Crisp" in the right-click menu**, switched on from Settings. Not
+  a shell extension: an `IExplorerCommand` handler is a COM DLL that Explorer
+  loads *into its own process*, where a crash takes the file manager down with
+  it. A registry verb is four values, and the exe already accepts a file path
+  on the command line — the whole feature is registration plus a checkbox.
+  - Registered under `HKEY_CURRENT_USER`, so it needs no administrator and one
+    user's choice does not affect another's.
+  - One key covers every image format: `SystemFileAssociations\image` is
+    Windows' own *perceived type*, so PNG, JPEG, BMP, GIF, TIFF, WebP and HEIF
+    all come along. Registering extension by extension would have made keeping
+    that list in sync with Windows our problem.
+  - **The registration is the setting.** There is no copy of the flag in our own
+    store: a second source of truth would disagree the moment the user deleted
+    the key by hand. It is read back from the verb itself on startup, and if the
+    exe has been moved the stale command is rewritten.
+  - Launched *only* to edit a file, Crisp **exits when the editor closes**.
+    Someone who right-clicked a picture did not ask to start a screenshot tool,
+    and leaving a tray icon and four global hotkeys behind would be a surprise.
+    Requests forwarded to an already-running instance do not do this.
+  - **Windows 11 note:** third-party verbs live in the classic menu — *Show more
+    options*, or `Shift+F10`. Appearing in the short menu requires a packaged
+    (MSIX) shell extension, which a single portable exe cannot have.
+
+### Fixed after the first pass
+
+- **"Active window" never fired from the tray menu.** `TrackPopupMenuEx` cannot
+  show a menu unless the owner is brought to the foreground first — a
+  documented shell requirement — so by the time the command ran, the foreground
+  window *was* Crisp's own invisible message window and the code bailed out
+  every single time. It now falls back to walking the Z order for the topmost
+  Alt-Tab candidate (visible, uncloaked, not ours, not the shell, not a tool
+  window, has a title), and activates the target before capturing: `BitBlt`
+  copies what is *on screen*, so a window that is no longer in front would come
+  back with whatever is covering it.
+- **The select tool's icon was a blob.** The cursor polygon was being stroked
+  with the 2 px tool pen, which rounded off the tip and swallowed the tail
+  notch on an 11 px arrow. It is filled with an explicit `NULL_PEN` now.
+- **Rebound hotkeys came back empty.** Reported by a user on a tenkeyless
+  keyboard, and it had three separate causes, each of which silently threw the
+  binding away after *OK*:
+  - **A single key was accepted by the box and deleted by validation.** `F9` or
+    `Print Screen` on its own showed up in the field, and `Settings::Clamp` —
+    which requires `Ctrl`/`Alt`/`Shift` so that a bare letter cannot steal
+    typing system-wide — wiped it on the way out. Keys that produce no text
+    (`F1`–`F24`, `Print Screen`, `Pause`, `Scroll Lock`, the media keys) are now
+    valid on their own; that is exactly the set a keyboard without a numpad has
+    to spare. Anything else is refused *when it is pressed*, with a beep and the
+    previous value left intact, instead of vanishing later.
+  - **A combination already registered as a global hotkey never reached the
+    box.** Windows delivers it straight to whoever owns it, so the field did not
+    move — and if the old value had been cleared with `Backspace` first, it
+    stayed empty. Crisp now suspends its own hotkeys while Settings is open and
+    the field installs a low-level keyboard hook while focused, which runs
+    *before* hotkey dispatch: any combination can be typed, including ones
+    another application holds.
+  - **A key in a slot whose action was still "None" was erased.** Such a slot is
+    never handed to `RegisterHotKey`, so it steals nothing from anyone; deleting
+    the key only destroyed what the user had just typed.
+- **`Print Screen` and the media keys were mislabelled.** `GetKeyNameText` goes
+  by scan code and returned "Sys Req" for Print Screen, the letter sitting at
+  that position ("G", "B") for the media keys, and nothing at all for `Pause`
+  and `F13`+. They have fixed names now — layout-independent keys, unlike
+  letters. A slot bound to bare `Print Screen` also takes precedence over the
+  "Print Screen captures a region" checkbox rather than losing the registration
+  race to it.
+
+### Not done
+
+Speech balloons, spotlight, magnifier box and cursor stamps; the ruler and image
+combiner; per-hotkey after-capture profiles; gradient/rounded/shadow beautify
+beyond the plain margin. Screen recording, uploading and the unrelated utilities
+are deliberately out of scope.
+
+241 tests pass, warning-free at `/W4`, 621 KB.
+
+## 0.3.0 — the editor
+
+Seven complaints from a real session, all about the annotation editor. Each one
+is answered below with what was actually wrong, not with what was added.
+
+### Fixed
+
+- **The text tool looked broken.** Picking it and clicking the canvas produced
+  *nothing on screen* — no caret, no box, no placeholder. The mode was open, it
+  just could not be seen, so the only reasonable conclusion was that the button
+  did not work. Typing now starts inside a dashed accent box with a blinking
+  caret (at the system blink rate) and a dimmed **"Yazmaya başlayın"** while it
+  is empty. `Enter` breaks a line instead of ending the text, `Ctrl+Enter` ends
+  it, `Esc` cancels only the text. Surrogate pairs delete as one character, so
+  backspacing an emoji no longer corrupts the string, and the IME candidate
+  window follows the caret instead of sitting in the window corner.
+- **Shrinking to 25 % and back to 100 % destroyed the image.** Two separate
+  causes. First, every resize resampled with bilinear interpolation, which
+  reads a 2 × 2 neighbourhood no matter the ratio — at quarter size twelve of
+  every sixteen source pixels were never read at all. Downscaling is now an
+  **area average** and upscaling a **Catmull-Rom cubic**, chosen per axis.
+  Second, the second resize was scaling the *already shrunk* image; no filter
+  can recover discarded pixels. Consecutive resizes now work from the pixels
+  held before the first one, so 25 % → 100 % is **bit-for-bit the original**
+  (verified: 75 396 sampled pixels, zero differences).
+- **Copy and save slammed the window shut with no feedback.** Both merely set a
+  flag and destroyed the window; the real work happened in the caller and the
+  editor's only signal was disappearing. Worse, on the *history → edit* path
+  nothing was reported at all. The editor now does the work itself, **stays
+  open**, and shows a short confirmation in the status bar (`Panoya kopyalandı`,
+  `Kaydedildi — <dosya adı>`). The history path finally raises the same
+  notification as a fresh capture.
+
+### Added
+
+- **Colour picker panel** replacing the seven fixed swatches. Saturation-value
+  square, hue strip, hex field that accepts `#1e90ff` and `#0f0`, 36 presets in
+  three tones, recently used colours, and an eyedropper that reuses the existing
+  screen-pick overlay. Not `ChooseColorW`: that dialog ignores dark mode, shows
+  a 1990s custom-colour grid and has no hex field. The panel holds the mouse
+  capture while open, so a click outside dismisses it **without** reaching the
+  canvas underneath — otherwise closing the panel drew an arrow.
+- **Thickness dropdown** replacing three buttons whose only difference was the
+  diameter of a dot; 2 px and 4 px were indistinguishable at 38 px. Seven widths
+  (1–18) each drawn as a line of that width, in the selected colour. When the
+  colour cannot be told apart from the row background — black ink on the dark
+  theme — it falls back to a contrasting one, decided by luminance difference
+  rather than a dark/light guess.
+- **Save as…** (`Ctrl+Shift+S`), with PNG, JPEG and — only when this machine has
+  the encoder — WebP. The format follows the **extension typed**, not the filter
+  dropdown, so `note.jpg` saved under a PNG filter is still a JPEG.
+- **Grouped toolbar** with a label under each group (Araçlar · Biçim · Resim ·
+  Düzen · Dosya) and dividers only where a real gap exists. Dropdown buttons
+  carry a chevron so they are distinguishable from tools that act immediately.
+- **Zoom slider in the status bar**, logarithmic between 10 % and 800 % — linear
+  would squeeze every useful zoom into the first eighth of the track.
+- The resize menu shows the **resulting pixel size** next to each percentage and
+  ticks the current one.
+
+### Changed
+
+- `EditorResult` reports what happened (`copied`, `savedPath`) instead of what
+  the caller should do. Saving the capture path is built once in
+  `BuildCapturePath` rather than copied into both the capture flow and the
+  editor.
+- Eleven new interface strings, translated into all 16 languages.
+
+208 tests pass, warning-free at `/W4`, 552 KB.
+
 ## 0.2.0
 
 ### Added

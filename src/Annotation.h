@@ -19,6 +19,7 @@ namespace crisp {
 enum class ToolKind {
     Select,
     Arrow,
+    Line,
     Rectangle,
     Ellipse,
     Pen,
@@ -29,6 +30,9 @@ enum class ToolKind {
     Mosaic,
     Crop,
 };
+
+// Araç, eklenmiş şekilleri SEÇİP düzenliyor mu?
+[[nodiscard]] bool ToolIsSelect(ToolKind kind) noexcept;
 
 // Araç bir sürükleme mi bekliyor yoksa tek tıkla mı yerleşiyor?
 [[nodiscard]] bool ToolUsesDrag(ToolKind kind) noexcept;
@@ -52,6 +56,20 @@ struct Shape {
     COLORREF color = RGB(255, 59, 48);
     int thickness = 3;
     int stepNumber = 0;            // StepNumber
+
+    // Dikdörtgen ve elips İÇİ DOLU mu? Varsayılan hayır: dolu bir şekil
+    // altındaki ekran görüntüsünü gizler ve işaretlemenin amacı göstermek.
+    bool filled = false;
+
+    // Bulanıklık ve mozaik şiddeti, yüzde (100 = otomatik).
+    //
+    // AYARDA DEĞİL ŞEKİLDE DURUYOR: geri alma şekil listesini geri sarar ve
+    // şiddet ayardan okunsaydı, kullanıcı ayarı değiştirdikten sonra ESKİ
+    // bulanıklıklar da yeni şiddetle yeniden çizilirdi.
+    int strength = 100;
+
+    // Şekli verilen kadar öteler (seçim aracıyla taşıma).
+    void Offset(int dx, int dy) noexcept;
 
     // Normalleştirilmiş sınırlayıcı dikdörtgen; sürükleme yönünden bağımsız.
     [[nodiscard]] RECT Bounds() const noexcept;
@@ -85,6 +103,16 @@ public:
 
     // Başlangıç tabanı; geçmişe adım eklemez.
     void SetBase(std::shared_ptr<const Image> base);
+
+    // --- Var olan şekli düzenleme (seçim aracı) -----------------------------
+    // Geçmişe BİR adım ekler ve sonrasında ShapeAt ile doğrudan yazılabilir.
+    //
+    // NEDEN İKİ ADIMLI: sürükleyerek taşımanın her karesi geçmişe girseydi tek
+    // bir hareket, altmış dört adımlık geçmişin tamamını doldururdu. Çağıran
+    // sürükleme BAŞLARKEN bir kez BeginEdit çağırır.
+    void BeginEdit();
+    [[nodiscard]] Shape* ShapeAt(size_t index) noexcept;
+    bool RemoveShape(size_t index);
 
     // Görüntünün kendisini değiştiren bir işlem uygular (kırpma, döndürme,
     // ölçekleme).

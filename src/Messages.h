@@ -15,14 +15,19 @@ inline constexpr UINT_PTR TIMER_DELAY = 1;
 // Tepsi simgesinin tema (açık/koyu görev çubuğu) yoklaması.
 inline constexpr UINT_PTR TIMER_THEME = 2;
 
+// Geri sayım göstergesinin saniye vuruşu.
+inline constexpr UINT_PTR TIMER_COUNTDOWN = 3;
+
 // Global kısayol kimlikleri. RegisterHotKey aynı iş parçacığında benzersiz
 // olmalarını şart koşar.
+//
+// YUVA NUMARASI KİMLİKTİR: kısayolun NE YAPTIĞI artık ayarlarda duruyor ve
+// kimliğe gömülü değil. Eskiden HOTKEY_REGION hem "birinci kısayol" hem "bölge
+// seç" demekti; eylemi değiştirmek imkânsızdı.
 enum HotkeyId : int {
-    HOTKEY_REGION = 1,
-    HOTKEY_FULLSCREEN = 2,
-    HOTKEY_WINDOW = 3,
-    HOTKEY_DELAYED = 4,
-    HOTKEY_PRINTSCREEN = 5,
+    HOTKEY_SLOT_FIRST = 1,
+    HOTKEY_SLOT_LAST = 6,
+    HOTKEY_PRINTSCREEN = 7,
 };
 
 }  // namespace crisp

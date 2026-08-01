@@ -28,6 +28,19 @@ bool ToolIsEffect(ToolKind kind) noexcept {
 
 bool ToolIsImageOp(ToolKind kind) noexcept { return kind == ToolKind::Crop; }
 
+bool ToolIsSelect(ToolKind kind) noexcept { return kind == ToolKind::Select; }
+
+void Shape::Offset(int dx, int dy) noexcept {
+    start.x += dx;
+    start.y += dy;
+    end.x += dx;
+    end.y += dy;
+    for (POINT& p : points) {
+        p.x += dx;
+        p.y += dy;
+    }
+}
+
 RECT Shape::Bounds() const noexcept {
     if (!points.empty()) {
         // Serbest çizimde sınır noktaların tamamını kapsar; start/end yalnızca
@@ -69,6 +82,25 @@ void Document::AddShape(Shape shape) {
 
 void Document::SetBase(std::shared_ptr<const Image> base) {
     m_state.base = std::move(base);
+}
+
+void Document::BeginEdit() { PushUndo(); }
+
+Shape* Document::ShapeAt(size_t index) noexcept {
+    if (index >= m_state.shapes.size()) {
+        return nullptr;
+    }
+    return &m_state.shapes[index];
+}
+
+bool Document::RemoveShape(size_t index) {
+    if (index >= m_state.shapes.size()) {
+        return false;
+    }
+    PushUndo();
+    m_state.shapes.erase(m_state.shapes.begin() +
+                         static_cast<std::ptrdiff_t>(index));
+    return true;
 }
 
 void Document::ApplyImageOp(std::shared_ptr<const Image> newBase) {

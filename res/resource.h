@@ -22,6 +22,10 @@
 #define IDM_ABOUT               210
 #define IDM_EXIT                211
 #define IDM_HISTORY             212
+#define IDM_CAPTURE_ACTIVE      213
+#define IDM_CAPTURE_ALL         214
+#define IDM_CAPTURE_LAST        215
+#define IDM_OPEN_CLIPBOARD      216
 
 // --- Dizeler (1000+) ---------------------------------------------------------
 // TEK BLOK HÂLİNDE ARTAR: RT_STRING kaynakları 16'lık kümeler hâlinde saklanır,
@@ -183,3 +187,73 @@
 #define IDS_TIP_CLOSE           1142
 #define IDS_TIP_COLOR           1143
 #define IDS_TIP_THICKNESS       1144
+#define IDS_TIP_SAVE_AS         1145
+#define IDS_TIP_ZOOM_SLIDER     1146
+
+// Araç çubuğu grup etiketleri — düğme sırasının altında yazarlar.
+#define IDS_GROUP_TOOLS         1147
+#define IDS_GROUP_STYLE         1148
+#define IDS_GROUP_IMAGE         1149
+#define IDS_GROUP_EDIT          1150
+#define IDS_GROUP_FILE          1151
+
+// Düzenleyicinin kendi geri bildirimi
+#define IDS_TEXT_HINT           1152
+#define IDS_EDITOR_COPIED       1153
+#define IDS_EDITOR_SAVED        1154
+#define IDS_COPY_FAILED         1155
+
+// Yeni yakalama eylemleri ve ayarları
+#define IDS_MENU_CLIPBOARD      1156
+#define IDS_OPEN_FAILED         1157
+#define IDS_TOAST_COUNTDOWN     1158
+#define IDS_SET_CURSOR          1159
+#define IDS_SET_DIM             1160
+#define IDS_SET_NAME_FORMAT     1161
+#define IDS_SET_SUBFOLDER       1162
+#define IDS_SET_GROUP_ANNOTATE  1163
+#define IDS_SET_BLUR_STRENGTH   1164
+#define IDS_SET_MOSAIC_STRENGTH 1165
+#define IDS_SET_AFTER_COPYPATH  1166
+#define IDS_SET_AFTER_COPYFILE  1167
+#define IDS_SET_AFTER_REVEAL    1168
+#define IDS_SET_AFTER_OCR       1169
+
+// Kısayol eylemlerinin adları
+#define IDS_ACT_NONE            1170
+#define IDS_ACT_REGION          1171
+#define IDS_ACT_WINDOW          1172
+#define IDS_ACT_ACTIVE_WINDOW   1173
+#define IDS_ACT_MONITOR         1174
+#define IDS_ACT_ALL_MONITORS    1175
+#define IDS_ACT_LAST_REGION     1176
+#define IDS_ACT_DELAYED         1177
+#define IDS_ACT_SELECT_TEXT     1178
+#define IDS_ACT_REGION_TEXT     1179
+#define IDS_ACT_PICK_COLOR      1180
+#define IDS_ACT_HISTORY         1181
+
+// Yeni düzenleyici araçları ve efekt menüsü
+#define IDS_TIP_SELECT          1182
+#define IDS_TIP_LINE            1183
+#define IDS_TIP_EFFECTS         1184
+#define IDS_TIP_FILL            1185
+#define IDS_IMG_FLIP_H          1186
+#define IDS_IMG_FLIP_V          1187
+#define IDS_IMG_AUTOCROP        1188
+#define IDS_IMG_PADDING         1189
+#define IDS_IMG_GRAYSCALE       1190
+#define IDS_IMG_INVERT          1191
+#define IDS_IMG_SEPIA           1192
+#define IDS_IMG_SHARPEN         1193
+#define IDS_IMG_BRIGHTNESS      1194
+#define IDS_IMG_CONTRAST        1195
+#define IDS_IMG_SATURATION      1196
+
+// Explorer sağ tık menüsü
+#define IDS_SET_SHELL_MENU      1197
+#define IDS_SHELL_VERB          1198
+#define IDS_SHELL_FAILED        1199
+
+// Kısayol kutularının altındaki kural satırı
+#define IDS_SET_HOTKEY_HINT     1200

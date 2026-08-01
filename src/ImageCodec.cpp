@@ -376,5 +376,40 @@ ImageFormat FormatFromString(const wchar_t* value) noexcept {
     return ImageFormat::Png;
 }
 
+std::wstring BuildCapturePath(const std::wstring& folder,
+                              const std::wstring& subFolder,
+                              const std::wstring& baseName,
+                              ImageFormat& format) {
+    if (folder.empty()) {
+        return std::wstring();
+    }
+    if (format != ImageFormat::Png && !IsFormatAvailable(format)) {
+        LogV(L"%s kodlayıcısı yok; PNG'ye düşülüyor", ExtensionForFormat(format));
+        format = ImageFormat::Png;
+    }
+
+    std::wstring directory = folder;
+    if (!subFolder.empty()) {
+        directory += L'\\';
+        directory += subFolder;
+        // ALT KLASÖR ŞİMDİ OLUŞTURULUR: SavePng ara dizinleri kendi kurar ama
+        // MakeUniquePath var olmayan bir klasörde çakışma arayamaz ve her
+        // yakalama aynı adı üretirdi.
+        if (!EnsureDirectory(directory)) {
+            LogV(L"Alt klasör oluşturulamadı: %s", directory.c_str());
+            directory = folder;
+        }
+    }
+
+    std::wstring path = directory;
+    path += L'\\';
+    path += baseName.empty() ? (L"Crisp " + TimestampForFileName()) : baseName;
+    path += L'.';
+    path += ExtensionForFormat(format);
+
+    // Aynı saniyede iki yakalama olabilir; benzersizleştirme olmadan ikincisi
+    // birincinin üzerine yazardı.
+    return MakeUniquePath(path);
+}
 
 }  // namespace crisp

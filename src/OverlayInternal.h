@@ -68,5 +68,7 @@ void ShowTextMenu(HWND window, OverlayState& state);
 void CommitTextSelection(HWND window, OverlayState& state);
 void PickColor(HWND window, OverlayState& state);
 void CommitDrag(HWND window, OverlayState& state);
+[[nodiscard]] bool HandleOverlayShortcut(HWND window, OverlayState& state,
+                                         WPARAM key);
 
 }  // namespace crisp

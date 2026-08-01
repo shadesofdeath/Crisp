@@ -1,15 +1,15 @@
 // App.cpp — Pencere yaşam döngüsü ve mesaj yönlendirme.
-// Yakalama akışları AppCapture.cpp'dedir.
+// Yakalama akışları AppCapture.cpp, ayar penceresinin sonuçları
+// AppSettings.cpp içindedir.
 #include "App.h"
 
 #include "AboutWindow.h"
-#include "HotkeyEdit.h"
+#include "ClipboardImage.h"
 #include "Localization.h"
-#include "MessageWindow.h"
 #include "Messages.h"
 #include "Ocr.h"
 #include "PinWindow.h"
-#include "SettingsWindow.h"
+#include "ShellIntegration.h"
 #include "Theme.h"
 #include "Toast.h"
 #include "Util.h"
@@ -88,6 +88,13 @@ bool App::Initialize(HINSTANCE instance) {
         LogV(L"%d kısayol kaydedilemedi", failed);
     }
 
+    // EXE TAŞINMIŞ OLABİLİR: taşınabilir sürüm başka bir klasöre kopyalandığında
+    // kayıtlı komut eski yolu gösterir ve menü öğesi sessizce çalışmaz hâle
+    // gelir. Kayıt varsa ve yol tutmuyorsa yeniden yazılır.
+    if (m_settings.shellContextMenu && !ShellMenuPathIsCurrent()) {
+        ApplyShellMenuSetting();
+    }
+
     ::SetTimer(m_window, TIMER_THEME, kThemePollMs, nullptr);
     return true;
 }
@@ -131,6 +138,8 @@ LRESULT App::HandleMessage(HWND window, UINT message, WPARAM wParam,
             // NOTIFYICON_VERSION_4 ile olay kodu lParam'ın alt sözcüğündedir.
             const UINT event = LOWORD(lParam);
             if (event == WM_RBUTTONUP || event == WM_CONTEXTMENU) {
+                m_tray.SetMenuState(m_settings.HasLastRegion(),
+                                    ClipboardHasImage());
                 const int command = m_tray.ShowMenu(window);
                 if (command != 0) {
                     OnCommand(command);
@@ -167,10 +176,22 @@ LRESULT App::HandleMessage(HWND window, UINT message, WPARAM wParam,
                 m_tray.RefreshTheme();
                 return 0;
             }
-            if (wParam == TIMER_DELAY) {
-                ::KillTimer(window, TIMER_DELAY);
+            if (wParam == TIMER_COUNTDOWN) {
+                if (m_countdown > 1) {
+                    --m_countdown;
+                    ShowCountdown();
+                    return 0;
+                }
+                ::KillTimer(window, TIMER_COUNTDOWN);
+                CloseCaptureToast();
+                const HotkeyAction action = m_pendingAction;
+                m_pendingAction = HotkeyAction::None;
+                m_countdown = 0;
+                // BİLDİRİM PENCERESİNİN KAPANMASI BEKLENİR: aynı karede
+                // yakalamak, geri sayım penceresini görüntünün içine alırdı.
+                ::Sleep(120);
+                PerformCapture(action);
                 m_busy = false;
-                CaptureRegionOrWindow(false);
                 return 0;
             }
             break;
@@ -178,6 +199,19 @@ LRESULT App::HandleMessage(HWND window, UINT message, WPARAM wParam,
 
         // Ayarlar penceresi başka bir örnekten açılma isteği gönderebilir;
         // şimdilik yalnızca bölge yakalamayı tetikler.
+        // Düzenleyiciye ve iğneye sürüklenen dosyalar buraya gelmez; bu,
+        // tepsi simgesinin üstüne bırakılan ya da exe'ye sürüklenen dosyalar
+        // için değil, ikinci örneğin gönderdiği "şu dosyayı aç" isteği için.
+        case WM_COPYDATA: {
+            const auto* data = reinterpret_cast<const COPYDATASTRUCT*>(lParam);
+            if (data != nullptr && data->lpData != nullptr && data->cbData > 0) {
+                const std::wstring path(static_cast<const wchar_t*>(data->lpData),
+                                        data->cbData / sizeof(wchar_t));
+                OpenImageFile(path);
+            }
+            return TRUE;
+        }
+
         case WM_DESTROY:
             CloseAllPins();
             m_hotkeys.UnregisterAll();
@@ -195,16 +229,25 @@ LRESULT App::HandleMessage(HWND window, UINT message, WPARAM wParam,
 void App::OnCommand(int command) {
     switch (command) {
         case IDM_CAPTURE_REGION:
-            StartCapture(CaptureMode::Region);
+            RunAction(HotkeyAction::Region);
             break;
         case IDM_CAPTURE_WINDOW:
-            StartCapture(CaptureMode::Window);
+            RunAction(HotkeyAction::Window);
+            break;
+        case IDM_CAPTURE_ACTIVE:
+            RunAction(HotkeyAction::ActiveWindow);
             break;
         case IDM_CAPTURE_FULLSCREEN:
-            StartCapture(CaptureMode::FullScreen);
+            RunAction(HotkeyAction::Monitor);
+            break;
+        case IDM_CAPTURE_ALL:
+            RunAction(HotkeyAction::AllMonitors);
+            break;
+        case IDM_CAPTURE_LAST:
+            RunAction(HotkeyAction::LastRegion);
             break;
         case IDM_CAPTURE_DELAYED:
-            StartCapture(CaptureMode::Delayed);
+            RunAction(HotkeyAction::Delayed);
             break;
         case IDM_SELECT_TEXT:
             SelectTextOnScreen();
@@ -214,6 +257,9 @@ void App::OnCommand(int command) {
             break;
         case IDM_PICK_COLOR:
             PickColorToClipboard();
+            break;
+        case IDM_OPEN_CLIPBOARD:
+            OpenClipboardImage();
             break;
         case IDM_HISTORY:
             ShowHistory();
@@ -237,106 +283,16 @@ void App::OnCommand(int command) {
     }
 }
 
-void App::ShowSettings() {
-    if (m_busy) {
-        return;
-    }
-    m_busy = true;
-    Settings edited = m_settings;
-    const bool accepted = ShowSettingsWindow(m_instance, edited);
-    m_busy = false;
-    if (!accepted) {
-        return;
-    }
-
-    // NE DEĞİŞTİĞİ ÖNEMLİ: dili ve temayı her onayda yeniden kurmak, hiçbir
-    // şeye dokunulmadan kapatılan bir ayar penceresinden sonra bile bütün
-    // pencerelerin yeniden çizilmesi demek olurdu.
-    const bool languageChanged = edited.language != m_settings.language;
-    const bool themeChanged = edited.theme != m_settings.theme;
-    m_settings = edited;
-
-    if (!m_settings.Save(SettingsStore::ForApp())) {
-        LogV(L"Ayarlar kaydedilemedi");
-    }
-    if (languageChanged) {
-        Loc::SetLanguage(m_settings.language);
-    }
-    if (themeChanged) {
-        theme::SetMode(theme::ModeFromString(m_settings.theme.c_str()));
-        m_tray.RefreshTheme();
-    }
-    m_history.SetLimit(m_settings.historyLimit);
-
-    // KISAYOLLAR HER ZAMAN YENİDEN UYGULANIR: kullanıcı bir kısayolu
-    // değiştirmediyse bile eski kayıt duruyor olabilir ve yeni bir kısayol
-    // eskisiyle çakışırsa sessizce kaydedilemezdi.
-    const int failed = m_hotkeys.Apply(m_window, m_settings);
-    if (failed > 0) {
-        LogV(L"%d kısayol kaydedilemedi", failed);
-        ReportHotkeyFailures();
-    }
-}
-
-void App::ReportHotkeyFailures() {
-    // HANGİSİNİN ÇALIŞMADIĞI SÖYLENİR, kaç tane olduğu değil: "2 kısayol
-    // kaydedilemedi" kullanıcıya hangi tuşu değiştireceğini söylemez.
-    // RegisterHotKey'in başarısızlığı bir hata değil, bir ÇAKIŞMADIR — başka
-    // bir uygulama o kombinasyonu almıştır ve çözüm kullanıcıdadır.
-    struct Entry {
-        int id;
-        const Hotkey* hotkey;
-        UINT labelId;
-    };
-    const Entry entries[] = {
-        {HOTKEY_REGION, &m_settings.hotkeyRegion, IDS_SET_HK_REGION},
-        {HOTKEY_FULLSCREEN, &m_settings.hotkeyFullScreen, IDS_SET_HK_FULLSCREEN},
-        {HOTKEY_WINDOW, &m_settings.hotkeyWindow, IDS_SET_HK_WINDOW},
-        {HOTKEY_DELAYED, &m_settings.hotkeyDelayed, IDS_SET_HK_DELAYED},
-    };
-
-    std::wstring list;
-    for (const Entry& entry : entries) {
-        if (!entry.hotkey->assigned() || m_hotkeys.IsRegistered(entry.id)) {
-            continue;
-        }
-        list += L"\n    ";
-        list += Loc::Str(entry.labelId);
-        list += L"  —  ";
-        list += HotkeyText(*entry.hotkey);
-    }
-
-    if (list.empty()) {
-        // Yalnızca Print Screen kaydedilememiş olabilir; onun için ayrı bir
-        // uyarı doğru değil, çünkü Print Screen'i başka bir ekran alıntısı
-        // aracının alması çok yaygın ve kullanıcının seçtiği bir tuş değil.
-        return;
-    }
-
-    ShowMessage(m_instance, m_window, Loc::Str(IDS_HOTKEY_FAILED) + list,
-                MessageIcon::Warning);
-}
-
 void App::OnHotkey(int id) {
-    switch (id) {
-        case HOTKEY_REGION:
-            StartCapture(CaptureMode::Region);
-            break;
-        case HOTKEY_FULLSCREEN:
-            StartCapture(CaptureMode::FullScreen);
-            break;
-        case HOTKEY_WINDOW:
-            StartCapture(CaptureMode::Window);
-            break;
-        case HOTKEY_DELAYED:
-            StartCapture(CaptureMode::Delayed);
-            break;
-        case HOTKEY_PRINTSCREEN:
-            StartCapture(CaptureMode::Region);
-            break;
-        default:
-            break;
+    if (id == HOTKEY_PRINTSCREEN) {
+        RunAction(HotkeyAction::Region);
+        return;
     }
+    const int slot = id - HOTKEY_SLOT_FIRST;
+    if (slot < 0 || slot >= kHotkeySlots) {
+        return;
+    }
+    RunAction(m_settings.hotkeys[slot].action);
 }
 
 }  // namespace crisp

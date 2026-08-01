@@ -115,7 +115,10 @@ CRISP_TEST(Settings, Varsayilanlar_makul) {
     CHECK(defaults.after.copyToClipboard);
     CHECK(defaults.showMagnifier);
     CHECK_EQ(defaults.delaySeconds, 3u);
-    CHECK(defaults.hotkeyRegion.assigned());
+    CHECK(defaults.hotkeys[0].key.assigned());
+    CHECK(defaults.hotkeys[0].action == HotkeyAction::Region);
+    // Son iki yuva boş gelir: kullanıcı isterse doldurur.
+    CHECK(!defaults.hotkeys[kHotkeySlots - 1].key.assigned());
 }
 
 CRISP_TEST(Settings, Clamp_gecikmeyi_araliga_ceker) {
@@ -154,26 +157,59 @@ CRISP_TEST(Settings, Clamp_tek_eylem_yeterliyse_dokunmaz) {
 }
 
 CRISP_TEST(Settings, Clamp_degistiricisiz_kisayolu_iptal_eder) {
-    // Değiştiricisiz kısayol, tek tuşa basınca yakalama başlatırdı.
+    // Değiştiricisiz bir HARF, o harfi sistemdeki her metin kutusundan çalardı.
+    // Metin üretmeyen tuşların istisnası bir sonraki testte.
     Settings s;
-    s.hotkeyRegion.modifiers = 0;
-    s.hotkeyRegion.key = 'S';
+    s.hotkeys[0].key = Hotkey{0, 'S'};
     s.Clamp();
-    CHECK(!s.hotkeyRegion.assigned());
+    CHECK(!s.hotkeys[0].key.assigned());
 
-    s.hotkeyWindow.modifiers = MOD_CONTROL | MOD_SHIFT;
-    s.hotkeyWindow.key = 'W';
+    s.hotkeys[1].key = Hotkey{MOD_CONTROL | MOD_SHIFT, 'W'};
     s.Clamp();
-    CHECK(s.hotkeyWindow.assigned());
+    CHECK(s.hotkeys[1].key.assigned());
+}
+
+CRISP_TEST(Settings, Clamp_metin_uretmeyen_tuslari_tek_basina_birakir) {
+    // TKL (sayısal takımsız) bir klavyede kullanıcının elinde kalan yedek
+    // tuşlar bunlardır ve hiçbiri metin üretmez: kuralı onlara uygulamak,
+    // kısayol kutusunun kabul ettiği tuşu Tamam'da sessizce siliyordu.
+    Settings s;
+    s.hotkeys[0].key = Hotkey{0, VK_F9};
+    s.hotkeys[1].key = Hotkey{0, VK_SNAPSHOT};
+    s.hotkeys[2].key = Hotkey{0, VK_PAUSE};
+    s.hotkeys[3].key = Hotkey{0, VK_MEDIA_PLAY_PAUSE};
+    s.Clamp();
+    CHECK(s.hotkeys[0].key.assigned());
+    CHECK(s.hotkeys[1].key.assigned());
+    CHECK(s.hotkeys[2].key.assigned());
+    CHECK(s.hotkeys[3].key.assigned());
+
+    // Harfler ve rakamlar kuralın içinde kalır.
+    CHECK(HotkeyNeedsModifier('S'));
+    CHECK(HotkeyNeedsModifier('7'));
+    CHECK(HotkeyNeedsModifier(VK_SPACE));
+    CHECK(!HotkeyNeedsModifier(VK_F1));
+    CHECK(!HotkeyNeedsModifier(VK_F24));
+}
+
+CRISP_TEST(Settings, Clamp_eylemsiz_yuvanin_tusunu_silmez) {
+    // Eylemi henüz seçilmemiş bir yuva RegisterHotKey'e hiç verilmez, o yüzden
+    // kimseden tuş çalmaz. Tuşu silmek yalnızca kullanıcının yazdığını yok
+    // ediyor ve alanı boşaltıyordu.
+    Settings s;
+    s.hotkeys[4].key = Hotkey{MOD_CONTROL | MOD_SHIFT, 'L'};
+    s.hotkeys[4].action = HotkeyAction::None;
+    s.Clamp();
+    CHECK(s.hotkeys[4].key.assigned());
+    CHECK(s.hotkeys[4].action == HotkeyAction::None);
 }
 
 CRISP_TEST(Settings, Clamp_tek_basina_MOD_WIN_kabul_edilmez) {
     // Windows, Win+harf kombinasyonlarının çoğunu kendisi ayırıyor.
     Settings s;
-    s.hotkeyDelayed.modifiers = MOD_WIN;
-    s.hotkeyDelayed.key = 'D';
+    s.hotkeys[3].key = Hotkey{MOD_WIN, 'D'};
     s.Clamp();
-    CHECK(!s.hotkeyDelayed.assigned());
+    CHECK(!s.hotkeys[3].key.assigned());
 }
 
 CRISP_TEST(Settings, Hotkey_paketleme_gidis_donusu) {
@@ -196,8 +232,15 @@ CRISP_TEST(Settings, Kaydet_yukle_tam_gidis_donusu) {
     original.showMagnifier = false;
     original.showWindowHighlight = false;
     original.playShutterSound = true;
-    original.hotkeyRegion = Hotkey{MOD_CONTROL | MOD_ALT, 'Q'};
-    original.hotkeyWindow = Hotkey{MOD_SHIFT | MOD_ALT, 'Z'};
+    original.hotkeys[0].key = Hotkey{MOD_CONTROL | MOD_ALT, 'Q'};
+    original.hotkeys[1].key = Hotkey{MOD_SHIFT | MOD_ALT, 'Z'};
+    original.hotkeys[4].key = Hotkey{MOD_CONTROL | MOD_SHIFT, 'L'};
+    original.hotkeys[4].action = HotkeyAction::LastRegion;
+    original.includeCursor = true;
+    original.dimStrength = 65u;
+    original.fileNameFormat = L"%y%mo%d-%px";
+    original.subFolderFormat = L"%y\\%mo";
+    original.lastRegion = RECT{-100, 20, 340, 260};
 
     CHECK(original.Save(store));
 
@@ -213,9 +256,19 @@ CRISP_TEST(Settings, Kaydet_yukle_tam_gidis_donusu) {
     CHECK(!loaded.showMagnifier);
     CHECK(!loaded.showWindowHighlight);
     CHECK(loaded.playShutterSound);
-    CHECK_EQ(loaded.hotkeyRegion.modifiers, MOD_CONTROL | MOD_ALT);
-    CHECK_EQ(loaded.hotkeyRegion.key, 'Q');
-    CHECK_EQ(loaded.hotkeyWindow.key, 'Z');
+    CHECK_EQ(loaded.hotkeys[0].key.modifiers, MOD_CONTROL | MOD_ALT);
+    CHECK_EQ(loaded.hotkeys[0].key.key, 'Q');
+    CHECK_EQ(loaded.hotkeys[1].key.key, 'Z');
+    CHECK(loaded.hotkeys[4].action == HotkeyAction::LastRegion);
+    CHECK(loaded.includeCursor);
+    CHECK_EQ(loaded.dimStrength, 65u);
+    CHECK_STR(loaded.fileNameFormat, L"%y%mo%d-%px");
+    CHECK_STR(loaded.subFolderFormat, L"%y\\%mo");
+    // KOORDİNATLAR İŞARETLİ: sol üstteki monitör birincil değilse negatif olur
+    // ve unsigned olarak saklanıp geri çevrilmezse ekranın dışına düşerdi.
+    CHECK_EQ(loaded.lastRegion.left, -100);
+    CHECK_EQ(loaded.lastRegion.right, 340);
+    CHECK(loaded.HasLastRegion());
 }
 
 CRISP_TEST(Settings, Yukleme_bozuk_degerleri_duzeltir) {

@@ -60,6 +60,13 @@ namespace geom {
 // (Shift ile kare seçim). anchor sabit kalır, other en yakın kareye çekilir.
 [[nodiscard]] POINT SnapToSquare(POINT anchor, POINT other) noexcept;
 
+// Ucu, çıpadan geçen 45°'nin katı olan en yakın ışına kilitler; uzunluk
+// KORUNUR (izdüşüm değil, döndürme).
+//
+// İZDÜŞÜM DEĞİL ÇÜNKÜ İZDÜŞÜM KISALTIR: fareyi 20° tutup Shift'e basan
+// kullanıcı, çizginin yönünün düzelmesini bekler, boyunun küçülmesini değil.
+[[nodiscard]] POINT SnapToAngle(POINT anchor, POINT other) noexcept;
+
 // --- İğnelenmiş pencere yakınlaştırması --------------------------------------
 
 inline constexpr int kZoomMin = 10;

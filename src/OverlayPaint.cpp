@@ -286,7 +286,7 @@ void DrawHint(HDC dc, const OverlayVisual& visual, HFONT font) {
 
 }  // namespace
 
-bool BuildDimmedCopy(const Image& source, Image& out) {
+bool BuildDimmedCopy(const Image& source, unsigned dimPercent, Image& out) {
     if (!source.Valid()) {
         return false;
     }
@@ -294,8 +294,9 @@ bool BuildDimmedCopy(const Image& source, Image& out) {
         return false;
     }
 
-    // Sabit çarpanla karartma: her kanal 40%'a düşer. AlphaBlend ile siyah
+    // Çarpanla karartma: her kanal (100 - dim)%'a düşer. AlphaBlend ile siyah
     // bindirmekle aynı sonucu verir ama fazladan bir DC ve fırça gerektirmez.
+    const uint32_t keep = 100u - (dimPercent > 80u ? 80u : dimPercent);
     const auto* from = static_cast<const uint32_t*>(source.Bits());
     auto* to = static_cast<uint32_t*>(out.Bits());
     const size_t count =
@@ -303,9 +304,9 @@ bool BuildDimmedCopy(const Image& source, Image& out) {
 
     for (size_t i = 0; i < count; ++i) {
         const uint32_t p = from[i];
-        const uint32_t r = ((p >> 16) & 0xFFu) * 40u / 100u;
-        const uint32_t g = ((p >> 8) & 0xFFu) * 40u / 100u;
-        const uint32_t b = (p & 0xFFu) * 40u / 100u;
+        const uint32_t r = ((p >> 16) & 0xFFu) * keep / 100u;
+        const uint32_t g = ((p >> 8) & 0xFFu) * keep / 100u;
+        const uint32_t b = (p & 0xFFu) * keep / 100u;
         to[i] = 0xFF000000u | (r << 16) | (g << 8) | b;
     }
     return true;
@@ -341,6 +342,22 @@ void PaintOverlay(HDC target, const OverlayVisual& visual, HDC frozenDc,
 
     // 1. Karartılmış masaüstü, her yere.
     ::BitBlt(target, 0, 0, width, height, dimmedDc, 0, 0, SRCCOPY);
+
+    // 1b. ARTI İMLEÇ, her şeyin ALTINDA: seçimin ve vurgulanan pencerenin
+    // üstünden geçseydi, tam da hizalanmaya çalışılan kenarı örterdi.
+    if (visual.crosshair && !visual.colorPick) {
+        const LONG cx = visual.cursor.x - visual.screen.left;
+        const LONG cy = visual.cursor.y - visual.screen.top;
+        const LONG thickness = Scale(1, visual.dpi) < 1 ? 1 : Scale(1, visual.dpi);
+        const HBRUSH brush = ::CreateSolidBrush(kAccent);
+        if (brush != nullptr) {
+            RECT horizontal{0, cy, width, cy + thickness};
+            RECT vertical{cx, 0, cx + thickness, height};
+            ::FillRect(target, &horizontal, brush);
+            ::FillRect(target, &vertical, brush);
+            ::DeleteObject(brush);
+        }
+    }
 
     // 2. Sürükleme başlamadıysa imlecin altındaki pencereyi vurgula.
     if (!visual.dragging && !geom::IsEmpty(visual.hover)) {

@@ -28,6 +28,11 @@ struct OverlayVisual {
     bool showMagnifier = true;
     bool showHint = true;
     bool colorPick = false;   // ipucu metnini ve seçim çizimini değiştirir
+    // ARTI İMLEÇ: ekran boyunca uzanan iki ince çizgi. Büyüteç imlecin
+    // ALTINDAKİ pikseli gösterir ama seçimin kenarını uzaktaki bir
+    // pencereyle hizalamaya yaramaz; bunun için ekranı kesen bir çizgi
+    // gerekiyor.
+    bool crosshair = true;
 
     // --- Metin seçme kipi ----------------------------------------------------
     bool textSelect = false;
@@ -51,6 +56,12 @@ void PaintOverlay(HDC target, const OverlayVisual& visual, HDC frozenDc,
                   HDC dimmedDc, const Image& frozen);
 
 // Karartılmış kopyayı üretir. Bir kez çağrılır.
-[[nodiscard]] bool BuildDimmedCopy(const Image& source, Image& out);
+// `dimPercent` 0..80: seçim dışının ne kadar karartılacağı.
+//
+// AYAR OLDU ÇÜNKÜ TEK BİR DEĞER HERKESE UYMUYOR: koyu bir masaüstünde %40
+// karartma seçimi zar zor ayırt ettiriyor, açık bir masaüstünde ise fazla
+// geliyor.
+[[nodiscard]] bool BuildDimmedCopy(const Image& source, unsigned dimPercent,
+                                   Image& out);
 
 }  // namespace crisp

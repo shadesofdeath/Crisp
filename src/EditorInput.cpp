@@ -1,23 +1,174 @@
-// EditorInput.cpp — Düzenleyicinin mesaj işleme ve pencere ömrü. Yerleşim ve
+// EditorInput.cpp — Düzenleyicinin mesaj işleme. Yerleşim EditorLayout.cpp'de,
 // çizim EditorWindow.cpp'de.
 #include "EditorInternal.h"
 
 #include "Geometry.h"
-#include "EditorRender.h"
-#include "ImageTransform.h"
-#include "Localization.h"
-#include "Theme.h"
-#include "Util.h"
-#include "resource.h"
 
+#include <shellapi.h>
 #include <shellscalingapi.h>
 #include <windowsx.h>
 
 #include <algorithm>
-#include <string>
+#include <iterator>
 
 namespace crisp {
 namespace editor {
+namespace {
+
+// SAYI TUŞLARI ARAÇ SEÇER. On iki aracın hepsine fareyle gitmek, işaretlerken
+// elin sürekli araç çubuğuna dönmesi demekti. Sıra araç çubuğundakiyle aynı,
+// '1' oktan başlar ve '0' mozaikte biter; seçim ile kırpma harf tuşundadır.
+constexpr ToolKind kToolOrder[] = {
+    ToolKind::Mosaic,      ToolKind::Arrow,       ToolKind::Line,
+    ToolKind::Rectangle,   ToolKind::Ellipse,     ToolKind::Pen,
+    ToolKind::Highlighter, ToolKind::Text,        ToolKind::StepNumber,
+    ToolKind::Blur};
+
+// Seçim ve kırpma HARF TUŞUYLA. On iki araç, on rakama sığmıyor ve seçim
+// aracının 'V' olması her çizim programında aynı; kırpmanın 'C'si de öyle.
+void PickTool(HWND window, State& state, ToolKind tool) {
+    CommitTextDraft(state);
+    state.tool = tool;
+    state.ocr.active = false;
+    if (!ToolIsSelect(tool)) {
+        state.selected = -1;
+    }
+    RECT area{};
+    ::GetClientRect(window, &area);
+    LayoutButtons(state, area);
+    ::InvalidateRect(window, nullptr, FALSE);
+}
+
+void OnTimer(HWND window, State& state, UINT_PTR id) {
+    switch (id) {
+        case kTooltipTimer:
+            ShowTooltipNow(window, state);
+            return;
+        case kFlashTimer:
+            ::KillTimer(window, kFlashTimer);
+            state.flashText.clear();
+            ::InvalidateRect(window, nullptr, FALSE);
+            return;
+        case kCaretTimer:
+            if (!state.typing) {
+                ::KillTimer(window, kCaretTimer);
+                state.caretOn = true;
+                return;
+            }
+            state.caretOn = !state.caretOn;
+            ::InvalidateRect(window, nullptr, FALSE);
+            return;
+        default:
+            return;
+    }
+}
+
+void OnButtonClick(HWND window, State& state, int index, POINT client) {
+    const Button button = state.buttons[static_cast<size_t>(index)];
+    if (!button.enabled) {
+        return;
+    }
+    switch (button.kind) {
+        case ButtonKind::Tool:
+            PickTool(window, state, button.tool);
+            return;
+        case ButtonKind::Color:
+            OpenColorPicker(window, state, button);
+            return;
+        case ButtonKind::Thickness:
+            OpenThicknessPicker(window, state, button);
+            return;
+        case ButtonKind::Action:
+            ApplyAction(window, state, button.action);
+            return;
+        case ButtonKind::ZoomSlider:
+            state.zoomDragging = true;
+            ::SetCapture(window);
+            ZoomFromSlider(window, state, client.x);
+            return;
+    }
+    ::InvalidateRect(window, nullptr, FALSE);
+}
+
+[[nodiscard]] bool OnKeyDown(HWND window, State& state, WPARAM key) {
+    const bool control = (::GetKeyState(VK_CONTROL) & 0x8000) != 0;
+    const bool shift = (::GetKeyState(VK_SHIFT) & 0x8000) != 0;
+
+    // OCR kipi tuşları ÖNCE görür: açıkken Ctrl+C seçili METNİ kopyalamalı,
+    // görüntüyü değil.
+    if (OcrKeyDown(window, state, static_cast<unsigned>(key), control)) {
+        return true;
+    }
+
+    if (control && (key == VK_OEM_PLUS || key == VK_ADD)) {
+        ApplyAction(window, state, kActionZoomIn);
+        return true;
+    }
+    if (control && (key == VK_OEM_MINUS || key == VK_SUBTRACT)) {
+        ApplyAction(window, state, kActionZoomOut);
+        return true;
+    }
+    if (control && key == '0') {
+        ZoomToFit(window, state);
+        return true;
+    }
+
+    // Metin yazılırken devre dışı: o sırada rakam metnin parçasıdır.
+    if (!control && !state.typing && key >= '0' && key <= '9') {
+        PickTool(window, state, kToolOrder[key - '0']);
+        return true;
+    }
+    if (!control && !state.typing && key == 'V') {
+        PickTool(window, state, ToolKind::Select);
+        return true;
+    }
+    if (!control && !state.typing && key == 'C') {
+        PickTool(window, state, ToolKind::Crop);
+        return true;
+    }
+
+    // Delete: seçili şekli siler. Geri almadan farkı, ARADAKİ şekilleri
+    // bırakmasıdır — şikâyetin tamamı buydu.
+    if ((key == VK_DELETE || key == VK_BACK) && !state.typing &&
+        state.selected >= 0) {
+        (void)DeleteSelectedShape(window, state);
+        return true;
+    }
+
+    if (key == VK_ESCAPE) {
+        if (state.typing) {
+            // İlk Esc yazmayı iptal eder, pencereyi kapatmaz: kullanıcı bir
+            // harfi yanlış yazdı diye tüm düzenlemeyi kaybetmemeli.
+            state.typing = false;
+            state.textDraft = Shape{};
+            ::KillTimer(window, kCaretTimer);
+            ::InvalidateRect(window, nullptr, FALSE);
+            return true;
+        }
+        ::DestroyWindow(window);
+        return true;
+    }
+    if (control && key == 'Z') {
+        ApplyAction(window, state, shift ? kActionRedo : kActionUndo);
+        return true;
+    }
+    if (control && key == 'Y') {
+        ApplyAction(window, state, kActionRedo);
+        return true;
+    }
+    if (control && key == 'C') {
+        ApplyAction(window, state, kActionCopy);
+        return true;
+    }
+    if (control && key == 'S') {
+        // Ctrl+Shift+S "farklı kaydet": her düzenleyicide aynı anlamda.
+        ApplyAction(window, state, shift ? kActionSaveAs : kActionSave);
+        return true;
+    }
+    return false;
+}
+
+}  // namespace
 
 // ADSIZ AD ALANINDA DEĞİL: pencere sınıfını kaydeden EditorSession.cpp bu
 // yordamı adresiyle kullanıyor.
@@ -54,8 +205,8 @@ LRESULT CALLBACK EditorProc(HWND window, UINT message, WPARAM wParam,
             return 1;
 
         case WM_TIMER:
-            if (state != nullptr && wParam == kTooltipTimer) {
-                ShowTooltipNow(window, *state);
+            if (state != nullptr) {
+                OnTimer(window, *state, wParam);
             }
             return 0;
 
@@ -109,6 +260,11 @@ LRESULT CALLBACK EditorProc(HWND window, UINT message, WPARAM wParam,
             }
             const POINT client{GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam)};
 
+            if (state->zoomDragging) {
+                ZoomFromSlider(window, *state, client.x);
+                return 0;
+            }
+
             if (state->panning) {
                 state->pan.x = state->panStart.x + (client.x - state->panGrab.x);
                 state->pan.y = state->panStart.y + (client.y - state->panGrab.y);
@@ -130,6 +286,9 @@ LRESULT CALLBACK EditorProc(HWND window, UINT message, WPARAM wParam,
                 ::InvalidateRect(window, nullptr, FALSE);
             }
 
+            if (SelectMouseMove(window, *state, client)) {
+                return 0;
+            }
             if (state->dragging) {
                 UpdateDraw(window, *state, client);
                 return 0;
@@ -175,36 +334,13 @@ LRESULT CALLBACK EditorProc(HWND window, UINT message, WPARAM wParam,
             HideTooltip(window, *state);
             const int index = ButtonAt(*state, client);
             if (index >= 0) {
-                const Button button = state->buttons[static_cast<size_t>(index)];
-                if (!button.enabled) {
-                    return 0;
-                }
-                switch (button.kind) {
-                    case ButtonKind::Tool:
-                        CommitTextDraft(*state);
-                        state->tool = button.tool;
-                        break;
-                    case ButtonKind::Color:
-                        state->color = button.color;
-                        // Yazılmakta olan metnin rengi de anında değişsin.
-                        if (state->typing) {
-                            state->textDraft.color = button.color;
-                        }
-                        break;
-                    case ButtonKind::Thickness:
-                        state->thickness = button.thickness;
-                        if (state->typing) {
-                            state->textDraft.thickness = button.thickness;
-                        }
-                        break;
-                    case ButtonKind::Action:
-                        ApplyAction(window, *state, button.action);
-                        return 0;
-                }
-                ::InvalidateRect(window, nullptr, FALSE);
+                OnButtonClick(window, *state, index, client);
                 return 0;
             }
             if (OcrMouseDown(window, *state, client)) {
+                return 0;
+            }
+            if (SelectMouseDown(window, *state, client)) {
                 return 0;
             }
             BeginDraw(window, *state, client);
@@ -213,108 +349,50 @@ LRESULT CALLBACK EditorProc(HWND window, UINT message, WPARAM wParam,
 
         case WM_LBUTTONUP:
             if (state != nullptr) {
+                if (state->zoomDragging) {
+                    state->zoomDragging = false;
+                    if (::GetCapture() == window) {
+                        ::ReleaseCapture();
+                    }
+                    return 0;
+                }
                 if (OcrMouseUp(window, *state)) {
+                    return 0;
+                }
+                if (SelectMouseUp(window, *state)) {
                     return 0;
                 }
                 EndDraw(window, *state);
             }
             return 0;
 
-        case WM_CHAR: {
-            if (state == nullptr || !state->typing) {
-                break;
-            }
-            const wchar_t ch = static_cast<wchar_t>(wParam);
-            if (ch == VK_BACK) {
-                if (!state->textDraft.text.empty()) {
-                    state->textDraft.text.pop_back();
-                }
-            } else if (ch == VK_RETURN) {
-                CommitTextDraft(*state);
-                RECT client{};
-                ::GetClientRect(window, &client);
-                LayoutButtons(*state, client);
-            } else if (ch >= L' ') {
-                state->textDraft.text.push_back(ch);
-            }
-            ::InvalidateRect(window, nullptr, FALSE);
-            return 0;
-        }
-
-        case WM_KEYDOWN: {
-            if (state == nullptr) {
-                break;
-            }
-            const bool control = (::GetKeyState(VK_CONTROL) & 0x8000) != 0;
-
-            // OCR kipi tuşları ÖNCE görür: açıkken Ctrl+C seçili METNİ
-            // kopyalamalı, görüntüyü değil.
-            if (OcrKeyDown(window, *state, static_cast<unsigned>(wParam),
-                           control)) {
-                return 0;
-            }
-
-            if (control && (wParam == VK_OEM_PLUS || wParam == VK_ADD)) {
-                ApplyAction(window, *state, kActionZoomIn);
-                return 0;
-            }
-            if (control && (wParam == VK_OEM_MINUS || wParam == VK_SUBTRACT)) {
-                ApplyAction(window, *state, kActionZoomOut);
-                return 0;
-            }
-            if (control && wParam == '0') {
-                ZoomToFit(window, *state);
-                return 0;
-            }
-
-            // SAYI TUŞLARI ARAÇ SEÇER. On aracın hepsine fareyle gitmek,
-            // işaretlerken elin sürekli araç çubuğuna dönmesi demekti.
-            // Metin yazılırken devre dışı: o sırada rakam metnin parçasıdır.
-            if (!control && !state->typing && wParam >= '0' && wParam <= '9') {
-                constexpr ToolKind kOrder[] = {
-                    ToolKind::Crop,        ToolKind::Arrow,
-                    ToolKind::Rectangle,   ToolKind::Ellipse,
-                    ToolKind::Pen,         ToolKind::Highlighter,
-                    ToolKind::Text,        ToolKind::StepNumber,
-                    ToolKind::Blur,        ToolKind::Mosaic};
-                state->tool = kOrder[wParam - '0'];
-                state->ocr.active = false;
-                RECT area{};
-                ::GetClientRect(window, &area);
-                LayoutButtons(*state, area);
-                ::InvalidateRect(window, nullptr, FALSE);
-                return 0;
-            }
-
-            if (wParam == VK_ESCAPE) {
-                if (state->typing) {
-                    // İlk Esc yazmayı iptal eder, pencereyi kapatmaz: kullanıcı
-                    // bir harfi yanlış yazdı diye tüm düzenlemeyi kaybetmemeli.
-                    state->typing = false;
-                    state->textDraft = Shape{};
-                    ::InvalidateRect(window, nullptr, FALSE);
-                    return 0;
-                }
-                ::DestroyWindow(window);
-                return 0;
-            }
-            if (control && wParam == 'Z') {
-                ApplyAction(window, *state, kActionUndo);
-                return 0;
-            }
-            if (control && (wParam == 'Y' || (wParam == 'Z' && (::GetKeyState(VK_SHIFT) & 0x8000) != 0))) {
-                ApplyAction(window, *state, kActionRedo);
-                return 0;
-            }
-            if (control && wParam == 'C') {
-                ApplyAction(window, *state, kActionCopy);
-                return 0;
-            }
-            if (control && wParam == 'S') {
-                ApplyAction(window, *state, kActionSave);
+        case WM_CHAR:
+            if (state != nullptr && TextTypingChar(window, *state,
+                                                   static_cast<wchar_t>(wParam))) {
                 return 0;
             }
             break;
+
+        case WM_KEYDOWN:
+            if (state != nullptr && OnKeyDown(window, *state, wParam)) {
+                return 0;
+            }
+            break;
+
+        // SÜRÜKLE-BIRAK: bir görüntü dosyası düzenleyiciye bırakıldığında
+        // taban olur. Geri alınabilir bir işlem: kullanıcı yanlış dosyayı
+        // bıraktıysa Ctrl+Z eski yakalamayı geri getirir.
+        case WM_DROPFILES: {
+            if (state == nullptr) {
+                break;
+            }
+            const auto drop = reinterpret_cast<HDROP>(wParam);
+            wchar_t path[MAX_PATH] = L"";
+            if (::DragQueryFileW(drop, 0, path, static_cast<UINT>(std::size(path))) > 0) {
+                OpenDroppedImage(window, *state, path);
+            }
+            ::DragFinish(drop);
+            return 0;
         }
 
         case WM_DPICHANGED: {
@@ -333,9 +411,9 @@ LRESULT CALLBACK EditorProc(HWND window, UINT message, WPARAM wParam,
         case WM_GETMINMAXINFO: {
             if (state != nullptr) {
                 auto* info = reinterpret_cast<MINMAXINFO*>(lParam);
-                info->ptMinTrackSize.x =
-                    RequiredToolbarWidth(state->dpi) + Scale(20, state->dpi);
-                info->ptMinTrackSize.y = Scale(kToolbarHeight + 160, state->dpi);
+                info->ptMinTrackSize.x = RequiredToolbarWidth(state->dpi);
+                info->ptMinTrackSize.y =
+                    Scale(kToolbarHeight + kStatusHeight + 160, state->dpi);
             }
             return 0;
         }
@@ -353,4 +431,3 @@ LRESULT CALLBACK EditorProc(HWND window, UINT message, WPARAM wParam,
 
 }  // namespace editor
 }  // namespace crisp
-

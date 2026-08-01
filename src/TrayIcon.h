@@ -27,6 +27,14 @@ public:
     [[nodiscard]] static UINT TaskbarCreatedMessage() noexcept;
     void Restore();
 
+    // Menü açılmadan ÖNCE bildirilir: hangi komutların etkin olduğu duruma
+    // bağlı ve tepsi simgesi uygulamanın durumunu bilmez. Menüyü açan taraf
+    // söyler, menü de onu yalnızca soluklaştırmak için kullanır.
+    void SetMenuState(bool hasLastRegion, bool hasClipboardImage) noexcept {
+        m_hasLastRegion = hasLastRegion;
+        m_hasClipboardImage = hasClipboardImage;
+    }
+
     // Bağlam menüsünü imlecin konumunda açar ve seçilen komut kimliğini
     // döndürür (iptal edilirse 0).
     [[nodiscard]] int ShowMenu(HWND owner);
@@ -39,6 +47,8 @@ private:
     bool m_added = false;
     bool m_darkTaskbar = true;
     bool m_themeKnown = false;
+    bool m_hasLastRegion = false;
+    bool m_hasClipboardImage = false;
 };
 
 }  // namespace crisp

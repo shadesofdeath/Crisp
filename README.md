@@ -13,8 +13,8 @@ pixel magnifier, annotation, OCR and pin-to-screen.
 ![C++20](https://img.shields.io/badge/C%2B%2B-20-00599C?style=flat-square&logo=cplusplus&logoColor=white)
 ![Win32](https://img.shields.io/badge/Win32-native-1a1a1a?style=flat-square)
 ![No dependencies](https://img.shields.io/badge/dependencies-none-2ea44f?style=flat-square)
-![Tests](https://img.shields.io/badge/tests-152%20passing-2ea44f?style=flat-square)
-![Size](https://img.shields.io/badge/exe-367%20KB-2ea44f?style=flat-square)
+![Tests](https://img.shields.io/badge/tests-245%20passing-2ea44f?style=flat-square)
+![Size](https://img.shields.io/badge/exe-631%20KB-2ea44f?style=flat-square)
 ![License](https://img.shields.io/badge/license-MIT-1a1a1a?style=flat-square)
 
 <br>
@@ -128,6 +128,9 @@ well. Crisp exists for the parts they do not:
 | Print Screen opens the region overlay | done |
 | Custom About window | done |
 | Annotation editor — arrow, box, ellipse, pen, highlighter, text, step badges | done |
+| Editor colour panel — SV square, hue strip, hex, presets, eyedropper | done |
+| Editor thickness dropdown — seven widths, previewed as lines | done |
+| Editor save as — PNG / JPEG / WebP, format from the typed extension | done |
 | Blur and mosaic | done |
 | Undo / redo | done |
 | Capture history — thumbnail grid, edit / copy / reveal / delete | done |
@@ -139,9 +142,22 @@ well. Crisp exists for the parts they do not:
 | Custom message box — themed, replaces every MessageBoxW | done |
 | Shutter sound — synthesised, no asset, off by default | done |
 | Toolbar tooltips and number-key tool shortcuts | done |
+| Grouped toolbar with labels, status-bar zoom slider | done |
+| Active window, all monitors, last region | done |
+| Capture the mouse cursor | done |
+| Delay on every capture mode, with a countdown | done |
+| Overlay crosshair, `Ctrl+C` coordinates, monitor keys | done |
+| An action per hotkey — twelve actions, six slots | done |
+| Command line (`-region`, `foto.png`), open the clipboard image, drag and drop | done |
+| "Edit with Crisp" in the Explorer right-click menu | done, tested |
+| File name and subfolder templates | done, tested |
+| After capture: copy path / copy file / reveal / OCR the text | done |
+| Editor selection tool — move, delete, restyle a shape | done |
+| Line tool, shape fill, `Shift` locks, translucent highlighter | done |
+| Editor effects — flip, trim, margin, greyscale, sepia, sharpen, ± B/C/S | done, tested |
 | Scrolling capture | removed — see Known limits |
 
-152 tests pass. See [Tests](#tests).
+245 tests pass. See [Tests](#tests).
 
 ### Languages
 
@@ -164,8 +180,28 @@ the clipboard.
 </div>
 
 Arrow, rectangle, ellipse, pen, highlighter, text, numbered step badges, blur
-and mosaic. `Ctrl+Z` / `Ctrl+Y`, `Ctrl+C` to copy, `Ctrl+S` to save, `Esc` to
-discard.
+and mosaic. `Ctrl+Z` / `Ctrl+Y`, `Ctrl+C` to copy, `Ctrl+S` to save,
+`Ctrl+Shift+S` to save as, `Esc` to discard.
+
+The toolbar is grouped and each group is labelled, because a strip of
+twenty-odd icons explains the *what* and never the *why they sit together*.
+Colour and thickness are single buttons that open a panel:
+
+- **Colour** — a saturation-value square, a hue strip, a hex field that takes
+  `#1e90ff` or `#0f0`, 36 presets across three tones, the colours used recently,
+  and an eyedropper that borrows the screen-pick overlay. Clicking a preset
+  applies it and closes; the square and the strip need `Tamam`.
+- **Thickness** — seven widths from 1 to 18 px, each drawn as a line of that
+  width in the colour you are drawing with. Three buttons distinguished only by
+  the diameter of a dot could not show the difference between 2 px and 4 px.
+
+**Copy and save no longer close the window.** They do the work and say so in the
+status bar — copying used to be indistinguishable from crashing.
+
+**Resizing is reversible.** Shrinking to 25 % and going back to 100 % returns
+the original pixels, because consecutive resizes work from the image as it was
+before the first one. Downscaling averages the whole source area rather than
+sampling 2 × 2, so text survives; upscaling uses a cubic filter.
 
 Undo restores **pixels**, not just the shape list:
 
@@ -239,10 +275,30 @@ On a pinned window: drag anywhere to move it, wheel to zoom, double-click for
 actual size, `Ctrl+C` to copy, `Ctrl+S` to save, `Esc` to close, right-click for
 the rest.
 
-In the annotation editor: `1`–`0` pick a tool in toolbar order, the wheel zooms
+While the overlay is open: `Ctrl+C` copies the selection as `x, y  w × h`,
+`Space` takes the monitor under the cursor, `1`–`9` a numbered monitor (left to
+right) and `0` the whole virtual desktop.
+
+From the command line: `Crisp.exe -region | -window | -active | -monitor |
+-all | -last | -delayed | -text | -ocr | -color | -history`, or
+`Crisp.exe picture.png` to open a file in the editor. A second instance hands
+the request to the one already running.
+
+Turn on **"Add to the Explorer right-click menu"** in Settings and any image
+gets an **Edit with Crisp** entry. It is a registry verb under
+`HKEY_CURRENT_USER` — no administrator, no shell extension DLL loaded into
+Explorer's process — covering every format Windows calls an image. Started that
+way, Crisp closes when the editor closes rather than leaving a tray icon
+behind. On Windows 11 third-party verbs sit in the classic menu: *Show more
+options*, or `Shift+F10`.
+
+In the annotation editor: `V` selects and moves a shape (`Delete` removes it),
+`C` crops, `1`–`0` pick a drawing tool in toolbar order, the wheel zooms
 around the pointer, the middle button pans, `Ctrl +` / `Ctrl -` / `Ctrl+0` zoom
-in, out and fit, `Ctrl+Z` / `Ctrl+Y` undo and redo, `Ctrl+C` copies and `Ctrl+S`
-saves. Every toolbar button has a tooltip that also shows its shortcut.
+in, out and fit, `Ctrl+Z` / `Ctrl+Y` undo and redo, `Ctrl+C` copies, `Ctrl+S`
+saves and `Ctrl+Shift+S` saves as. Every toolbar button has a tooltip that also
+shows its shortcut. While typing with the text tool, `Enter` breaks a line,
+`Ctrl+Enter` finishes the text and `Esc` cancels only that text.
 
 <br>
 

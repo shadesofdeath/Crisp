@@ -26,6 +26,8 @@ constexpr UINT kDelayMs = 550;
 
 [[nodiscard]] UINT ToolTipId(ToolKind tool) noexcept {
     switch (tool) {
+        case ToolKind::Select:      return IDS_TIP_SELECT;
+        case ToolKind::Line:        return IDS_TIP_LINE;
         case ToolKind::Rectangle:   return IDS_TIP_RECTANGLE;
         case ToolKind::Ellipse:     return IDS_TIP_ELLIPSE;
         case ToolKind::Pen:         return IDS_TIP_PEN;
@@ -48,11 +50,14 @@ constexpr UINT kDelayMs = 550;
         case kActionRotateLeft:  return IDS_TIP_ROTATE_LEFT;
         case kActionRotateRight: return IDS_TIP_ROTATE_RIGHT;
         case kActionScale:       return IDS_TIP_SCALE;
+        case kActionEffects:     return IDS_TIP_EFFECTS;
+        case kActionFill:        return IDS_TIP_FILL;
         case kActionUndo:        return IDS_TIP_UNDO;
         case kActionRedo:        return IDS_TIP_REDO;
         case kActionClear:       return IDS_TIP_CLEAR;
         case kActionCopy:        return IDS_TIP_COPY;
         case kActionSave:        return IDS_TIP_SAVE;
+        case kActionSaveAs:      return IDS_TIP_SAVE_AS;
         default:                 return IDS_TIP_CLOSE;
     }
 }
@@ -66,6 +71,7 @@ constexpr UINT kDelayMs = 550;
             case kActionRedo:    return L"Ctrl+Y";
             case kActionCopy:    return L"Ctrl+C";
             case kActionSave:    return L"Ctrl+S";
+            case kActionSaveAs:  return L"Ctrl+Shift+S";
             case kActionZoomIn:  return L"Ctrl++";
             case kActionZoomOut: return L"Ctrl+-";
             case kActionZoomFit: return L"Ctrl+0";
@@ -78,16 +84,18 @@ constexpr UINT kDelayMs = 550;
     }
     // Araçlar 1..0 sırasıyla; dizi LayoutButtons'taki sırayla aynıdır.
     switch (button.tool) {
+        case ToolKind::Select:      return L"V";
         case ToolKind::Arrow:       return L"1";
-        case ToolKind::Rectangle:   return L"2";
-        case ToolKind::Ellipse:     return L"3";
-        case ToolKind::Pen:         return L"4";
-        case ToolKind::Highlighter: return L"5";
-        case ToolKind::Text:        return L"6";
-        case ToolKind::StepNumber:  return L"7";
-        case ToolKind::Blur:        return L"8";
-        case ToolKind::Mosaic:      return L"9";
-        case ToolKind::Crop:        return L"0";
+        case ToolKind::Line:        return L"2";
+        case ToolKind::Rectangle:   return L"3";
+        case ToolKind::Ellipse:     return L"4";
+        case ToolKind::Pen:         return L"5";
+        case ToolKind::Highlighter: return L"6";
+        case ToolKind::Text:        return L"7";
+        case ToolKind::StepNumber:  return L"8";
+        case ToolKind::Blur:        return L"9";
+        case ToolKind::Mosaic:      return L"0";
+        case ToolKind::Crop:        return L"C";
         default:                    return nullptr;
     }
 }
@@ -101,6 +109,7 @@ std::wstring TooltipText(const Button& button) {
         case ButtonKind::Action:    text = Loc::Str(ActionTipId(button.action)); break;
         case ButtonKind::Color:     text = Loc::Str(IDS_TIP_COLOR); break;
         case ButtonKind::Thickness: text = Loc::Str(IDS_TIP_THICKNESS); break;
+        case ButtonKind::ZoomSlider: text = Loc::Str(IDS_TIP_ZOOM_SLIDER); break;
         default:                    return std::wstring();
     }
 
@@ -187,8 +196,14 @@ void DrawTooltip(HDC dc, const State& state, const RECT& client) {
 
     // Düğmenin ALTINDA ve ortalanmış; ekran kenarına taşarsa içeri çekilir.
     // Üstte gösterilseydi araç çubuğunun dışına, başlık çubuğuna binerdi.
+    //
+    // DURUM ÇUBUĞUNDAKİ DÜĞMELER İSTİSNA: onların altında pencere bitiyor ve
+    // ipucu görünmez bir yere düşerdi, o yüzden yer yoksa yukarı çevrilir.
     int left = (button.bounds.left + button.bounds.right) / 2 - width / 2;
-    const int top = button.bounds.bottom + Scale(6, dpi);
+    int top = button.bounds.bottom + Scale(6, dpi);
+    if (top + height > static_cast<int>(geom::Height(client))) {
+        top = button.bounds.top - Scale(6, dpi) - height;
+    }
     const int limit = static_cast<int>(geom::Width(client)) - width - Scale(4, dpi);
     left = left < Scale(4, dpi) ? Scale(4, dpi) : (left > limit ? limit : left);
 

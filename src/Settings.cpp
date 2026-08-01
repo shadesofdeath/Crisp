@@ -1,20 +1,17 @@
-// Settings.cpp — bkz. Settings.h.
+// Settings.cpp — Ayarların anlamı: varsayılanlar, doğrulama ve göç.
+// Nerede saklandıkları SettingsStore.cpp'dedir.
 #include "Settings.h"
 
+#include "ShellIntegration.h"
 #include "Util.h"
 
 #include <shlobj.h>
 
+#include <cstdio>
+
 namespace crisp {
 namespace {
 
-constexpr const wchar_t* kRegistryPath = L"Software\\ShadesOfDeath\\Crisp";
-constexpr const wchar_t* kIniSection   = L"Crisp";
-constexpr const wchar_t* kIniFileName  = L"Crisp.ini";
-
-// Okunamayan bir değeri "yok" saymak yerine hata döndürmek çağıranı her yerde
-// iki dallı yapardı; tek bir sentinel yeter.
-constexpr unsigned kUnsignedMissing = 0xFFFFFFFFu;
 
 [[nodiscard]] unsigned ClampUnsigned(unsigned value, unsigned lo, unsigned hi) noexcept {
     return value < lo ? lo : (value > hi ? hi : value);
@@ -32,169 +29,31 @@ constexpr unsigned kUnsignedMissing = 0xFFFFFFFFu;
 
 }  // namespace
 
-// ---------------------------------------------------------------------------
-// SettingsStore
-// ---------------------------------------------------------------------------
-
-std::wstring SettingsStore::PortableIniPath() {
-    std::wstring directory = ModuleDirectory();
-    if (directory.empty()) {
-        return std::wstring();
-    }
-    directory += L'\\';
-    directory += kIniFileName;
-    return directory;
-}
-
-bool SettingsStore::PortableModeActive() {
-    const std::wstring path = PortableIniPath();
-    if (path.empty()) {
-        return false;
-    }
-    const DWORD attributes = ::GetFileAttributesW(path.c_str());
-    return attributes != INVALID_FILE_ATTRIBUTES &&
-           (attributes & FILE_ATTRIBUTE_DIRECTORY) == 0;
-}
-
-SettingsStore SettingsStore::ForApp() {
-    if (PortableModeActive()) {
-        return SettingsStore{Backend::IniFile, PortableIniPath()};
-    }
-    return SettingsStore{Backend::Registry, std::wstring()};
-}
-
-SettingsStore SettingsStore::ForFile(std::wstring path) {
-    return SettingsStore{Backend::IniFile, std::move(path)};
-}
-
-bool SettingsStore::ReadString(const wchar_t* name, std::wstring& out) const {
-    if (m_backend == Backend::Registry) {
-        DWORD bytes = 0;
-        DWORD type = REG_NONE;
-        LSTATUS status = ::RegGetValueW(HKEY_CURRENT_USER, kRegistryPath, name,
-                                        RRF_RT_REG_SZ, &type, nullptr, &bytes);
-        if (status != ERROR_SUCCESS || bytes < sizeof(wchar_t)) {
-            return false;
-        }
-
-        std::wstring buffer(bytes / sizeof(wchar_t), L'\0');
-        status = ::RegGetValueW(HKEY_CURRENT_USER, kRegistryPath, name,
-                                RRF_RT_REG_SZ, nullptr, buffer.data(), &bytes);
-        if (status != ERROR_SUCCESS) {
-            return false;
-        }
-        // RegGetValueW sonlandırıcıyı da sayar; onu dizenin parçası bırakmak
-        // sonradan yol birleştirmede görünmez bir NUL'a yol açar.
-        const size_t nul = buffer.find(L'\0');
-        if (nul != std::wstring::npos) {
-            buffer.resize(nul);
-        }
-        out = std::move(buffer);
-        return true;
-    }
-
-    // .ini: değer yoksa sentinel geri gelir, böylece "boş dize" ile "yok"
-    // birbirinden ayrılır.
-    constexpr const wchar_t* kMissing = L"\x01";
-    wchar_t buffer[1024];
-    const DWORD length = ::GetPrivateProfileStringW(
-        kIniSection, name, kMissing, buffer,
-        static_cast<DWORD>(std::size(buffer)), m_path.c_str());
-    if (length == 0 || ::wcscmp(buffer, kMissing) == 0) {
-        return false;
-    }
-    out.assign(buffer, length);
-    return true;
-}
-
-bool SettingsStore::ReadUnsigned(const wchar_t* name, unsigned& out) const {
-    if (m_backend == Backend::Registry) {
-        DWORD value = 0;
-        DWORD bytes = sizeof(value);
-        const LSTATUS status =
-            ::RegGetValueW(HKEY_CURRENT_USER, kRegistryPath, name, RRF_RT_REG_DWORD,
-                           nullptr, &value, &bytes);
-        if (status != ERROR_SUCCESS) {
-            return false;
-        }
-        out = value;
-        return true;
-    }
-
-    const UINT value = ::GetPrivateProfileIntW(kIniSection, name,
-                                               static_cast<INT>(kUnsignedMissing),
-                                               m_path.c_str());
-    if (value == kUnsignedMissing) {
-        return false;
-    }
-    out = value;
-    return true;
-}
-
-bool SettingsStore::ReadBool(const wchar_t* name, bool& out) const {
-    unsigned value = 0;
-    if (!ReadUnsigned(name, value)) {
-        return false;
-    }
-    out = value != 0;
-    return true;
-}
-
-bool SettingsStore::Prepare() const {
-    if (m_backend == Backend::Registry) {
-        unique_hkey key;
-        return ::RegCreateKeyExW(HKEY_CURRENT_USER, kRegistryPath, 0, nullptr, 0,
-                                 KEY_SET_VALUE, nullptr, key.put(),
-                                 nullptr) == ERROR_SUCCESS;
-    }
-
-    if (m_path.empty()) {
-        return false;
-    }
-    const size_t slash = m_path.find_last_of(L'\\');
-    if (slash != std::wstring::npos) {
-        if (!EnsureDirectory(m_path.substr(0, slash))) {
-            return false;
-        }
-    }
-    // WritePrivateProfileStringW dosyayı ilk yazmada kendi oluşturur; ayrıca
-    // dokunmaya gerek yok.
-    return true;
-}
-
-bool SettingsStore::WriteString(const wchar_t* name, const std::wstring& value) const {
-    if (m_backend == Backend::Registry) {
-        const DWORD bytes = static_cast<DWORD>((value.size() + 1) * sizeof(wchar_t));
-        return ::RegSetKeyValueW(HKEY_CURRENT_USER, kRegistryPath, name, REG_SZ,
-                                 value.c_str(), bytes) == ERROR_SUCCESS;
-    }
-    return ::WritePrivateProfileStringW(kIniSection, name, value.c_str(),
-                                        m_path.c_str()) != FALSE;
-}
-
-bool SettingsStore::WriteUnsigned(const wchar_t* name, unsigned value) const {
-    if (m_backend == Backend::Registry) {
-        const DWORD dword = value;
-        return ::RegSetKeyValueW(HKEY_CURRENT_USER, kRegistryPath, name, REG_DWORD,
-                                 &dword, sizeof(dword)) == ERROR_SUCCESS;
-    }
-    return WriteString(name, std::to_wstring(value));
-}
-
-bool SettingsStore::WriteBool(const wchar_t* name, bool value) const {
-    return WriteUnsigned(name, value ? 1u : 0u);
-}
-
-void SettingsStore::Flush() const {
-    if (m_backend == Backend::IniFile) {
-        // nullptr'lı çağrı önbelleği diske indirir.
-        ::WritePrivateProfileStringW(nullptr, nullptr, nullptr, m_path.c_str());
-    }
-}
 
 // ---------------------------------------------------------------------------
 // Settings
 // ---------------------------------------------------------------------------
+
+bool HotkeyNeedsModifier(unsigned key) noexcept {
+    // İşlev tuşları: F1'den F24'e kesintisiz bir aralık.
+    if (key >= VK_F1 && key <= VK_F24) {
+        return false;
+    }
+    // 0xA6–0xB7: tarayıcı, ses ve ortam tuşlarıyla "posta"/"hesap makinesi"
+    // gibi başlatıcılar. Hiçbiri metin üretmez ve çoğu klavyede zaten başka
+    // bir işi yoktur.
+    if (key >= VK_BROWSER_BACK && key <= VK_LAUNCH_APP2) {
+        return false;
+    }
+    switch (key) {
+        case VK_SNAPSHOT:   // Print Screen — bu iş için var olan tuş
+        case VK_PAUSE:
+        case VK_SCROLL:
+            return false;
+        default:
+            return true;
+    }
+}
 
 void Settings::Clamp() {
     delaySeconds = ClampUnsigned(delaySeconds, 1u, 30u);
@@ -226,17 +85,35 @@ void Settings::Clamp() {
         after.copyToClipboard = true;
     }
 
-    // Değiştirici tuşu olmayan kısayol, tek tuşa basınca yakalama başlatırdı.
-    // MOD_WIN tek başına da kabul edilmez: Windows onu kendi ayırıyor.
-    auto sanitize = [](Hotkey& h) {
-        if (h.key != 0 && (h.modifiers & (MOD_CONTROL | MOD_ALT | MOD_SHIFT)) == 0) {
-            h.key = 0;
+    dimStrength = ClampUnsigned(dimStrength, 0u, 80u);
+    blurStrength = ClampUnsigned(blurStrength, 10u, 400u);
+    mosaicStrength = ClampUnsigned(mosaicStrength, 10u, 400u);
+
+    // BOŞ ŞABLON DOSYAYI ADSIZ BIRAKIRDI. Kullanıcı alanı temizlediyse
+    // varsayılana dönmek, "Crisp .png" gibi bir dosyaya yazmaktan iyidir.
+    if (fileNameFormat.empty()) {
+        fileNameFormat = L"Crisp %y-%mo-%d %h-%mi-%s";
+    }
+
+    // Değiştirici tuşu olmayan kısayol, tek tuşa basınca yakalama başlatırdı —
+    // ama yalnızca metin üreten tuşlarda: gerekçe ve istisnalar için bkz.
+    // HotkeyNeedsModifier. MOD_WIN tek başına yine sayılmaz; Windows Win+harf
+    // bileşimlerinin çoğunu kendi ayırıyor.
+    for (HotkeyBinding& binding : hotkeys) {
+        if (binding.key.key != 0 &&
+            (binding.key.modifiers & (MOD_CONTROL | MOD_ALT | MOD_SHIFT)) == 0 &&
+            HotkeyNeedsModifier(binding.key.key)) {
+            binding.key.key = 0;
         }
-    };
-    sanitize(hotkeyRegion);
-    sanitize(hotkeyFullScreen);
-    sanitize(hotkeyWindow);
-    sanitize(hotkeyDelayed);
+        if (static_cast<unsigned>(binding.action) >=
+            static_cast<unsigned>(HotkeyAction::Count)) {
+            binding.action = HotkeyAction::None;
+        }
+        // EYLEMSİZ BİR TUŞ SİLİNMEZ, yalnızca kaydedilmez (bkz. Hotkeys::Apply):
+        // kombinasyon RegisterHotKey'e hiç verilmediği için başka bir
+        // uygulamadan çalınmış olmaz. Eskiden burada siliniyordu ve eylemini
+        // henüz seçmemiş kullanıcının tuşu, Tamam'a basar basmaz kayboluyordu.
+    }
 }
 
 void Settings::Load(const SettingsStore& store) {
@@ -250,6 +127,10 @@ void Settings::Load(const SettingsStore& store) {
     store.ReadBool(L"SaveToFile", after.saveToFile);
     store.ReadBool(L"PinToScreen", after.pinToScreen);
     store.ReadBool(L"OpenEditor", after.openEditor);
+    store.ReadBool(L"CopyPathToClipboard", after.copyPathToClipboard);
+    store.ReadBool(L"CopyFileToClipboard", after.copyFileToClipboard);
+    store.ReadBool(L"RevealInFolder", after.revealInFolder);
+    store.ReadBool(L"CopyTextViaOcr", after.copyTextViaOcr);
 
     store.ReadUnsigned(L"DelaySeconds", delaySeconds);
     store.ReadBool(L"ShowMagnifier", showMagnifier);
@@ -258,17 +139,60 @@ void Settings::Load(const SettingsStore& store) {
     store.ReadBool(L"PrintScreenCapture", printScreenCapture);
     store.ReadBool(L"ShowNotification", showNotification);
     store.ReadUnsigned(L"HistoryLimit", historyLimit);
+    store.ReadBool(L"IncludeCursor", includeCursor);
+    // KAYIT DEFTERİNDEKİ FİİLDEN okunur, kendi anahtarımızdan değil; gerekçe
+    // Settings.h'de.
+    shellContextMenu = IsShellMenuRegistered();
+    store.ReadUnsigned(L"DimStrength", dimStrength);
+    store.ReadString(L"FileNameFormat", fileNameFormat);
+    store.ReadString(L"SubFolderFormat", subFolderFormat);
+    store.ReadUnsigned(L"BlurStrength", blurStrength);
+    store.ReadUnsigned(L"MosaicStrength", mosaicStrength);
 
-    auto readHotkey = [&store](const wchar_t* name, Hotkey& target) {
-        unsigned packed = 0;
-        if (store.ReadUnsigned(name, packed)) {
-            target = Hotkey::unpack(packed);
+    // KOORDİNATLAR İŞARETLİ: sol üstteki monitör birincil değilse negatif
+    // olurlar ve unsigned olarak okunup geri çevrilmezse ekranın dışına düşer.
+    auto readCoordinate = [&store](const wchar_t* name, LONG& target) {
+        unsigned raw = 0;
+        if (store.ReadUnsigned(name, raw)) {
+            target = static_cast<LONG>(static_cast<int32_t>(raw));
         }
     };
-    readHotkey(L"HotkeyRegion", hotkeyRegion);
-    readHotkey(L"HotkeyFullScreen", hotkeyFullScreen);
-    readHotkey(L"HotkeyWindow", hotkeyWindow);
-    readHotkey(L"HotkeyDelayed", hotkeyDelayed);
+    readCoordinate(L"LastRegionLeft", lastRegion.left);
+    readCoordinate(L"LastRegionTop", lastRegion.top);
+    readCoordinate(L"LastRegionRight", lastRegion.right);
+    readCoordinate(L"LastRegionBottom", lastRegion.bottom);
+
+    // ESKİ ANAHTARLARDAN GÖÇ: 0.3.0'a kadar kısayollar dört sabit ada
+    // yazılıyordu ve eylemleri derleme zamanında sabitti. Yeni yuvalar
+    // yoksa eskileri okuyup yerlerine koyarız; yükseltme yapan kullanıcı
+    // kısayollarını kaybetmemeli.
+    auto readLegacy = [&store](const wchar_t* name, HotkeyBinding& target,
+                               HotkeyAction action) {
+        unsigned packed = 0;
+        if (store.ReadUnsigned(name, packed)) {
+            target.key = Hotkey::unpack(packed);
+            target.action = action;
+        }
+    };
+    readLegacy(L"HotkeyRegion", hotkeys[0], HotkeyAction::Region);
+    readLegacy(L"HotkeyFullScreen", hotkeys[1], HotkeyAction::Monitor);
+    readLegacy(L"HotkeyWindow", hotkeys[2], HotkeyAction::Window);
+    readLegacy(L"HotkeyDelayed", hotkeys[3], HotkeyAction::Delayed);
+
+    for (int i = 0; i < kHotkeySlots; ++i) {
+        wchar_t keyName[32];
+        wchar_t actionName[32];
+        ::swprintf_s(keyName, L"Hotkey%dKey", i + 1);
+        ::swprintf_s(actionName, L"Hotkey%dAction", i + 1);
+        unsigned packed = 0;
+        unsigned action = 0;
+        if (store.ReadUnsigned(keyName, packed)) {
+            hotkeys[i].key = Hotkey::unpack(packed);
+        }
+        if (store.ReadUnsigned(actionName, action)) {
+            hotkeys[i].action = static_cast<HotkeyAction>(action);
+        }
+    }
 
     Clamp();
 }
@@ -289,6 +213,10 @@ bool Settings::Save(const SettingsStore& store) const {
     ok = store.WriteBool(L"SaveToFile", after.saveToFile) && ok;
     ok = store.WriteBool(L"PinToScreen", after.pinToScreen) && ok;
     ok = store.WriteBool(L"OpenEditor", after.openEditor) && ok;
+    ok = store.WriteBool(L"CopyPathToClipboard", after.copyPathToClipboard) && ok;
+    ok = store.WriteBool(L"CopyFileToClipboard", after.copyFileToClipboard) && ok;
+    ok = store.WriteBool(L"RevealInFolder", after.revealInFolder) && ok;
+    ok = store.WriteBool(L"CopyTextViaOcr", after.copyTextViaOcr) && ok;
 
     ok = store.WriteUnsigned(L"DelaySeconds", delaySeconds) && ok;
     ok = store.WriteBool(L"ShowMagnifier", showMagnifier) && ok;
@@ -297,11 +225,31 @@ bool Settings::Save(const SettingsStore& store) const {
     ok = store.WriteBool(L"PrintScreenCapture", printScreenCapture) && ok;
     ok = store.WriteBool(L"ShowNotification", showNotification) && ok;
     ok = store.WriteUnsigned(L"HistoryLimit", historyLimit) && ok;
+    ok = store.WriteBool(L"IncludeCursor", includeCursor) && ok;
+    ok = store.WriteUnsigned(L"DimStrength", dimStrength) && ok;
+    ok = store.WriteString(L"FileNameFormat", fileNameFormat) && ok;
+    ok = store.WriteString(L"SubFolderFormat", subFolderFormat) && ok;
+    ok = store.WriteUnsigned(L"BlurStrength", blurStrength) && ok;
+    ok = store.WriteUnsigned(L"MosaicStrength", mosaicStrength) && ok;
 
-    ok = store.WriteUnsigned(L"HotkeyRegion", hotkeyRegion.packed()) && ok;
-    ok = store.WriteUnsigned(L"HotkeyFullScreen", hotkeyFullScreen.packed()) && ok;
-    ok = store.WriteUnsigned(L"HotkeyWindow", hotkeyWindow.packed()) && ok;
-    ok = store.WriteUnsigned(L"HotkeyDelayed", hotkeyDelayed.packed()) && ok;
+    auto writeCoordinate = [&store, &ok](const wchar_t* name, LONG value) {
+        ok = store.WriteUnsigned(
+                 name, static_cast<unsigned>(static_cast<int32_t>(value))) && ok;
+    };
+    writeCoordinate(L"LastRegionLeft", lastRegion.left);
+    writeCoordinate(L"LastRegionTop", lastRegion.top);
+    writeCoordinate(L"LastRegionRight", lastRegion.right);
+    writeCoordinate(L"LastRegionBottom", lastRegion.bottom);
+
+    for (int i = 0; i < kHotkeySlots; ++i) {
+        wchar_t keyName[32];
+        wchar_t actionName[32];
+        ::swprintf_s(keyName, L"Hotkey%dKey", i + 1);
+        ::swprintf_s(actionName, L"Hotkey%dAction", i + 1);
+        ok = store.WriteUnsigned(keyName, hotkeys[i].key.packed()) && ok;
+        ok = store.WriteUnsigned(actionName,
+                                 static_cast<unsigned>(hotkeys[i].action)) && ok;
+    }
 
     store.Flush();
     return ok;

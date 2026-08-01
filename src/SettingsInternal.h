@@ -16,14 +16,22 @@ namespace crisp {
 namespace settings_ui {
 
 // Tasarım ölçüleri (96 DPI mantıksal piksel).
-inline constexpr int kWidth = 660;
-inline constexpr int kHeight = 604;
+//
+// ÜÇ SÜTUN: ayar sayısı iki sütuna sığmıyordu ve pencereyi uzatmak, alt
+// şeridin ekran dışına düşmesi demekti. Üçüncü sütun kısayollara ve yakalama
+// sonrası görevlere ayrıldı; ikisi de listeye dönüşen ve büyüyen gruplar.
+inline constexpr int kWidth = 980;
+inline constexpr int kHeight = 660;
 inline constexpr int kPad = 22;
-inline constexpr int kColumnGap = 26;
+inline constexpr int kColumnGap = 24;
 inline constexpr int kRow = 30;          // bir denetim satırının yüksekliği
-inline constexpr int kGroupGap = 20;     // gruplar arası boşluk
-inline constexpr int kLabelWidth = 96;   // sol sütundaki etiketlerin genişliği
+inline constexpr int kGroupGap = 18;     // gruplar arası boşluk
+inline constexpr int kLabelWidth = 140;  // etiket sütununun genişliği
+// 140 DENEYEREK BULUNDU: 104'te "Bulanıklık (%)" gibi orta uzunlukta bir
+// etiket kutunun altına giriyordu ve kırpılmış metin, ayarın ne olduğunu
+// söylemiyordu.
 inline constexpr int kButtonHeight = 32;
+inline constexpr int kActionWidth = 150; // kısayol eyleminin açılır kutusu
 
 enum ControlId {
     kIdLanguage = 100,
@@ -33,24 +41,36 @@ enum ControlId {
     kIdHighlight,
     kIdPrintScreen,
     kIdShutter,
+    kIdShellMenu,
+    kIdIncludeCursor,
+    kIdDimStrength,
     kIdAfterCopy,
     kIdAfterSave,
     kIdAfterPin,
     kIdAfterEditor,
+    kIdAfterCopyPath,
+    kIdAfterCopyFile,
+    kIdAfterReveal,
+    kIdAfterOcr,
     kIdNotify,
     kIdFolder,
     kIdBrowse,
     kIdFormat,
     kIdQuality,
+    kIdNameFormat,
+    kIdSubFolder,
+    kIdBlurStrength,
+    kIdMosaicStrength,
     kIdHistoryLimit,
     kIdHistoryClear,
-    kIdHotkeyRegion,
-    kIdHotkeyWindow,
-    kIdHotkeyFullScreen,
-    kIdHotkeyDelayed,
     kIdReset,
     kIdOk,
     kIdCancel,
+
+    // Kısayol satırları BLOK HÂLİNDE: yuva sayısı değiştiğinde tek tek kimlik
+    // eklemek yerine taban + indeks kullanılır.
+    kIdHotkeyActionFirst = 200,
+    kIdHotkeyKeyFirst = 220,
 };
 
 // Çizilecek grup başlığı; denetimler Windows'a, başlıklar bize ait.
@@ -81,6 +101,11 @@ struct State {
 };
 
 [[nodiscard]] int Scale(int value, unsigned dpi) noexcept;
+
+// Kısayol eyleminin görünen adı. Ayarlar penceresi ve tepsi menüsü aynı
+// listeyi kullanır; iki ayrı kopya, birine eylem eklendiğinde diğerinin
+// eksik kalması demekti.
+[[nodiscard]] UINT HotkeyActionLabel(HotkeyAction action) noexcept;
 
 // Denetimleri oluşturur ve yerleştirir. Bir kez, WM_CREATE'te çağrılır.
 void BuildControls(HWND window, State& state);

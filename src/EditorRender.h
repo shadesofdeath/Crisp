@@ -24,4 +24,13 @@ void RenderShapes(Image& image, const std::vector<Shape>& shapes, unsigned dpi);
 // Sürüklenmekte olan şekli DC'ye çizer (henüz belgeye eklenmemiş önizleme).
 void RenderPreview(HDC dc, const Shape& shape, unsigned dpi);
 
+// Metin ve adım rozetinin yazı tipi.
+//
+// DIŞARI AÇIK ÇÜNKÜ ÖNİZLEME DE KULLANIR: yazılmakta olan metnin kutusunu ve
+// imlecini çizen kod aynı tipi kurmalı, yoksa önizleme sonuçtan farklı boyda
+// çıkar. `scale` yakınlaştırma oranıdır — tuval %50'de çizilirken önizleme de
+// yarı boyda olmalı.
+[[nodiscard]] HFONT CreateTextFont(int thickness, unsigned dpi, double scale,
+                                   bool bold);
+
 }  // namespace crisp

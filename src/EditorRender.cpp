@@ -78,6 +78,18 @@ void DrawArrow(HDC dc, const Shape& shape, unsigned dpi) {
     ::DeleteObject(brush);
 }
 
+void DrawLine(HDC dc, const Shape& shape, unsigned dpi) {
+    const HPEN pen = ::CreatePen(PS_SOLID, StrokeWidth(shape, dpi), shape.color);
+    if (pen == nullptr) {
+        return;
+    }
+    const HGDIOBJ oldPen = ::SelectObject(dc, pen);
+    ::MoveToEx(dc, shape.start.x, shape.start.y, nullptr);
+    ::LineTo(dc, shape.end.x, shape.end.y);
+    ::SelectObject(dc, oldPen);
+    ::DeleteObject(pen);
+}
+
 void DrawOutlineShape(HDC dc, const Shape& shape, unsigned dpi, bool ellipse) {
     const int width = StrokeWidth(shape, dpi);
     const HPEN pen = ::CreatePen(PS_SOLID, width, shape.color);
@@ -86,9 +98,15 @@ void DrawOutlineShape(HDC dc, const Shape& shape, unsigned dpi, bool ellipse) {
     }
 
     const HGDIOBJ oldPen = ::SelectObject(dc, pen);
-    // İçi boş: dolu bir dikdörtgen altındaki ekran görüntüsünü gizlerdi ve
-    // işaretlemenin amacı göstermek, örtmek değil.
-    const HGDIOBJ oldBrush = ::SelectObject(dc, ::GetStockObject(NULL_BRUSH));
+    // VARSAYILAN İÇİ BOŞ: dolu bir dikdörtgen altındaki ekran görüntüsünü
+    // gizler ve işaretlemenin amacı göstermek, örtmek değil. Ama bazen tam da
+    // örtmek istenir (bir alanı kapatmak, bir rozet zemini) ve o zaman
+    // kullanıcı dolguyu açar.
+    const HBRUSH fill =
+        shape.filled ? ::CreateSolidBrush(shape.color) : nullptr;
+    const HGDIOBJ oldBrush = ::SelectObject(
+        dc, fill != nullptr ? static_cast<HGDIOBJ>(fill)
+                            : ::GetStockObject(NULL_BRUSH));
 
     const RECT bounds = shape.Bounds();
     if (ellipse) {
@@ -100,49 +118,81 @@ void DrawOutlineShape(HDC dc, const Shape& shape, unsigned dpi, bool ellipse) {
     ::SelectObject(dc, oldBrush);
     ::SelectObject(dc, oldPen);
     ::DeleteObject(pen);
+    if (fill != nullptr) {
+        ::DeleteObject(fill);
+    }
+}
+
+void StrokePolyline(HDC dc, const Shape& shape, int width) {
+    const HPEN pen = ::CreatePen(PS_SOLID, width, shape.color);
+    if (pen == nullptr) {
+        return;
+    }
+    const HGDIOBJ oldPen = ::SelectObject(dc, pen);
+    ::MoveToEx(dc, shape.points.front().x, shape.points.front().y, nullptr);
+    for (size_t i = 1; i < shape.points.size(); ++i) {
+        ::LineTo(dc, shape.points[i].x, shape.points[i].y);
+    }
+    ::SelectObject(dc, oldPen);
+    ::DeleteObject(pen);
+}
+
+// Vurgulayıcı GERÇEK ALFA ile çizilir.
+//
+// ESKİDEN R2_MASKPEN'DİYDİ: GDI kalemi alfa bilmiyor ve saydamlık bit
+// düzeyinde VE işlemiyle taklit ediliyordu. O kip renkleri karıştırmaz,
+// söndürür — sarı bir vurgulayıcı mavi bir zeminde siyaha dönüyordu. Şimdi
+// darbe bir kopyanın üstüne opak çizilip AlphaBlend ile geri karıştırılıyor:
+// sonuç gerçek bir fosforlu kalem gibi.
+void DrawHighlighter(HDC dc, const Shape& shape, unsigned dpi) {
+    const int width = StrokeWidth(shape, dpi) * 4;
+    RECT bounds = shape.Bounds();
+    ::InflateRect(&bounds, width, width);
+    const int boxWidth = static_cast<int>(bounds.right - bounds.left);
+    const int boxHeight = static_cast<int>(bounds.bottom - bounds.top);
+    if (boxWidth <= 0 || boxHeight <= 0) {
+        return;
+    }
+
+    Image scratch;
+    if (!scratch.Create(boxWidth, boxHeight)) {
+        StrokePolyline(dc, shape, width);   // bellek yoksa opak çiz
+        return;
+    }
+    const unique_hdc scratchDc{::CreateCompatibleDC(dc)};
+    if (!scratchDc) {
+        return;
+    }
+    ::SelectObject(scratchDc.get(), scratch.Handle());
+
+    // Altındaki pikseller kopyalanır, darbe onların üstüne opak çizilir ve
+    // sonuç sabit alfayla geri karıştırılır.
+    ::BitBlt(scratchDc.get(), 0, 0, boxWidth, boxHeight, dc, bounds.left,
+             bounds.top, SRCCOPY);
+    Shape shifted = shape;
+    shifted.Offset(-static_cast<int>(bounds.left), -static_cast<int>(bounds.top));
+    StrokePolyline(scratchDc.get(), shifted, width);
+
+    BLENDFUNCTION blend{};
+    blend.BlendOp = AC_SRC_OVER;
+    blend.SourceConstantAlpha = 130;
+    ::AlphaBlend(dc, bounds.left, bounds.top, boxWidth, boxHeight,
+                 scratchDc.get(), 0, 0, boxWidth, boxHeight, blend);
 }
 
 void DrawFreehand(HDC dc, const Shape& shape, unsigned dpi) {
     if (shape.points.size() < 2) {
         return;
     }
-
-    const bool highlighter = (shape.kind == ToolKind::Highlighter);
-    // Vurgulayıcı kalın ve saydam olmalı. GDI kalemi alfa bilmediği için
-    // saydamlık R2_MASKPEN karışım kipiyle taklit edilir: sonuç gerçek alfa
-    // kadar iyi değil ama altındaki metin okunur kalır ki vurgulayıcının
-    // bütün amacı bu.
-    const int width = highlighter ? StrokeWidth(shape, dpi) * 4
-                                  : StrokeWidth(shape, dpi);
-
-    const HPEN pen = ::CreatePen(PS_SOLID, width, shape.color);
-    if (pen == nullptr) {
+    if (shape.kind == ToolKind::Highlighter) {
+        DrawHighlighter(dc, shape, dpi);
         return;
     }
-    const HGDIOBJ oldPen = ::SelectObject(dc, pen);
-    const int oldRop = ::SetROP2(dc, highlighter ? R2_MASKPEN : R2_COPYPEN);
-
-    ::MoveToEx(dc, shape.points.front().x, shape.points.front().y, nullptr);
-    for (size_t i = 1; i < shape.points.size(); ++i) {
-        ::LineTo(dc, shape.points[i].x, shape.points[i].y);
-    }
-
-    ::SetROP2(dc, oldRop);
-    ::SelectObject(dc, oldPen);
-    ::DeleteObject(pen);
+    StrokePolyline(dc, shape, StrokeWidth(shape, dpi));
 }
 
 [[nodiscard]] HFONT CreateShapeFont(const Shape& shape, unsigned dpi, bool bold) {
-    LOGFONTW font{};
-    // Kalınlık ayarı metin aracında punto olarak yorumlanır: kullanıcı tek bir
-    // "boyut" düğmesi görür, aracın ne çizdiğine göre anlamı değişir.
-    const int points = 8 + shape.thickness * 3;
-    font.lfHeight = -::MulDiv(points, static_cast<int>(dpi), 72);
-    font.lfWeight = bold ? FW_BOLD : FW_SEMIBOLD;
-    font.lfCharSet = DEFAULT_CHARSET;
-    font.lfQuality = CLEARTYPE_QUALITY;
-    ::wcscpy_s(font.lfFaceName, L"Segoe UI");
-    return ::CreateFontIndirectW(&font);
+    return CreateTextFont(shape.thickness, dpi, 1.0, bold);
 }
 
 void DrawText(HDC dc, const Shape& shape, unsigned dpi) {
@@ -208,6 +258,9 @@ void DrawOne(HDC dc, const Shape& shape, unsigned dpi) {
         case ToolKind::Arrow:
             DrawArrow(dc, shape, dpi);
             break;
+        case ToolKind::Line:
+            DrawLine(dc, shape, dpi);
+            break;
         case ToolKind::Rectangle:
             DrawOutlineShape(dc, shape, dpi, false);
             break;
@@ -231,6 +284,20 @@ void DrawOne(HDC dc, const Shape& shape, unsigned dpi) {
 
 }  // namespace
 
+HFONT CreateTextFont(int thickness, unsigned dpi, double scale, bool bold) {
+    LOGFONTW font{};
+    // Kalınlık ayarı metin aracında punto olarak yorumlanır: kullanıcı tek bir
+    // "boyut" düğmesi görür, aracın ne çizdiğine göre anlamı değişir.
+    const double points = (8.0 + static_cast<double>(thickness) * 3.0) * scale;
+    const int rounded = points < 5.0 ? 5 : static_cast<int>(points + 0.5);
+    font.lfHeight = -::MulDiv(rounded, static_cast<int>(dpi), 72);
+    font.lfWeight = bold ? FW_BOLD : FW_SEMIBOLD;
+    font.lfCharSet = DEFAULT_CHARSET;
+    font.lfQuality = CLEARTYPE_QUALITY;
+    ::wcscpy_s(font.lfFaceName, L"Segoe UI");
+    return ::CreateFontIndirectW(&font);
+}
+
 void RenderShapes(Image& image, const std::vector<Shape>& shapes, unsigned dpi) {
     if (!image.Valid()) {
         return;
@@ -247,7 +314,10 @@ void RenderShapes(Image& image, const std::vector<Shape>& shapes, unsigned dpi) 
             const LONG side =
                 geom::Width(bounds) < geom::Height(bounds) ? geom::Width(bounds)
                                                            : geom::Height(bounds);
-            int radius = static_cast<int>(side / 12);
+            // ŞİDDET ŞEKİLDEN GELİR, ayardan değil: geri alma şekil
+            // listesini geri sarar ve ayar sonradan değiştirildiğinde eski
+            // bulanıklıklar da yeni şiddetle yeniden çizilirdi.
+            int radius = static_cast<int>(side / 12) * shape.strength / 100;
             if (radius < 3) {
                 radius = 3;
             }
@@ -256,7 +326,7 @@ void RenderShapes(Image& image, const std::vector<Shape>& shapes, unsigned dpi) 
             const LONG side =
                 geom::Width(bounds) < geom::Height(bounds) ? geom::Width(bounds)
                                                            : geom::Height(bounds);
-            int block = static_cast<int>(side / 10);
+            int block = static_cast<int>(side / 10) * shape.strength / 100;
             if (block < 4) {
                 block = 4;
             }

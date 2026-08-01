@@ -11,6 +11,7 @@
 #include "Util.h"
 #include "resource.h"
 
+#include <shellapi.h>
 #include <shellscalingapi.h>
 
 #include <memory>
@@ -79,16 +80,21 @@ EditorResult RunEditor(HINSTANCE instance, const Settings& settings, Image& imag
         state.dpi = dpiX;
     }
 
+    // Renk seçicideki "son kullanılanlar" boş başlamaz: ilk açılışta boş bir
+    // sıra, orada ne olacağını anlatmıyordu. Varsayılan renk hem seçili hem
+    // listenin ilk üyesi olur.
+    state.recentColors.push_back(state.color);
+
     // Pencere görüntüyü sarar ama ekranın dışına taşmaz; büyük bir yakalama
     // çalışma alanına sığdırılır ve tuval küçültülerek gösterilir.
     const int chromeWidth = Scale(24, state.dpi);
-    const int chromeHeight = Scale(kToolbarHeight + 24, state.dpi);
+    const int chromeHeight = Scale(kToolbarHeight + kStatusHeight + 24, state.dpi);
     int width = image.Width() + chromeWidth;
     int height = image.Height() + chromeHeight;
 
     // ARAÇ ÇUBUĞU SIĞMALI. Gerekli genişlik hesaplanır, tahmin edilmez:
     // sabit bir sayı bir sonraki araç eklendiğinde sessizce yetersiz kalır ve
-    // eylem düğmeleri renk örneklerinin üstüne biner.
+    // dosya düğmeleri düzenleme düğmelerinin üstüne biner.
     width = (std::max)(width, RequiredToolbarWidth(state.dpi));
     width = (std::min)(width, static_cast<int>(geom::Width(work)));
     height = (std::min)(height, static_cast<int>(geom::Height(work)));
@@ -106,6 +112,9 @@ EditorResult RunEditor(HINSTANCE instance, const Settings& settings, Image& imag
     }
 
     theme::ApplyToWindow(window);
+    // Dosya bırakmayı kabul et: bir görüntüyü düzenlemek için önce
+    // yakalamak gerekmiyor artık.
+    ::DragAcceptFiles(window, TRUE);
     ::ShowWindow(window, SW_SHOW);
     ::SetForegroundWindow(window);
 

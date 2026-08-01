@@ -13,6 +13,8 @@
 #include <windows.h>
 
 #include <cstdint>
+#include <string>
+#include <vector>
 
 namespace crisp {
 
@@ -68,11 +70,24 @@ private:
 // İmlecin bulunduğu monitörün sınırları.
 [[nodiscard]] RECT MonitorRectAtCursor() noexcept;
 
+// Tüm monitörler, SOLDAN SAĞA sıralı. Sıra kararlı olmalı: kullanıcı
+// "2. monitör" dediğinde her seferinde aynı ekranı almalı ve EnumDisplayMonitors
+// sürücü sırasını verir, ekrandaki diziliş sırasını değil.
+[[nodiscard]] std::vector<RECT> MonitorRects();
+
 // Verilen pencereyi barındıran monitörün sınırları.
 [[nodiscard]] RECT MonitorRectForWindow(HWND window) noexcept;
 
 // Ekran koordinatlarındaki dikdörtgeni yakalar. Boş dikdörtgen başarısızlıktır.
-[[nodiscard]] bool CaptureRect(const RECT& screenRect, Image& out);
+//
+// includeCursor: fare imleci de görüntüye çizilir.
+//
+// BitBlt İMLECİ ALMAZ — CAPTUREBLT bayrağı yalnızca katmanlı pencereleri
+// katar, imleci değil. İmleç ayrıca sorulup elle çizilmelidir ve bu, bir
+// ekran alıntısı aracında en çok istenen eksiklerden biriydi: "şuraya tıkla"
+// anlatan bir görüntüde imlecin olmaması onu anlaşılmaz kılıyor.
+[[nodiscard]] bool CaptureRect(const RECT& screenRect, Image& out,
+                               bool includeCursor = false);
 
 // Kaynağın bir bölgesini yeni bir görüntüye kopyalar. x/y KAYNAĞA GÖRE
 // koordinattır (ekran koordinatı değil); çağıran dönüşümü kendisi yapar.
@@ -85,6 +100,7 @@ private:
 // GERÇEK çerçeve sınırı alınır: GetWindowRect, Windows 10/11'de görünmez
 // yeniden boyutlandırma kenarlığını da içerir ve düz GetWindowRect ile yakalanan
 // her pencere görüntüsünün kenarında birkaç piksel arka plan kalır.
-[[nodiscard]] bool CaptureWindow(HWND window, Image& out);
+[[nodiscard]] bool CaptureWindow(HWND window, Image& out,
+                                 bool includeCursor = false);
 
 }  // namespace crisp

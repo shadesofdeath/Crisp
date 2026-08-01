@@ -47,11 +47,40 @@ enum class ImageFormat {
 // Ayar dizesi ⇄ biçim.
 [[nodiscard]] ImageFormat FormatFromString(const wchar_t* value) noexcept;
 
+// "<klasör>\<alt klasör>\<ad>.<uzantı>" — çakışırsa " (2)" ekler ve alt
+// klasörü oluşturur.
+//
+// ŞABLONLAR BURADA ÇÖZÜLMEZ: `subFolder` ve `baseName` zaten çözülmüş ve
+// temizlenmiş dizelerdir (bkz. NameFormat.h). Kodlayıcının belirteç bilmesi
+// gerekmez ve bilmemesi, ikisini ayrı ayrı sınanabilir tutar.
+//
+// BİÇİM YOKSA PNG'YE DÜŞÜLÜR ve `format` güncellenir: Windows PNG ve JPEG
+// kodlayıcılarını her zaman taşır ama WebP kodlayıcısı isteğe bağlı bir
+// bileşendir. Seçili biçimde ısrar etmek, kullanıcının yakalamasını
+// kaybetmesi demek olurdu — kaydedilmiş bir PNG, kaydedilmemiş bir WebP'den
+// her zaman iyidir.
+//
+// TEK YERDE: hem yakalama akışı hem düzenleyici kaydediyor ve iki ayrı kopya,
+// birinde biçim yedeği olup diğerinde olmaması demekti.
+[[nodiscard]] std::wstring BuildCapturePath(const std::wstring& folder,
+                                            const std::wstring& subFolder,
+                                            const std::wstring& baseName,
+                                            ImageFormat& format);
+
 // Bellekteki PNG'yi çözer. Kaynak hangi piksel biçiminde olursa olsun sonuç
 // 32 bpp BGRA top-down'dır — Image'ın tek biçimi.
 [[nodiscard]] bool DecodePng(const uint8_t* data, size_t size, Image& out);
 
 // Diskteki PNG'yi çözer.
 [[nodiscard]] bool LoadPng(const std::wstring& path, Image& out);
+
+// Diskteki HERHANGİ bir görüntüyü çözer: WIC'in tanıdığı her biçim (PNG, JPEG,
+// BMP, GIF, TIFF, HEIF, WebP...).
+//
+// LoadPng'DEN AYRI DURUYOR ÇÜNKÜ İŞLERİ FARKLI: LoadPng, geçmişten okurken
+// kendi yazdığımız dosyayı okur ve eksik/bozuk bir PNG'yi kabul etmemesi
+// gerekir. Bu ise kullanıcının sürükleyip bıraktığı ya da komut satırında
+// verdiği rastgele bir dosyayı açar; orada biçim önceden bilinmez.
+[[nodiscard]] bool LoadImageFile(const std::wstring& path, Image& out);
 
 }  // namespace crisp

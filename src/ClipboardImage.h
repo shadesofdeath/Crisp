@@ -28,4 +28,12 @@ namespace crisp {
 // Metni panoya yazar (OCR sonucu için).
 [[nodiscard]] bool CopyTextToClipboard(const wchar_t* text, HWND owner);
 
+// DOSYANIN KENDİSİNİ panoya koyar (CF_HDROP): Explorer'da ya da bir sohbet
+// penceresinde yapıştırıldığında dosya kopyalanır, görüntü değil.
+//
+// GÖRÜNTÜDEN FARKLI BİR İŞ: bir e-postaya eklenti olarak sürüklemek isteyen
+// kullanıcı CF_DIB'i değil dosyayı ister ve ikisi aynı anda panoda
+// tutulamayacağı için bu ayrı bir yakalama sonrası görevdir.
+[[nodiscard]] bool CopyFileToClipboard(const std::wstring& path, HWND owner);
+
 }  // namespace crisp

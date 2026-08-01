@@ -132,9 +132,17 @@ void ResetToDefaults(HWND window, State& state) {
     // anlamadığı bir dile dönmesi, ayarları geri almaktan çok kaybetmek olurdu.
     const std::wstring language = state.working.language;
     const std::wstring theme = state.working.theme;
+    const RECT lastRegion = state.working.lastRegion;
+    const bool shellMenu = state.working.shellContextMenu;
     state.working = Settings{};
     state.working.language = language;
     state.working.theme = theme;
+    // Son bölge bir AYAR değil, bir DURUM: "varsayılanlara dön" onu
+    // sıfırlarsa kullanıcı sebepsiz yere son seçimini kaybeder.
+    state.working.lastRegion = lastRegion;
+    // KABUK MENÜSÜ DE KORUNUR: "varsayılanlar" düğmesi Windows'un sağ tık
+    // menüsünden bir öğe silecek kadar geniş yorumlanmamalı.
+    state.working.shellContextMenu = shellMenu;
     LoadIntoControls(window, state);
 }
 
@@ -170,20 +178,34 @@ void LoadIntoControls(HWND window, const State& state) {
     SetNumber(window, kIdHistoryLimit, s.historyLimit);
     SetNumber(window, kIdDelay, s.delaySeconds);
 
+    SetNumber(window, kIdDimStrength, s.dimStrength);
+    SetNumber(window, kIdBlurStrength, s.blurStrength);
+    SetNumber(window, kIdMosaicStrength, s.mosaicStrength);
+    ::SetDlgItemTextW(window, kIdNameFormat, s.fileNameFormat.c_str());
+    ::SetDlgItemTextW(window, kIdSubFolder, s.subFolderFormat.c_str());
+
+    SetCheck(window, kIdShellMenu, s.shellContextMenu);
     SetCheck(window, kIdMagnifier, s.showMagnifier);
     SetCheck(window, kIdHighlight, s.showWindowHighlight);
+    SetCheck(window, kIdIncludeCursor, s.includeCursor);
     SetCheck(window, kIdPrintScreen, s.printScreenCapture);
     SetCheck(window, kIdShutter, s.playShutterSound);
     SetCheck(window, kIdAfterCopy, s.after.copyToClipboard);
     SetCheck(window, kIdAfterSave, s.after.saveToFile);
     SetCheck(window, kIdAfterPin, s.after.pinToScreen);
     SetCheck(window, kIdAfterEditor, s.after.openEditor);
+    SetCheck(window, kIdAfterCopyPath, s.after.copyPathToClipboard);
+    SetCheck(window, kIdAfterCopyFile, s.after.copyFileToClipboard);
+    SetCheck(window, kIdAfterReveal, s.after.revealInFolder);
+    SetCheck(window, kIdAfterOcr, s.after.copyTextViaOcr);
     SetCheck(window, kIdNotify, s.showNotification);
 
-    SetHotkey(window, kIdHotkeyRegion, s.hotkeyRegion);
-    SetHotkey(window, kIdHotkeyWindow, s.hotkeyWindow);
-    SetHotkey(window, kIdHotkeyFullScreen, s.hotkeyFullScreen);
-    SetHotkey(window, kIdHotkeyDelayed, s.hotkeyDelayed);
+    for (int slot = 0; slot < kHotkeySlots; ++slot) {
+        ::SendDlgItemMessageW(
+            window, kIdHotkeyActionFirst + slot, CB_SETCURSEL,
+            static_cast<WPARAM>(s.hotkeys[slot].action), 0);
+        SetHotkey(window, kIdHotkeyKeyFirst + slot, s.hotkeys[slot].key);
+    }
 }
 
 void ReadFromControls(HWND window, State& state) {
@@ -210,20 +232,40 @@ void ReadFromControls(HWND window, State& state) {
     s.historyLimit = GetNumber(window, kIdHistoryLimit, s.historyLimit);
     s.delaySeconds = GetNumber(window, kIdDelay, s.delaySeconds);
 
+    s.dimStrength = GetNumber(window, kIdDimStrength, s.dimStrength);
+    s.blurStrength = GetNumber(window, kIdBlurStrength, s.blurStrength);
+    s.mosaicStrength = GetNumber(window, kIdMosaicStrength, s.mosaicStrength);
+    s.fileNameFormat = GetText(window, kIdNameFormat);
+    s.subFolderFormat = GetText(window, kIdSubFolder);
+
+    s.shellContextMenu = GetCheck(window, kIdShellMenu);
     s.showMagnifier = GetCheck(window, kIdMagnifier);
     s.showWindowHighlight = GetCheck(window, kIdHighlight);
+    s.includeCursor = GetCheck(window, kIdIncludeCursor);
     s.printScreenCapture = GetCheck(window, kIdPrintScreen);
     s.playShutterSound = GetCheck(window, kIdShutter);
     s.after.copyToClipboard = GetCheck(window, kIdAfterCopy);
     s.after.saveToFile = GetCheck(window, kIdAfterSave);
     s.after.pinToScreen = GetCheck(window, kIdAfterPin);
     s.after.openEditor = GetCheck(window, kIdAfterEditor);
+    s.after.copyPathToClipboard = GetCheck(window, kIdAfterCopyPath);
+    s.after.copyFileToClipboard = GetCheck(window, kIdAfterCopyFile);
+    s.after.revealInFolder = GetCheck(window, kIdAfterReveal);
+    s.after.copyTextViaOcr = GetCheck(window, kIdAfterOcr);
     s.showNotification = GetCheck(window, kIdNotify);
 
-    s.hotkeyRegion = GetHotkey(window, kIdHotkeyRegion);
-    s.hotkeyWindow = GetHotkey(window, kIdHotkeyWindow);
-    s.hotkeyFullScreen = GetHotkey(window, kIdHotkeyFullScreen);
-    s.hotkeyDelayed = GetHotkey(window, kIdHotkeyDelayed);
+    for (int slot = 0; slot < kHotkeySlots; ++slot) {
+        const LRESULT index = ::SendDlgItemMessageW(
+            window, kIdHotkeyActionFirst + slot, CB_GETCURSEL, 0, 0);
+        if (index >= 0 && index < static_cast<LRESULT>(HotkeyAction::Count)) {
+            s.hotkeys[slot].action = static_cast<HotkeyAction>(index);
+        }
+        s.hotkeys[slot].key = GetHotkey(window, kIdHotkeyKeyFirst + slot);
+    }
+
+    // SON BÖLGE AYAR PENCERESİNDE DÜZENLENMEZ ama okunan kopyaya taşınmalı:
+    // aksi hâlde ayarları açıp kapatmak en son seçilen bölgeyi silerdi.
+    s.lastRegion = state.target != nullptr ? state.target->lastRegion : s.lastRegion;
 }
 
 }  // namespace settings_ui

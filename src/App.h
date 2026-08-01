@@ -21,12 +21,19 @@ namespace crisp {
                                     bool preferWindowPick, Image& out,
                                     POINT& origin);
 
-enum class CaptureMode {
-    Region,       // sürükleyerek alan
-    Window,       // imlecin altındaki pencere
-    FullScreen,   // imlecin bulunduğu monitör
-    Delayed,      // geri sayım, sonra bölge seçimi
-};
+// Aynısı, ama seçilen dikdörtgeni de verir — "son bölge" onu saklar.
+[[nodiscard]] bool RunRegionCaptureRect(HINSTANCE instance,
+                                        const Settings& settings,
+                                        bool preferWindowPick, Image& out,
+                                        POINT& origin, RECT& selection);
+
+// Komut satırı argümanını bir eyleme çevirir; tanınmayan argüman None döner.
+// Dosya yolu argümanları burada değil, çağıranda ele alınır.
+[[nodiscard]] HotkeyAction ActionFromArgument(const wchar_t* argument) noexcept;
+
+// Eylemi tepsi menüsü komutuna çevirir. Komut satırı ve ikinci örnek isteği
+// mesajla taşınır ve mesajda taşınabilen tek şey komut kimliğidir.
+[[nodiscard]] int CommandForAction(HotkeyAction action) noexcept;
 
 class App {
 public:
@@ -52,12 +59,46 @@ private:
     // Ayarlar penceresini açar ve onaylanırsa değişiklikleri uygular.
     void ShowSettings();
 
+    // Explorer'ın sağ tık menüsündeki fiili ayara göre kaydeder ya da
+    // kaldırır.
+    void ApplyShellMenuSetting();
+
+public:
+    // Komut satırından ve ikinci örnekten çağrılır.
+    void RunAction(HotkeyAction action);
+    void OpenImageFile(const std::wstring& path);
+
+    // YALNIZCA BİR DOSYA AÇMAK İÇİN başlatıldıysa, düzenleyici kapanınca
+    // uygulama da kapanır.
+    //
+    // SEBEBİ ŞAŞIRTMA: Explorer'da bir resme sağ tıklayıp "Crisp ile düzenle"
+    // diyen kullanıcı bir ekran alıntısı aracı başlatmak istemiyordu. Tepside
+    // bir simge ve dört global kısayol bırakmak, istenmeyen bir yan etki
+    // olurdu. Zaten çalışan bir örneğe yönlendirilen istekler bunu KURMAZ:
+    // orada tepsi simgesi kullanıcının kendi kararıydı.
+    void SetExitAfterFile(bool exit) noexcept { m_exitAfterFile = exit; }
+
+private:
     // --- AppCapture.cpp ------------------------------------------------------
-    void StartCapture(CaptureMode mode);
+    // Gecikme ayarı AÇIKSA geri sayımı başlatır, değilse hemen yakalar.
+    //
+    // GECİKME ARTIK BİR KİP DEĞİL: eskiden yalnızca "gecikmeli yakalama"
+    // komutu bekliyordu ve bir menüyü açıp yakalamak isteyen kullanıcı için
+    // pencere ya da monitör kipinde gecikme yoktu.
+    void StartCapture(HotkeyAction action, bool withDelay);
+    void PerformCapture(HotkeyAction action);
     void CaptureRegionOrWindow(bool preferWindowPick);
     void CaptureCurrentMonitor();
-    void DeliverCapture(const Image& image, POINT origin);
+    void CaptureActiveWindow();
+    void CaptureAllMonitors();
+    void CaptureLastRegion();
+    void OpenClipboardImage();
+    void DeliverCapture(const Image& image, POINT origin, HWND sourceWindow);
     void OpenSaveFolder();
+
+    // Yakalamadan sonra çalışan ikincil görevler: yolu kopyala, dosyayı
+    // kopyala, klasörde göster, metni tanı.
+    void RunExtraTasks(const Image& image, const std::wstring& savedPath);
 
     // Geçmiş penceresini açar; kullanıcı bir kayıt seçerse düzenleyiciye taşır.
     void ShowHistory();
@@ -74,8 +115,12 @@ private:
     // Ekrandan bir pikselin rengini seçtirip panoya kopyalar.
     void PickColorToClipboard();
 
-    [[nodiscard]] bool SaveCapture(const Image& image, std::wstring& savedPath);
+    [[nodiscard]] bool SaveCapture(const Image& image, std::wstring& savedPath,
+                                   HWND sourceWindow);
     void ReportSaveFailure();
+
+    // Geri sayımın kalan saniyesini ekranda gösterir.
+    void ShowCountdown();
 
     // Kaydedilemeyen kısayolları kullanıcıya bildirir; hepsi kaydedildiyse
     // hiçbir şey yapmaz.
@@ -91,6 +136,17 @@ private:
     // Geri sayım sırasında yeniden tetiklenmeyi engeller; kaplama açıkken de
     // ikinci bir kaplama açılmamalı.
     bool m_busy = false;
+
+    // Geri sayım bittiğinde çalıştırılacak eylem ve kalan saniye.
+    HotkeyAction m_pendingAction = HotkeyAction::None;
+    unsigned m_countdown = 0;
+
+    // Dosya adı şablonundaki %i sayacı. Oturum boyunca artar; diske
+    // yazılmaz, çünkü "bugünün kaçıncı yakalaması" sorusunun cevabı
+    // oturumlar arası taşınacak kadar önemli değil.
+    unsigned m_captureCounter = 0;
+
+    bool m_exitAfterFile = false;
 };
 
 inline constexpr const wchar_t* kHostWindowClass = L"CrispMessageWindow";

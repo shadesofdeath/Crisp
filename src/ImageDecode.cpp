@@ -75,4 +75,11 @@ bool LoadPng(const std::wstring& path, Image& out) {
     return DecodeFromStream(stream.Get(), out);
 }
 
+bool LoadImageFile(const std::wstring& path, Image& out) {
+    // Çözme yolu aynı: WIC biçimi imzadan tanır ve uzantıya bakmaz. Ayrı
+    // duran tek şey ANLAMI — burada bilinmeyen bir dosya açılıyor, orada
+    // kendi yazdığımız PNG doğrulanıyor.
+    return LoadPng(path, out);
+}
+
 }  // namespace crisp

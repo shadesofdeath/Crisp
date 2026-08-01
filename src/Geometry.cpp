@@ -1,6 +1,8 @@
 // Geometry.cpp — bkz. Geometry.h; hiçbir Win32 çağrısı yoktur.
 #include "Geometry.h"
 
+#include <cmath>
+
 namespace crisp {
 namespace geom {
 namespace {
@@ -176,6 +178,20 @@ POINT ZoomAnchoredOrigin(POINT windowTopLeft, POINT anchorScreen, SIZE oldSize,
     const LONG scaledY = ::MulDiv(offsetY, newSize.cy, oldSize.cy);
 
     return POINT{anchorScreen.x - scaledX, anchorScreen.y - scaledY};
+}
+
+POINT SnapToAngle(POINT anchor, POINT other) noexcept {
+    const double dx = static_cast<double>(other.x - anchor.x);
+    const double dy = static_cast<double>(other.y - anchor.y);
+    const double length = std::sqrt(dx * dx + dy * dy);
+    if (length < 1.0) {
+        return other;   // sıfır uzunlukta açı tanımsız
+    }
+    constexpr double kPi = 3.14159265358979323846;
+    const double step = kPi / 4.0;   // 45°
+    const double snapped = std::round(std::atan2(dy, dx) / step) * step;
+    return POINT{anchor.x + static_cast<LONG>(std::lround(std::cos(snapped) * length)),
+                 anchor.y + static_cast<LONG>(std::lround(std::sin(snapped) * length))};
 }
 
 POINT SnapToSquare(POINT anchor, POINT other) noexcept {

@@ -262,6 +262,9 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam,
                 Finish(window, *state, true, state->visual.selection);
                 return 0;
             }
+            if (HandleOverlayShortcut(window, *state, wParam)) {
+                return 0;
+            }
             break;
         }
 

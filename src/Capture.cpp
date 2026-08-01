@@ -8,12 +8,47 @@
 namespace crisp {
 namespace {
 
+// İmleci verilen DC'ye, ekran dikdörtgenine göre konumlandırarak çizer.
+//
+// SICAK NOKTA ÇIKARILIR: GetCursorInfo imlecin EKRAN konumunu verir ama simge
+// verisi, tıklanan noktanın simgenin neresine düştüğünü ayrıca söyler. Onu
+// hesaba katmadan çizmek, oku birkaç piksel sağ-aşağı kaydırır — bir "buraya
+// tıkla" görüntüsünde yanlış yeri işaret etmek demektir.
+void DrawCursorInto(HDC dc, const RECT& screenRect) {
+    CURSORINFO cursor{};
+    cursor.cbSize = sizeof(cursor);
+    if (!::GetCursorInfo(&cursor) || (cursor.flags & CURSOR_SHOWING) == 0 ||
+        cursor.hCursor == nullptr) {
+        return;
+    }
+
+    ICONINFO info{};
+    if (!::GetIconInfo(cursor.hCursor, &info)) {
+        return;
+    }
+    // GetIconInfo maskeleri KOPYALAYARAK verir; bırakılmazsa her yakalamada
+    // iki GDI nesnesi sızar.
+    if (info.hbmColor != nullptr) {
+        ::DeleteObject(info.hbmColor);
+    }
+    if (info.hbmMask != nullptr) {
+        ::DeleteObject(info.hbmMask);
+    }
+
+    const int x = cursor.ptScreenPos.x - screenRect.left -
+                  static_cast<int>(info.xHotspot);
+    const int y = cursor.ptScreenPos.y - screenRect.top -
+                  static_cast<int>(info.yHotspot);
+    (void)::DrawIconEx(dc, x, y, cursor.hCursor, 0, 0, 0, nullptr, DI_NORMAL);
+}
+
 // Ekranın tamamı için tek bir bellek DC'si açıp BitBlt yapar. PrintWindow
 // yerine BitBlt kullanılır: PrintWindow pencerenin KENDİ çizimini ister ve
 // donanım hızlandırmalı içerikte (video, oyun, bazı tarayıcı sekmeleri) siyah
 // kare döndürür. BitBlt ekranda GÖRÜNENİ alır, yani kullanıcının gördüğüyle
 // birebir aynı sonucu verir — bir ekran alıntısı aracından beklenen budur.
-[[nodiscard]] bool BlitFromScreen(const RECT& screenRect, Image& out) {
+[[nodiscard]] bool BlitFromScreen(const RECT& screenRect, Image& out,
+                                  bool includeCursor) {
     const int width  = static_cast<int>(geom::Width(screenRect));
     const int height = static_cast<int>(geom::Height(screenRect));
     if (width <= 0 || height <= 0) {
@@ -43,6 +78,13 @@ namespace {
     if (!::BitBlt(memoryDc.get(), 0, 0, width, height, screenDc.get(),
                   screenRect.left, screenRect.top, SRCCOPY | CAPTUREBLT)) {
         return false;
+    }
+
+    // İMLEÇ ALFA SABİTLENMEDEN ÖNCE çizilir: DrawIconEx de 32 bpp hedefe
+    // yazarken alfayı tanımsız bırakır ve sonradan sabitlenmezse imlecin
+    // olduğu yer PNG'de saydam bir delik olurdu.
+    if (includeCursor) {
+        DrawCursorInto(memoryDc.get(), screenRect);
     }
 
     // BitBlt 32 bpp hedefe yazarken alfa baytını TANIMSIZ bırakır; çoğu
@@ -177,6 +219,36 @@ RECT MonitorRectAtCursor() noexcept {
     return RectOfMonitor(::MonitorFromPoint(cursor, MONITOR_DEFAULTTOPRIMARY));
 }
 
+std::vector<RECT> MonitorRects() {
+    std::vector<RECT> rects;
+    ::EnumDisplayMonitors(
+        nullptr, nullptr,
+        [](HMONITOR monitor, HDC, LPRECT, LPARAM data) -> BOOL {
+            MONITORINFO info{};
+            info.cbSize = sizeof(info);
+            if (::GetMonitorInfoW(monitor, &info)) {
+                reinterpret_cast<std::vector<RECT>*>(data)->push_back(info.rcMonitor);
+            }
+            return TRUE;
+        },
+        reinterpret_cast<LPARAM>(&rects));
+
+    // Basit ekleme sıralaması: monitör sayısı tek haneli ve std::sort'u dâhil
+    // etmek bu dosyaya <algorithm> getirirdi.
+    for (size_t i = 1; i < rects.size(); ++i) {
+        const RECT current = rects[i];
+        size_t j = i;
+        while (j > 0 && (rects[j - 1].left > current.left ||
+                         (rects[j - 1].left == current.left &&
+                          rects[j - 1].top > current.top))) {
+            rects[j] = rects[j - 1];
+            --j;
+        }
+        rects[j] = current;
+    }
+    return rects;
+}
+
 RECT MonitorRectForWindow(HWND window) noexcept {
     if (window == nullptr) {
         return MonitorRectAtCursor();
@@ -188,8 +260,8 @@ RECT MonitorRectForWindow(HWND window) noexcept {
 // Yakalama
 // ---------------------------------------------------------------------------
 
-bool CaptureRect(const RECT& screenRect, Image& out) {
-    return BlitFromScreen(screenRect, out);
+bool CaptureRect(const RECT& screenRect, Image& out, bool includeCursor) {
+    return BlitFromScreen(screenRect, out, includeCursor);
 }
 
 bool CropImage(const Image& source, int x, int y, int width, int height,
@@ -225,7 +297,7 @@ bool CropImage(const Image& source, int x, int y, int width, int height,
     return true;
 }
 
-bool CaptureWindow(HWND window, Image& out) {
+bool CaptureWindow(HWND window, Image& out, bool includeCursor) {
     if (window == nullptr || !::IsWindow(window)) {
         return false;
     }
@@ -249,7 +321,7 @@ bool CaptureWindow(HWND window, Image& out) {
         return false;
     }
 
-    return BlitFromScreen(clamped, out);
+    return BlitFromScreen(clamped, out, includeCursor);
 }
 
 }  // namespace crisp

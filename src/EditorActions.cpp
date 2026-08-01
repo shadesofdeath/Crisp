@@ -6,15 +6,10 @@
 // yapıldığını, EditorInput.cpp hangi mesajla tetiklendiğini anlatır.
 #include "EditorInternal.h"
 
-#include "ClipboardImage.h"
-#include "EditorRender.h"
+#include "ColorPicker.h"
 #include "Geometry.h"
-#include "ImageEffects.h"
 #include "ImageTransform.h"
-#include "Localization.h"
-#include "Theme.h"
-#include "Util.h"
-#include "resource.h"
+#include "ThicknessPicker.h"
 
 #include <algorithm>
 #include <memory>
@@ -22,22 +17,19 @@
 
 namespace crisp {
 namespace editor {
-
-void CommitTextDraft(State& state) {
-    if (!state.typing) {
-        return;
-    }
-    state.typing = false;
-    if (!state.textDraft.text.empty()) {
-        state.document.AddShape(state.textDraft);
-        Rebuild(state);
-    }
-    state.textDraft = Shape{};
+// ÖLÇEK KAYNAĞI, ÖLÇEKLEME DIŞINDAKİ HER İŞLEMDE DÜŞER. Kırpma, döndürme,
+// yeni bir şekil ya da geri alma sonrası elde tutulan kopya artık ekrandaki
+// görüntünün geçmişi değildir; onu kullanmak, kullanıcının arada yaptığı işi
+// sessizce geri almak olurdu.
+void DropScaleSource(State& state) noexcept {
+    state.scaleSource.reset();
+    state.scalePercent = 100;
 }
 
-// Şekilleri tabana PİŞİRİR ve yeni tabanı belgeye verir. Kırpma, döndürme ve
-// ölçekleme bundan geçer: şekil koordinatları eski görüntünün uzayında olduğu
-// için işlem sonrası korunamazlar, ama piksele dönüşmüş hâlleri korunur.
+// Şekilleri tabana PİŞİRİR ve yeni tabanı belgeye verir. Kırpma, döndürme,
+// çevirme ve renk ayarları bundan geçer: şekil koordinatları eski görüntünün
+// uzayında olduğu için işlem sonrası korunamazlar, ama piksele dönüşmüş
+// hâlleri korunur.
 void BakeAndReplace(State& state, Image&& newBase) {
     auto shared = std::make_shared<Image>();
     *shared = std::move(newBase);
@@ -45,14 +37,7 @@ void BakeAndReplace(State& state, Image&& newBase) {
     Rebuild(state);
 }
 
-// Geçerli görüntüyü (şekiller pişmiş hâliyle) verir.
-[[nodiscard]] bool CurrentFlattened(const State& state, Image& out) {
-    if (state.image == nullptr || !state.image->Valid()) {
-        return false;
-    }
-    return CropImage(*state.image, 0, 0, state.image->Width(),
-                     state.image->Height(), out);
-}
+namespace {
 
 void RotateBy(State& state, int quarterTurns) {
     Image flattened;
@@ -63,7 +48,48 @@ void RotateBy(State& state, int quarterTurns) {
     if (!RotateImage(flattened, quarterTurns, rotated)) {
         return;
     }
+    DropScaleSource(state);
     BakeAndReplace(state, std::move(rotated));
+}
+
+// Yüzdeyi ÖLÇEK KAYNAĞINA uygular, ekrandaki görüntüye değil.
+//
+// SEBEBİ DOĞRUDAN BİR HATA RAPORU: %25'e indirip sonra %100'e dönen kullanıcı
+// bulanık bir görüntü buluyordu. Çünkü ikinci işlem, artık dörtte bir
+// piksele sahip olan görüntüyü dört kat büyütüyordu — atılan pikselleri hiçbir
+// süzgeç geri getiremez. Ölçekleme öncesi hâli saklamak, ardışık her yüzdeyi
+// ÖZGÜN piksellerden üretir ve %100 gerçekten %100 olur.
+void ApplyScale(State& state, int percent) {
+    if (percent <= 0 || percent == state.scalePercent) {
+        return;
+    }
+    if (!state.scaleSource) {
+        Image flattened;
+        if (!CurrentFlattened(state, flattened)) {
+            return;
+        }
+        auto source = std::make_shared<Image>();
+        *source = std::move(flattened);
+        state.scaleSource = source;
+        state.scalePercent = 100;
+    }
+
+    const Image& source = *state.scaleSource;
+    Image scaled;
+    const bool ok =
+        percent == 100
+            ? CropImage(source, 0, 0, source.Width(), source.Height(), scaled)
+            : ScaleImageByPercent(source, percent, scaled);
+    if (!ok) {
+        return;
+    }
+
+    // Kaynak BakeAndReplace içinde düşmemeli: ardışık ölçeklemelerin tamamı
+    // aynı özgün pikselleri kullanır.
+    const std::shared_ptr<const Image> keep = state.scaleSource;
+    BakeAndReplace(state, std::move(scaled));
+    state.scaleSource = keep;
+    state.scalePercent = percent;
 }
 
 void ShowScaleMenu(HWND window, State& state) {
@@ -71,13 +97,28 @@ void ShowScaleMenu(HWND window, State& state) {
     if (menu == nullptr) {
         return;
     }
+
+    const Image* source =
+        state.scaleSource ? state.scaleSource.get() : state.image;
+    if (source == nullptr || !source->Valid()) {
+        ::DestroyMenu(menu);
+        return;
+    }
+
     // Ölçek YÜZDE OLARAK sunulur, piksel girişi olarak değil: bir ekran
     // görüntüsünde asıl istenen "yarısı kadar" gibi bir şey ve serbest giriş
     // için bir iletişim kutusu yazmak, aynı işi daha çok tıklamayla yapardı.
-    for (const int percent : {25, 50, 75, 150, 200}) {
-        wchar_t label[16];
-        ::swprintf_s(label, L"%%%d", percent);
-        ::AppendMenuW(menu, MF_STRING, static_cast<UINT_PTR>(percent), label);
+    //
+    // SONUÇ ÖLÇÜSÜ DE YAZAR: "%25" tek başına kaç piksel edeceğini söylemiyor
+    // ve kullanıcı sonucu ancak uyguladıktan sonra görüyordu.
+    for (const int percent : {25, 50, 75, 100, 150, 200}) {
+        wchar_t label[64];
+        ::swprintf_s(label, L"%%%d\t%d × %d", percent,
+                     (std::max)(1, ::MulDiv(source->Width(), percent, 100)),
+                     (std::max)(1, ::MulDiv(source->Height(), percent, 100)));
+        const UINT flags =
+            MF_STRING | (percent == state.scalePercent ? MF_CHECKED : 0u);
+        ::AppendMenuW(menu, flags, static_cast<UINT_PTR>(percent), label);
     }
 
     POINT cursor{};
@@ -87,19 +128,69 @@ void ShowScaleMenu(HWND window, State& state) {
         menu, TPM_RETURNCMD | TPM_NONOTIFY, cursor.x, cursor.y, window, nullptr);
     ::DestroyMenu(menu);
 
-    if (chosen <= 0) {
-        return;
+    if (chosen > 0) {
+        ApplyScale(state, chosen);
     }
+}
 
-    Image flattened;
-    if (!CurrentFlattened(state, flattened)) {
+// Düğmenin ekran koordinatındaki dikdörtgeni; açılır paneller buranın altına
+// yerleşir.
+[[nodiscard]] RECT AnchorOf(HWND window, const Button& button) noexcept {
+    RECT anchor = button.bounds;
+    ::MapWindowPoints(window, nullptr, reinterpret_cast<POINT*>(&anchor), 2);
+    return anchor;
+}
+
+void Refresh(HWND window, State& state) {
+    RECT client{};
+    ::GetClientRect(window, &client);
+    LayoutButtons(state, client);
+    LayoutCanvas(state, client);
+    ::InvalidateRect(window, nullptr, FALSE);
+}
+
+}  // namespace
+
+void CommitTextDraft(State& state) {
+    if (!state.typing) {
         return;
     }
-    Image scaled;
-    if (!ScaleImageByPercent(flattened, chosen, scaled)) {
-        return;
+    state.typing = false;
+    if (!state.textDraft.text.empty()) {
+        state.document.AddShape(state.textDraft);
+        DropScaleSource(state);
+        Rebuild(state);
     }
-    BakeAndReplace(state, std::move(scaled));
+    state.textDraft = Shape{};
+}
+
+void OpenColorPicker(HWND window, State& state, const Button& button) {
+    COLORREF chosen = state.color;
+    if (PickColor(state.instance, window, AnchorOf(window, button),
+                  state.settings, chosen, state.recentColors)) {
+        state.color = chosen;
+        // Yazılmakta olan metnin rengi de anında değişsin.
+        if (state.typing) {
+            state.textDraft.color = chosen;
+        }
+        // SEÇİLİ ŞEKİL DE: renk düğmesine basan kullanıcı, seçtiği okun
+        // rengini değiştirmek istiyordur.
+        RestyleSelectedShape(state);
+    }
+    Refresh(window, state);
+}
+
+void OpenThicknessPicker(HWND window, State& state, const Button& button) {
+    int chosen = state.thickness;
+    if (PickThickness(state.instance, window, AnchorOf(window, button),
+                      state.color, chosen)) {
+        state.thickness = chosen;
+        if (state.typing) {
+            state.textDraft.thickness = chosen;
+        }
+        RestyleSelectedShape(state);
+    }
+    Refresh(window, state);
 }
 
 void ApplyAction(HWND window, State& state, int action) {
@@ -140,29 +231,43 @@ void ApplyAction(HWND window, State& state, int action) {
         case kActionScale:
             ShowScaleMenu(window, state);
             break;
+        case kActionEffects:
+            ShowEffectsMenu(window, state);
+            break;
+        case kActionFill:
+            state.fillShapes = !state.fillShapes;
+            // SEÇİLİ ŞEKİL DE DEĞİŞİR: dolgu düğmesine basan kullanıcı,
+            // seçtiği şeklin dolgusunu değiştirmek istiyordur; yalnızca
+            // bundan sonrakileri etkilemesi şaşırtıcı olurdu.
+            RestyleSelectedShape(state);
+            break;
         case kActionUndo:
             if (state.document.Undo()) {
+                DropScaleSource(state);
                 Rebuild(state);
             }
             break;
         case kActionRedo:
             if (state.document.Redo()) {
+                DropScaleSource(state);
                 Rebuild(state);
             }
             break;
         case kActionClear:
             state.document.Clear();
+            DropScaleSource(state);
             Rebuild(state);
             break;
+        // ÜÇÜ DE PENCEREYİ KAPATMAZ: kullanıcı kopyaladıktan sonra çizmeye
+        // devam edebilmeli ve ne olduğunu görebilmeli.
         case kActionCopy:
-            state.result.accepted = true;
-            state.result.copyToClipboard = true;
-            ::DestroyWindow(window);
+            CopyToClipboard(window, state);
             return;
         case kActionSave:
-            state.result.accepted = true;
-            state.result.saveToFile = true;
-            ::DestroyWindow(window);
+            SaveToFolder(window, state);
+            return;
+        case kActionSaveAs:
+            SaveAsDialog(window, state);
             return;
         case kActionClose:
             ::DestroyWindow(window);
@@ -171,13 +276,10 @@ void ApplyAction(HWND window, State& state, int action) {
             break;
     }
 
-    RECT client{};
-    ::GetClientRect(window, &client);
-    LayoutButtons(state, client);   // geri al/yinele etkinliği değişmiş olabilir
-    // Döndürme ve ölçekleme görüntünün BOYUTUNU değiştirir; tuval yeniden
-    // yerleşmezse görüntü eski ölçekle çizilir ve fare koordinatları kayar.
-    LayoutCanvas(state, client);
-    ::InvalidateRect(window, nullptr, FALSE);
+    // Geri al/yinele etkinliği değişmiş olabilir; döndürme ve ölçekleme
+    // görüntünün BOYUTUNU değiştirir ve tuval yeniden yerleşmezse görüntü eski
+    // ölçekle çizilir, fare koordinatları kayar.
+    Refresh(window, state);
 }
 
 void BeginDraw(HWND window, State& state, POINT client) {
@@ -189,12 +291,17 @@ void BeginDraw(HWND window, State& state, POINT client) {
     if (state.tool == ToolKind::Text) {
         CommitTextDraft(state);
         state.typing = true;
+        state.caretOn = true;
         state.textDraft = Shape{};
         state.textDraft.kind = ToolKind::Text;
         state.textDraft.start = image;
         state.textDraft.end = image;
         state.textDraft.color = state.color;
         state.textDraft.thickness = state.thickness;
+        const UINT blink = ::GetCaretBlinkTime();
+        if (blink != 0 && blink != INFINITE) {
+            ::SetTimer(window, kCaretTimer, blink, nullptr);
+        }
         ::InvalidateRect(window, nullptr, FALSE);
         return;
     }
@@ -209,6 +316,7 @@ void BeginDraw(HWND window, State& state, POINT client) {
         shape.color = state.color;
         shape.thickness = state.thickness;
         state.document.AddShape(std::move(shape));
+        DropScaleSource(state);
         Rebuild(state);
 
         RECT clientRect{};
@@ -225,6 +333,10 @@ void BeginDraw(HWND window, State& state, POINT client) {
     state.draft.end = image;
     state.draft.color = state.color;
     state.draft.thickness = state.thickness;
+    state.draft.filled = state.fillShapes;
+    state.draft.strength = state.tool == ToolKind::Mosaic
+                               ? static_cast<int>(state.settings.mosaicStrength)
+                               : static_cast<int>(state.settings.blurStrength);
     if (ToolIsFreehand(state.tool)) {
         state.draft.points.push_back(image);
     }
@@ -235,7 +347,19 @@ void UpdateDraw(HWND window, State& state, POINT client) {
     if (!state.dragging) {
         return;
     }
-    const POINT image = ToImage(state, client);
+    POINT image = ToImage(state, client);
+
+    // SHIFT KİLİDİ: dikdörtgen kare, elips daire, çizgi ve ok 45°'nin katı
+    // olur. Elle "tam kare" çizmeye çalışmak, her seferinde birkaç piksel
+    // şaşan bir sonuç veriyordu.
+    if ((::GetKeyState(VK_SHIFT) & 0x8000) != 0 &&
+        !ToolIsFreehand(state.draft.kind)) {
+        image = state.draft.kind == ToolKind::Arrow ||
+                        state.draft.kind == ToolKind::Line
+                    ? geom::SnapToAngle(state.draft.start, image)
+                    : geom::SnapToSquare(state.draft.start, image);
+    }
+
     state.draft.end = image;
     if (ToolIsFreehand(state.draft.kind)) {
         // Aynı pikselde tekrar eden noktalar biriktirilmez: uzun bir çizimde
@@ -276,20 +400,18 @@ void EndDraw(HWND window, State& state) {
                           static_cast<int>(clipped.top),
                           static_cast<int>(geom::Width(clipped)),
                           static_cast<int>(geom::Height(clipped)), cropped)) {
+                DropScaleSource(state);
                 BakeAndReplace(state, std::move(cropped));
             }
         }
     } else if (usable) {
         state.document.AddShape(state.draft);
+        DropScaleSource(state);
         Rebuild(state);
     }
     state.draft = Shape{};
 
-    RECT client{};
-    ::GetClientRect(window, &client);
-    LayoutButtons(state, client);
-    LayoutCanvas(state, client);
-    ::InvalidateRect(window, nullptr, FALSE);
+    Refresh(window, state);
 }
 
 }  // namespace editor

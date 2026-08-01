@@ -165,13 +165,21 @@ int TrayIcon::ShowMenu(HWND owner) {
 
     add(IDM_CAPTURE_REGION, IDS_MENU_REGION, IDS_ACCEL_REGION);
     add(IDM_CAPTURE_WINDOW, IDS_MENU_WINDOW, IDS_ACCEL_WINDOW);
+    add(IDM_CAPTURE_ACTIVE, IDS_ACT_ACTIVE_WINDOW, 0);
     add(IDM_CAPTURE_FULLSCREEN, IDS_MENU_FULLSCREEN, IDS_ACCEL_FULLSCREEN);
+    add(IDM_CAPTURE_ALL, IDS_ACT_ALL_MONITORS, 0);
+    // SON BÖLGE, BÖLGESİ YOKKEN SOLUKTUR: menüde görünüp hiçbir şey yapmayan
+    // bir komut, kullanıcının bozuk sandığı bir komuttur.
+    ::AppendMenuW(menu, m_hasLastRegion ? MF_STRING : (MF_STRING | MF_GRAYED),
+                  IDM_CAPTURE_LAST, Loc::Str(IDS_ACT_LAST_REGION).c_str());
     add(IDM_CAPTURE_DELAYED, IDS_MENU_DELAYED, IDS_ACCEL_DELAYED);
     separator();
     add(IDM_SELECT_TEXT, IDS_MENU_SELECT_TEXT, 0);
     add(IDM_CAPTURE_OCR, IDS_MENU_REGION_TEXT, 0);
     add(IDM_PICK_COLOR, IDS_MENU_PICK_COLOR, 0);
     separator();
+    ::AppendMenuW(menu, m_hasClipboardImage ? MF_STRING : (MF_STRING | MF_GRAYED),
+                  IDM_OPEN_CLIPBOARD, Loc::Str(IDS_MENU_CLIPBOARD).c_str());
     add(IDM_HISTORY, IDS_MENU_HISTORY, 0);
     add(IDM_OPEN_FOLDER, IDS_MENU_OPEN_FOLDER, 0);
     separator();

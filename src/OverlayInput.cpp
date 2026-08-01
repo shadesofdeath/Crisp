@@ -12,7 +12,9 @@
 #include "WindowPick.h"
 #include "resource.h"
 
+#include <cstdio>
 #include <string>
+#include <vector>
 
 namespace crisp {
 
@@ -171,6 +173,62 @@ void PickColor(HWND window, OverlayState& state) {
 
     state.result.pickedColor = state.frozen.Pixel(x, y);
     Finish(window, state, true, RECT{});
+}
+
+// Bölge kipindeki ek tuşlar. İşlendiyse true döner.
+//
+// ÜÇÜ DE ZATEN ELDE OLAN VERİYİ KULLANIR: ekran dondurulmuş hâlde duruyor,
+// monitör sınırları sistemden geliyor ve seçim dikdörtgeni zaten hesaplanmış.
+// Hiçbiri yeni bir yakalama ya da yeni bir pencere gerektirmiyor.
+bool HandleOverlayShortcut(HWND window, OverlayState& state, WPARAM key) {
+    const bool control = (::GetKeyState(VK_CONTROL) & 0x8000) != 0;
+
+    // Ctrl+C: seçimin konumunu ve ölçüsünü METİN olarak kopyalar. Bir hata
+    // raporuna "sağ üstteki düğme" yazmak yerine sayı yazmak gerektiğinde,
+    // şimdiye kadar bu sayıları okuyup elle yazmaktan başka yol yoktu.
+    if (control && key == 'C') {
+        const RECT& selection = state.visual.selection;
+        wchar_t text[96];
+        if (geom::IsEmpty(selection)) {
+            ::swprintf_s(text, L"%ld, %ld", state.visual.cursor.x,
+                         state.visual.cursor.y);
+        } else {
+            ::swprintf_s(text, L"%ld, %ld  %ld × %ld", selection.left,
+                         selection.top, geom::Width(selection),
+                         geom::Height(selection));
+        }
+        if (!CopyTextToClipboard(text, window)) {
+            LogV(L"Seçim koordinatları panoya kopyalanamadı");
+        }
+        return true;
+    }
+
+    // Boşluk: imlecin bulunduğu monitörün tamamını seçer ve bitirir.
+    if (key == VK_SPACE) {
+        const RECT monitor = MonitorRectAtCursor();
+        Finish(window, state, true, geom::ClampTo(monitor, state.visual.screen));
+        return true;
+    }
+
+    // 1..9: numaralı monitörü seçer. Sıra soldan sağa; MonitorRects onu
+    // kararlı hâle getiriyor.
+    if (key >= '1' && key <= '9') {
+        const std::vector<RECT> monitors = MonitorRects();
+        const size_t index = static_cast<size_t>(key - '1');
+        if (index < monitors.size()) {
+            Finish(window, state, true,
+                   geom::ClampTo(monitors[index], state.visual.screen));
+            return true;
+        }
+        return false;
+    }
+
+    // 0: sanal masaüstünün tamamı.
+    if (key == '0') {
+        Finish(window, state, true, state.visual.screen);
+        return true;
+    }
+    return false;
 }
 
 // Sürükleme bittiğinde: yeterince büyük bir alan varsa onu, yoksa imlecin

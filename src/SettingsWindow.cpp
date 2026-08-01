@@ -54,6 +54,54 @@ public:
         return control;
     }
 
+    // Kısayol satırı: solda EYLEM açılır kutusu, sağda tuş kutusu.
+    //
+    // ETİKET YOK ÇÜNKÜ EYLEM ETİKETTİR: "Bölge seç — Ctrl+Shift+S" satırında
+    // ayrıca "Kısayol 1" yazmak, kullanıcının umursamadığı bir yuva numarasını
+    // öne çıkarırdı.
+    void HotkeyRow(int slot) {
+        const int actionWidth = Scale(kActionWidth, m_state.dpi);
+        const int height = Scale(24, m_state.dpi);
+        const HWND action = ::CreateWindowExW(
+            0, L"COMBOBOX", L"",
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | CBS_DROPDOWNLIST | WS_VSCROLL,
+            m_left, m_y, actionWidth, Scale(220, m_state.dpi), m_parent,
+            reinterpret_cast<HMENU>(
+                static_cast<INT_PTR>(kIdHotkeyActionFirst + slot)),
+            nullptr, nullptr);
+        for (unsigned i = 0; i < static_cast<unsigned>(HotkeyAction::Count); ++i) {
+            const std::wstring text =
+                Loc::Str(HotkeyActionLabel(static_cast<HotkeyAction>(i)));
+            ::SendMessageW(action, CB_ADDSTRING, 0,
+                           reinterpret_cast<LPARAM>(text.c_str()));
+        }
+
+        const HWND key = ::CreateWindowExW(
+            0, L"EDIT", L"",
+            WS_CHILD | WS_VISIBLE | WS_TABSTOP | ES_CENTER | WS_BORDER,
+            m_left + actionWidth + Scale(8, m_state.dpi), m_y,
+            m_width - actionWidth - Scale(8, m_state.dpi), height, m_parent,
+            reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdHotkeyKeyFirst + slot)),
+            nullptr, nullptr);
+        MakeHotkeyEdit(key);
+        m_y += Scale(kRow, m_state.dpi);
+    }
+
+    // Bir grubun altındaki açıklama satırı.
+    //
+    // KURAL GÖRÜNÜR OLMALI: "Ctrl/Alt/Shift gerekir" kuralını yalnızca uyarı
+    // sesiyle öğretmek, kullanıcıyı tuşa basıp hiçbir şey olmamasıyla baş başa
+    // bırakıyordu. Yükseklik üç satıra yeter; kırpılmış bir ipucu, hiç
+    // olmamasından beterdir ve Almanca/Rusça çeviriler İngilizceden uzun.
+    void Note(const wchar_t* text) {
+        const int height = Scale(46, m_state.dpi);
+        (void)::CreateWindowExW(0, L"STATIC", text,
+                                WS_CHILD | WS_VISIBLE | SS_LEFT, m_left,
+                                m_y + Scale(4, m_state.dpi), m_width, height,
+                                m_parent, nullptr, nullptr, nullptr);
+        m_y += height + Scale(4, m_state.dpi);
+    }
+
     // Etiketli bir satır: solda metin, sağda denetim.
     HWND Labelled(int id, const wchar_t* label, const wchar_t* className,
                   DWORD style, int controlWidth = 0) {
@@ -115,12 +163,30 @@ int Scale(int value, unsigned dpi) noexcept {
     return ::MulDiv(value, static_cast<int>(dpi), 96);
 }
 
+UINT HotkeyActionLabel(HotkeyAction action) noexcept {
+    switch (action) {
+        case HotkeyAction::Region:       return IDS_ACT_REGION;
+        case HotkeyAction::Window:       return IDS_ACT_WINDOW;
+        case HotkeyAction::ActiveWindow: return IDS_ACT_ACTIVE_WINDOW;
+        case HotkeyAction::Monitor:      return IDS_ACT_MONITOR;
+        case HotkeyAction::AllMonitors:  return IDS_ACT_ALL_MONITORS;
+        case HotkeyAction::LastRegion:   return IDS_ACT_LAST_REGION;
+        case HotkeyAction::Delayed:      return IDS_ACT_DELAYED;
+        case HotkeyAction::SelectText:   return IDS_ACT_SELECT_TEXT;
+        case HotkeyAction::RegionText:   return IDS_ACT_REGION_TEXT;
+        case HotkeyAction::PickColor:    return IDS_ACT_PICK_COLOR;
+        case HotkeyAction::History:      return IDS_ACT_HISTORY;
+        default:                         return IDS_ACT_NONE;
+    }
+}
+
 void BuildControls(HWND window, State& state) {
     const unsigned dpi = state.dpi;
     const int pad = Scale(kPad, dpi);
     const int columnWidth =
-        (Scale(kWidth, dpi) - pad * 2 - Scale(kColumnGap, dpi)) / 2;
-    const int rightLeft = pad + columnWidth + Scale(kColumnGap, dpi);
+        (Scale(kWidth, dpi) - pad * 2 - Scale(kColumnGap, dpi) * 2) / 3;
+    const int middleLeft = pad + columnWidth + Scale(kColumnGap, dpi);
+    const int rightLeft = middleLeft + columnWidth + Scale(kColumnGap, dpi);
 
     // --- Sol sütun ----------------------------------------------------------
     Cursor left(window, state, pad, pad, columnWidth);
@@ -146,6 +212,10 @@ void BuildControls(HWND window, State& state) {
         ::SendMessageW(themeBox, CB_ADDSTRING, 0,
                        reinterpret_cast<LPARAM>(Loc::Str(id).c_str()));
     }
+
+    // KABUK MENÜSÜ "Genel"DE: bir yakalama ayarı değil, Windows'la kurulan bir
+    // bağ — kaydetme ya da yakalama gruplarının hiçbirine ait değil.
+    (void)left.Check(kIdShellMenu, Loc::Str(IDS_SET_SHELL_MENU).c_str());
 
     left.Group(Loc::Str(IDS_SET_GROUP_SAVE).c_str());
     (void)left.Labelled(kIdFolder, Loc::Str(IDS_SET_FOLDER).c_str(), L"EDIT",
@@ -186,6 +256,10 @@ void BuildControls(HWND window, State& state) {
     }
     (void)left.Labelled(kIdQuality, Loc::Str(IDS_SET_QUALITY).c_str(), L"EDIT",
                         ES_NUMBER | WS_BORDER, Scale(70, dpi));
+    (void)left.Labelled(kIdNameFormat, Loc::Str(IDS_SET_NAME_FORMAT).c_str(),
+                        L"EDIT", ES_AUTOHSCROLL | WS_BORDER);
+    (void)left.Labelled(kIdSubFolder, Loc::Str(IDS_SET_SUBFOLDER).c_str(),
+                        L"EDIT", ES_AUTOHSCROLL | WS_BORDER);
 
     left.Group(Loc::Str(IDS_SET_GROUP_HISTORY).c_str());
     (void)left.Labelled(kIdHistoryLimit,
@@ -198,37 +272,47 @@ void BuildControls(HWND window, State& state) {
         reinterpret_cast<HMENU>(static_cast<INT_PTR>(kIdHistoryClear)), nullptr,
         nullptr);
 
+    // --- Orta sütun ---------------------------------------------------------
+    Cursor middle(window, state, middleLeft, pad, columnWidth);
+
+    middle.Group(Loc::Str(IDS_SET_GROUP_CAPTURE).c_str());
+    (void)middle.Labelled(kIdDelay, Loc::Str(IDS_SET_DELAY).c_str(), L"EDIT",
+                          ES_NUMBER | WS_BORDER, Scale(70, dpi));
+    (void)middle.Labelled(kIdDimStrength, Loc::Str(IDS_SET_DIM).c_str(), L"EDIT",
+                          ES_NUMBER | WS_BORDER, Scale(70, dpi));
+    (void)middle.Check(kIdMagnifier, Loc::Str(IDS_SET_MAGNIFIER).c_str());
+    (void)middle.Check(kIdHighlight, Loc::Str(IDS_SET_HIGHLIGHT).c_str());
+    (void)middle.Check(kIdIncludeCursor, Loc::Str(IDS_SET_CURSOR).c_str());
+    (void)middle.Check(kIdPrintScreen, Loc::Str(IDS_SET_PRINTSCREEN).c_str());
+    (void)middle.Check(kIdShutter, Loc::Str(IDS_SET_SHUTTER).c_str());
+
+    middle.Group(Loc::Str(IDS_SET_GROUP_ANNOTATE).c_str());
+    (void)middle.Labelled(kIdBlurStrength,
+                          Loc::Str(IDS_SET_BLUR_STRENGTH).c_str(), L"EDIT",
+                          ES_NUMBER | WS_BORDER, Scale(70, dpi));
+    (void)middle.Labelled(kIdMosaicStrength,
+                          Loc::Str(IDS_SET_MOSAIC_STRENGTH).c_str(), L"EDIT",
+                          ES_NUMBER | WS_BORDER, Scale(70, dpi));
+
     // --- Sağ sütun ----------------------------------------------------------
     Cursor right(window, state, rightLeft, pad, columnWidth);
-
-    right.Group(Loc::Str(IDS_SET_GROUP_CAPTURE).c_str());
-    (void)right.Labelled(kIdDelay, Loc::Str(IDS_SET_DELAY).c_str(), L"EDIT",
-                         ES_NUMBER | WS_BORDER, Scale(70, dpi));
-    (void)right.Check(kIdMagnifier, Loc::Str(IDS_SET_MAGNIFIER).c_str());
-    (void)right.Check(kIdHighlight, Loc::Str(IDS_SET_HIGHLIGHT).c_str());
-    (void)right.Check(kIdPrintScreen, Loc::Str(IDS_SET_PRINTSCREEN).c_str());
-    (void)right.Check(kIdShutter, Loc::Str(IDS_SET_SHUTTER).c_str());
 
     right.Group(Loc::Str(IDS_SET_GROUP_AFTER).c_str());
     (void)right.Check(kIdAfterCopy, Loc::Str(IDS_SET_AFTER_COPY).c_str());
     (void)right.Check(kIdAfterSave, Loc::Str(IDS_SET_AFTER_SAVE).c_str());
     (void)right.Check(kIdAfterPin, Loc::Str(IDS_SET_AFTER_PIN).c_str());
     (void)right.Check(kIdAfterEditor, Loc::Str(IDS_SET_AFTER_EDITOR).c_str());
+    (void)right.Check(kIdAfterCopyPath, Loc::Str(IDS_SET_AFTER_COPYPATH).c_str());
+    (void)right.Check(kIdAfterCopyFile, Loc::Str(IDS_SET_AFTER_COPYFILE).c_str());
+    (void)right.Check(kIdAfterReveal, Loc::Str(IDS_SET_AFTER_REVEAL).c_str());
+    (void)right.Check(kIdAfterOcr, Loc::Str(IDS_SET_AFTER_OCR).c_str());
     (void)right.Check(kIdNotify, Loc::Str(IDS_SET_NOTIFY).c_str());
 
     right.Group(Loc::Str(IDS_SET_GROUP_HOTKEYS).c_str());
-    MakeHotkeyEdit(right.Labelled(kIdHotkeyRegion,
-                                  Loc::Str(IDS_SET_HK_REGION).c_str(), L"EDIT",
-                                  ES_CENTER | WS_BORDER));
-    MakeHotkeyEdit(right.Labelled(kIdHotkeyWindow,
-                                  Loc::Str(IDS_SET_HK_WINDOW).c_str(), L"EDIT",
-                                  ES_CENTER | WS_BORDER));
-    MakeHotkeyEdit(right.Labelled(kIdHotkeyFullScreen,
-                                  Loc::Str(IDS_SET_HK_FULLSCREEN).c_str(),
-                                  L"EDIT", ES_CENTER | WS_BORDER));
-    MakeHotkeyEdit(right.Labelled(kIdHotkeyDelayed,
-                                  Loc::Str(IDS_SET_HK_DELAYED).c_str(), L"EDIT",
-                                  ES_CENTER | WS_BORDER));
+    for (int slot = 0; slot < kHotkeySlots; ++slot) {
+        right.HotkeyRow(slot);
+    }
+    right.Note(Loc::Str(IDS_SET_HOTKEY_HINT).c_str());
 
     // --- Alt şerit ----------------------------------------------------------
     const int buttonWidth = Scale(110, dpi);

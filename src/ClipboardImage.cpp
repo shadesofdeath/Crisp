@@ -4,6 +4,8 @@
 #include "ImageCodec.h"
 #include "Util.h"
 
+#include <shlobj.h>
+
 #include <utility>
 #include <vector>
 
@@ -353,6 +355,52 @@ bool CopyTextToClipboard(const wchar_t* text, HWND owner) {
     }
 
     if (::SetClipboardData(CF_UNICODETEXT, block.get()) == nullptr) {
+        return false;
+    }
+    (void)block.release();
+    return true;
+}
+
+bool CopyFileToClipboard(const std::wstring& path, HWND owner) {
+    if (path.empty()) {
+        return false;
+    }
+
+    // DROPFILES'IN ARDINDAN ÇİFT NUL İLE BİTEN bir yol listesi gelir. Tek
+    // sonlandırıcı yazmak, Explorer'ın listenin sonunu bulamayıp yapıştırmayı
+    // sessizce yok saymasına yol açar.
+    const size_t characters = path.size() + 2;
+    const size_t bytes = sizeof(DROPFILES) + characters * sizeof(wchar_t);
+    global_block block{bytes};
+    if (!block.valid()) {
+        return false;
+    }
+
+    {
+        const global_lock lock{block.get()};
+        if (!lock.valid()) {
+            return false;
+        }
+        auto* header = static_cast<DROPFILES*>(lock.get());
+        *header = DROPFILES{};
+        header->pFiles = sizeof(DROPFILES);
+        header->fWide = TRUE;
+
+        auto* text = reinterpret_cast<wchar_t*>(
+            static_cast<uint8_t*>(lock.get()) + sizeof(DROPFILES));
+        ::memcpy(text, path.c_str(), path.size() * sizeof(wchar_t));
+        text[path.size()] = L'\0';
+        text[path.size() + 1] = L'\0';
+    }
+
+    const clipboard_scope clipboard{owner};
+    if (!clipboard.ok()) {
+        return false;
+    }
+    if (!::EmptyClipboard()) {
+        return false;
+    }
+    if (::SetClipboardData(CF_HDROP, block.get()) == nullptr) {
         return false;
     }
     (void)block.release();

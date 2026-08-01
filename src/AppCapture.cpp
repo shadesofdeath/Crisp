@@ -1,4 +1,6 @@
 // AppCapture.cpp — Yakalama akışları ve yakalama sonrası eylemler.
+//
+// Eylem gönderimi, geri sayım ve ikincil görevler AppActions.cpp'de.
 #include "App.h"
 
 #include "ClipboardImage.h"
@@ -9,6 +11,7 @@
 #include "Localization.h"
 #include "MessageWindow.h"
 #include "Messages.h"
+#include "NameFormat.h"
 #include "Ocr.h"
 #include "Overlay.h"
 #include "PinWindow.h"
@@ -59,6 +62,14 @@ void FlashSaved(const std::wstring& path) {
 // ikisi ayrı dosyalarda (AppCapture.cpp / AppText.cpp).
 bool RunRegionCapture(HINSTANCE instance, const Settings& settings,
                       bool preferWindowPick, Image& out, POINT& origin) {
+    RECT selection{};
+    return RunRegionCaptureRect(instance, settings, preferWindowPick, out, origin,
+                                selection);
+}
+
+bool RunRegionCaptureRect(HINSTANCE instance, const Settings& settings,
+                          bool preferWindowPick, Image& out, POINT& origin,
+                          RECT& selection) {
     Image frozen;
     const OverlayResult result = RunSelectionOverlay(
         instance, settings, OverlayMode::Region, preferWindowPick, frozen);
@@ -81,90 +92,67 @@ bool RunRegionCapture(HINSTANCE instance, const Settings& settings,
     }
 
     origin = POINT{result.selection.left, result.selection.top};
+    selection = result.selection;
     return true;
-}
-
-void App::StartCapture(CaptureMode mode) {
-    if (m_busy) {
-        return;   // geri sayım sürüyor ya da kaplama zaten açık
-    }
-
-    switch (mode) {
-        case CaptureMode::FullScreen:
-            m_busy = true;
-            ::Sleep(kMenuSettleMs);
-            CaptureCurrentMonitor();
-            m_busy = false;
-            return;
-
-        case CaptureMode::Delayed: {
-            m_busy = true;
-            const UINT delay = m_settings.delaySeconds * 1000u;
-            if (::SetTimer(m_window, TIMER_DELAY, delay, nullptr) == 0) {
-                LogV(L"Gecikme zamanlayıcısı kurulamadı");
-                m_busy = false;
-            }
-            return;
-        }
-
-        case CaptureMode::Window:
-        case CaptureMode::Region:
-        default:
-            m_busy = true;
-            ::Sleep(kMenuSettleMs);
-            CaptureRegionOrWindow(mode == CaptureMode::Window);
-            m_busy = false;
-            return;
-    }
 }
 
 void App::CaptureRegionOrWindow(bool preferWindowPick) {
     Image capture;
     POINT origin{};
-    if (!RunRegionCapture(m_instance, m_settings, preferWindowPick, capture,
-                          origin)) {
+    RECT selection{};
+    ::Sleep(kMenuSettleMs);
+    if (!RunRegionCaptureRect(m_instance, m_settings, preferWindowPick, capture,
+                              origin, selection)) {
         return;
     }
-    DeliverCapture(capture, origin);
+
+    // SON BÖLGE YALNIZCA SÜRÜKLEYEREK SEÇİLENDİR: bir pencereye tıklayarak
+    // yakalayan kullanıcı, "son bölge"nin o pencerenin o anki yerini
+    // tekrarlamasını beklemez — pencere taşınmış olabilir.
+    if (!preferWindowPick) {
+        m_settings.lastRegion = selection;
+        if (!m_settings.Save(SettingsStore::ForApp())) {
+            LogV(L"Son bölge kaydedilemedi");
+        }
+    }
+    DeliverCapture(capture, origin, nullptr);
 }
 
 void App::CaptureCurrentMonitor() {
     const RECT monitor = MonitorRectAtCursor();
     Image capture;
-    if (!CaptureRect(monitor, capture)) {
+    if (!CaptureRect(monitor, capture, m_settings.includeCursor)) {
         LogV(L"Tam ekran yakalama başarısız");
         return;
     }
-    DeliverCapture(capture, POINT{monitor.left, monitor.top});
+    DeliverCapture(capture, POINT{monitor.left, monitor.top}, nullptr);
 }
 
-bool App::SaveCapture(const Image& image, std::wstring& savedPath) {
-    std::wstring folder = m_settings.EffectiveSaveFolder();
-    if (folder.empty()) {
-        return false;
-    }
-
+bool App::SaveCapture(const Image& image, std::wstring& savedPath,
+                      HWND sourceWindow) {
     ImageFormat format = FormatFromString(m_settings.saveFormat.c_str());
 
-    // BİÇİM YOKSA PNG'YE DÜŞ. Windows PNG ve JPEG kodlayıcılarını her zaman
-    // taşır ama WebP kodlayıcısı isteğe bağlı bir bileşendir ve çoğu kurulumda
-    // yoktur. Seçili biçimde ısrar etmek, kullanıcının yakalamasını
-    // kaybetmesi demek olurdu — kaydedilmiş bir PNG, kaydedilmemiş bir
-    // WebP'den her zaman iyidir.
-    if (format != ImageFormat::Png && !IsFormatAvailable(format)) {
-        LogV(L"%s kodlayıcısı yok; PNG'ye düşülüyor", m_settings.saveFormat.c_str());
-        format = ImageFormat::Png;
+    NameContext context;
+    ::GetLocalTime(&context.time);
+    context.width = image.Width();
+    context.height = image.Height();
+    context.counter = ++m_captureCounter;
+    // TOHUM ZAMANDAN GELİR ama sabit değil: aynı saniyede iki yakalamada
+    // sayaç da tohuma katılır, yoksa %ra ikisinde aynı çıkardı.
+    context.random = static_cast<unsigned>(context.time.wMilliseconds) * 977u +
+                     context.counter;
+    context.windowTitle = WindowTitleText(sourceWindow);
+
+    const std::wstring baseName =
+        SanitizeFileName(ExpandNameFormat(m_settings.fileNameFormat, context));
+    const std::wstring subFolder =
+        SanitizeRelativePath(ExpandNameFormat(m_settings.subFolderFormat, context));
+
+    std::wstring path = BuildCapturePath(m_settings.EffectiveSaveFolder(),
+                                         subFolder, baseName, format);
+    if (path.empty()) {
+        return false;
     }
-
-    std::wstring path = folder;
-    path += L"\\Crisp ";
-    path += TimestampForFileName();
-    path += L'.';
-    path += ExtensionForFormat(format);
-
-    // Aynı saniyede iki yakalama olabilir; benzersizleştirme olmadan ikincisi
-    // birincinin üzerine yazardı.
-    path = MakeUniquePath(path);
 
     if (!SaveImage(image, path, format, m_settings.saveQuality)) {
         LogV(L"Kaydedilemedi: %s", path.c_str());
@@ -175,7 +163,7 @@ bool App::SaveCapture(const Image& image, std::wstring& savedPath) {
     return true;
 }
 
-void App::DeliverCapture(const Image& image, POINT origin) {
+void App::DeliverCapture(const Image& image, POINT origin, HWND sourceWindow) {
     if (!image.Valid()) {
         return;
     }
@@ -196,24 +184,22 @@ void App::DeliverCapture(const Image& image, POINT origin) {
         if (!CropImage(image, 0, 0, image.Width(), image.Height(), edited)) {
             return;
         }
+        // PANO VE DOSYA İŞLERİNİ DÜZENLEYİCİ KENDİSİ YAPAR ve sonucu burada
+        // rapor eder; burada tekrar kopyalamak, kullanıcı düzenleyicide
+        // "farklı kaydet" ile başka bir yere yazdığında ikinci bir dosya
+        // üretmek olurdu.
         const EditorResult result = RunEditor(m_instance, m_settings, edited);
         if (!result.accepted) {
             return;   // kullanıcı iptal etti
         }
-        const bool copied =
-            result.copyToClipboard && CopyImageToClipboard(edited, m_window);
-        std::wstring savedPath;
-        if (result.saveToFile) {
-            if (SaveCapture(edited, savedPath)) {
-                FlashSaved(savedPath);
-            } else {
-                ReportSaveFailure();
-            }
+        if (!result.savedPath.empty()) {
+            FlashSaved(result.savedPath);
         }
         const bool pinned = m_settings.after.pinToScreen &&
                             PinImageToScreen(m_instance, edited, origin);
         RememberInHistory(edited);
-        Announce(edited, copied, pinned, savedPath);
+        RunExtraTasks(edited, result.savedPath);
+        Announce(edited, result.copied, pinned, result.savedPath);
         return;
     }
 
@@ -225,7 +211,7 @@ void App::DeliverCapture(const Image& image, POINT origin) {
 
     std::wstring savedPath;
     if (m_settings.after.saveToFile) {
-        if (SaveCapture(image, savedPath)) {
+        if (SaveCapture(image, savedPath, sourceWindow)) {
             FlashSaved(savedPath);
         } else {
             ReportSaveFailure();
@@ -238,6 +224,7 @@ void App::DeliverCapture(const Image& image, POINT origin) {
                         PinImageToScreen(m_instance, image, origin);
 
     RememberInHistory(image);
+    RunExtraTasks(image, savedPath);
     Announce(image, copied, pinned, savedPath);
 }
 
@@ -318,18 +305,14 @@ void App::ShowHistory() {
     if (!result.accepted) {
         return;
     }
-    if (result.copyToClipboard && !CopyImageToClipboard(chosen.image, m_window)) {
-        LogV(L"Geçmişten düzenlenen görüntü panoya kopyalanamadı");
-    }
-    if (result.saveToFile) {
-        std::wstring savedPath;
-        if (SaveCapture(chosen.image, savedPath)) {
-            FlashSaved(savedPath);
-        } else {
-            ReportSaveFailure();
-        }
+    if (!result.savedPath.empty()) {
+        FlashSaved(result.savedPath);
     }
     RememberInHistory(chosen.image);
+    // BU YOL ESKİDEN SESSİZDİ: geçmişten bir görüntüyü düzenleyip kopyalayan
+    // kullanıcı hiçbir bildirim almıyordu ve yakalama akışıyla arasındaki tek
+    // fark buydu.
+    Announce(chosen.image, result.copied, false, result.savedPath);
 }
 
 void App::OpenSaveFolder() {

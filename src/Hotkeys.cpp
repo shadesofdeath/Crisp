@@ -27,23 +27,24 @@ int Hotkeys::Apply(HWND owner, const Settings& settings) {
     UnregisterAll();
     m_owner = owner;
 
-    struct Binding {
-        int id;
-        const Hotkey* hotkey;
-    };
-    const Binding bindings[] = {
-        {HOTKEY_REGION, &settings.hotkeyRegion},
-        {HOTKEY_FULLSCREEN, &settings.hotkeyFullScreen},
-        {HOTKEY_WINDOW, &settings.hotkeyWindow},
-        {HOTKEY_DELAYED, &settings.hotkeyDelayed},
-    };
-
     // PRINT SCREEN AYRI ELE ALINIR: Settings::Clamp değiştiricisi olmayan
     // kısayolları iptal eder, çünkü tek bir harf tuşuna basınca yakalama
     // başlaması istenmez. Print Screen ise tam olarak bunun için var olan bir
     // tuştur ve o kuralın istisnasıdır.
+    // BİR YUVA PRINT SCREEN'İ ALDIYSA hazır kutucuk devreye girmez: aynı tuş
+    // iki kez kaydedilemez ve ikinci deneme, kullanıcının o yuvaya seçtiği
+    // eylemi sessizce çalışmaz bırakırdı. Kullanıcının açıkça atadığı kısayol,
+    // kutucuğun varsayılan davranışını yener.
+    bool slotOwnsPrintScreen = false;
+    for (const HotkeyBinding& binding : settings.hotkeys) {
+        if (binding.action != HotkeyAction::None && binding.key.assigned() &&
+            binding.key.key == VK_SNAPSHOT && binding.key.modifiers == 0) {
+            slotOwnsPrintScreen = true;
+        }
+    }
+
     int failures = 0;
-    if (settings.printScreenCapture) {
+    if (settings.printScreenCapture && !slotOwnsPrintScreen) {
         if (::RegisterHotKey(owner, HOTKEY_PRINTSCREEN, MOD_NOREPEAT,
                              VK_SNAPSHOT)) {
             m_registered |= (1u << HOTKEY_PRINTSCREEN);
@@ -55,12 +56,14 @@ int Hotkeys::Apply(HWND owner, const Settings& settings) {
             ++failures;
         }
     }
-    for (const Binding& binding : bindings) {
-        if (!binding.hotkey->assigned()) {
+    for (int slot = 0; slot < kHotkeySlots; ++slot) {
+        const HotkeyBinding& binding = settings.hotkeys[slot];
+        if (!binding.key.assigned() || binding.action == HotkeyAction::None) {
             continue;   // atanmamış kısayol bir hata değildir
         }
-        if (Register(owner, binding.id, *binding.hotkey)) {
-            m_registered |= (1u << binding.id);
+        const int id = HOTKEY_SLOT_FIRST + slot;
+        if (Register(owner, id, binding.key)) {
+            m_registered |= (1u << id);
         } else {
             ++failures;
         }
@@ -73,7 +76,7 @@ void Hotkeys::UnregisterAll() noexcept {
         m_registered = 0;
         return;
     }
-    for (int id = HOTKEY_REGION; id <= HOTKEY_PRINTSCREEN; ++id) {
+    for (int id = HOTKEY_SLOT_FIRST; id <= HOTKEY_PRINTSCREEN; ++id) {
         if ((m_registered & (1u << id)) != 0) {
             ::UnregisterHotKey(m_owner, id);
         }

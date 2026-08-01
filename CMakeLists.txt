@@ -48,9 +48,15 @@ set(CRISP_CORE_SOURCES
     src/ImageDecode.cpp
     src/ClipboardImage.cpp
     src/Settings.cpp
+    src/SettingsStore.cpp
     src/OcrLayout.cpp
     src/ImageEffects.cpp
     src/ImageTransform.cpp
+    src/ImageCanvas.cpp
+    src/ImageAdjust.cpp
+    src/NameFormat.cpp
+    src/ShellIntegration.cpp
+    src/ColorSpace.cpp
     src/Annotation.cpp
     src/History.cpp
     src/Sound.cpp
@@ -68,6 +74,10 @@ set(CRISP_CORE_HEADERS
     src/OcrLayout.h
     src/ImageEffects.h
     src/ImageTransform.h
+    src/ImageAdjust.h
+    src/NameFormat.h
+    src/ShellIntegration.h
+    src/ColorSpace.h
     src/Annotation.h
     src/History.h
     src/Sound.h
@@ -125,6 +135,8 @@ set(CRISP_APP_SOURCES
     src/main.cpp
     src/App.cpp
     src/AppCapture.cpp
+    src/AppActions.cpp
+    src/AppSettings.cpp
     src/AppText.cpp
     src/Overlay.cpp
     src/OverlayInput.cpp
@@ -143,9 +155,19 @@ set(CRISP_APP_SOURCES
     src/EditorRender.cpp
     src/EditorLayout.cpp
     src/EditorChrome.cpp
+    src/EditorGlyphs.cpp
+    src/EditorStatus.cpp
+    src/EditorFile.cpp
+    src/EditorText.cpp
+    src/EditorEffects.cpp
+    src/EditorSelect.cpp
     src/EditorActions.cpp
     src/EditorOcr.cpp
     src/EditorTooltip.cpp
+    src/ColorPicker.cpp
+    src/ColorPickerPaint.cpp
+    src/ColorPickerLayout.cpp
+    src/ThicknessPicker.cpp
     src/HistoryWindow.cpp
     src/HistoryPaint.cpp
     src/HistoryInput.cpp
@@ -177,6 +199,9 @@ set(CRISP_APP_HEADERS
     src/EditorWindow.h
     src/EditorInternal.h
     src/EditorRender.h
+    src/ColorPicker.h
+    src/ColorPickerInternal.h
+    src/ThicknessPicker.h
     src/HistoryWindow.h
     src/HistoryInternal.h
     src/SettingsWindow.h
@@ -205,7 +230,8 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES
 # runtimeobject : WinRT etkinleştirme (Windows.Media.Ocr), ham ABI ile —
 #                 C++/WinRT bağımlılığı YOK, yalnızca RoGetActivationFactory.
 # comdlg32      : iğne penceresindeki "Farklı kaydet" iletişim kutusu.
-target_link_libraries(crisp PRIVATE crisp_core comctl32 runtimeobject comdlg32 msimg32 winmm)
+# imm32        : metin aracinda IME aday penceresinin imlecin yanina tasinmasi.
+target_link_libraries(crisp PRIVATE crisp_core comctl32 runtimeobject comdlg32 msimg32 winmm imm32)
 
 target_link_options(crisp PRIVATE
     # Manifest RC üzerinden gömülür (res/app.rc → RT_MANIFEST); linker'ın kendi
@@ -251,6 +277,11 @@ if(CRISP_TESTS)
         tests/TestOcrLayout.cpp
         tests/TestAnnotation.cpp
         tests/TestTransform.cpp
+        tests/TestCanvas.cpp
+        tests/TestAdjust.cpp
+        tests/TestNameFormat.cpp
+        tests/TestShellIntegration.cpp
+        tests/TestColorSpace.cpp
         tests/TestHistory.cpp
         tests/TestSound.cpp
     )

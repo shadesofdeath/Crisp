@@ -199,6 +199,97 @@ CRISP_TEST(Transform, ScaleByPercent) {
     CHECK_EQ(doubled.Height(), 200);
 }
 
+CRISP_TEST(Transform, Scale_kucultme_her_kaynak_pikseli_okur) {
+    // TEK SATIR SİYAH, TEK SATIR BEYAZ. Dörtte bire indirildiğinde her hedef
+    // piksel 4 kaynak satırının ortalamasıdır ve sonuç ~%50 gridir.
+    //
+    // BU TEST NEDEN VAR: iki doğrusal örnekleme küçültmede yalnızca 2×2 okur,
+    // araya düşen satırları hiç görmez ve sonuç ya siyah ya beyaz çıkardı —
+    // "%25'e indirince kalite çöküyor" şikâyetinin ölçülebilir hâli budur.
+    Image source;
+    CHECK(source.Create(16, 16));
+    for (int y = 0; y < 16; ++y) {
+        for (int x = 0; x < 16; ++x) {
+            source.SetPixel(x, y, (y % 2) == 0 ? 0xFF000000u : 0xFFFFFFFFu);
+        }
+    }
+
+    Image reduced;
+    CHECK(ScaleImage(source, 4, 4, reduced));
+    for (int y = 0; y < 4; ++y) {
+        for (int x = 0; x < 4; ++x) {
+            const uint32_t grey = (reduced.Pixel(x, y) >> 8) & 0xFFu;
+            CHECK(grey >= 120u && grey <= 136u);
+        }
+    }
+}
+
+CRISP_TEST(Transform, Scale_kucultmede_kenar_koyulasmaz) {
+    // Kenar taşan dokunmalar sıfır sayılsaydı en dış sütun ve satır
+    // koyulaşırdı; kaynak kenarı uzatıldığı için düz renk düz kalmalı.
+    Image source;
+    CHECK(source.Create(37, 23));
+    source.Fill(0xFFC0C0C0u);
+
+    Image reduced;
+    CHECK(ScaleImage(source, 9, 6, reduced));
+    CHECK_EQ(reduced.Pixel(0, 0), 0xFFC0C0C0u);
+    CHECK_EQ(reduced.Pixel(8, 5), 0xFFC0C0C0u);
+}
+
+CRISP_TEST(Transform, Scale_buyutmede_duz_renk_asmaz) {
+    // Catmull-Rom'un negatif kulakları düz bir renkte bile 255'i aşan ara
+    // toplamlar üretebilir; kırpma olmasaydı beyaz alan taşıp kararırdı.
+    Image source;
+    CHECK(source.Create(4, 4));
+    source.Fill(0xFFFFFFFFu);
+
+    Image big;
+    CHECK(ScaleImage(source, 17, 17, big));
+    for (int y = 0; y < big.Height(); ++y) {
+        for (int x = 0; x < big.Width(); ++x) {
+            CHECK_EQ(big.Pixel(x, y), 0xFFFFFFFFu);
+        }
+    }
+}
+
+CRISP_TEST(Transform, Scale_simetrik_goruntu_simetrik_kalir) {
+    // Yarım piksel kayması olsaydı simetri bozulurdu: sol kenardaki değer sağ
+    // kenardakinden farklı çıkardı.
+    Image source;
+    CHECK(source.Create(16, 1));
+    for (int x = 0; x < 16; ++x) {
+        const uint32_t level = static_cast<uint32_t>(x < 8 ? x : 15 - x) * 16u;
+        source.SetPixel(x, 0, 0xFF000000u | (level << 16) | (level << 8) | level);
+    }
+
+    Image reduced;
+    CHECK(ScaleImage(source, 8, 1, reduced));
+    for (int x = 0; x < 4; ++x) {
+        CHECK_EQ(reduced.Pixel(x, 0), reduced.Pixel(7 - x, 0));
+    }
+
+    Image big;
+    CHECK(ScaleImage(source, 32, 1, big));
+    for (int x = 0; x < 16; ++x) {
+        CHECK_EQ(big.Pixel(x, 0), big.Pixel(31 - x, 0));
+    }
+}
+
+CRISP_TEST(Transform, Scale_tek_eksende_kucultup_digerinde_buyutur) {
+    // Süzgeç EKSEN BAŞINA seçilir; karışık yönde bir ölçekleme her iki dalı da
+    // aynı çağrıda kullanır.
+    Image source;
+    CHECK(source.Create(40, 10));
+    source.Fill(0xFF3366AAu);
+
+    Image mixed;
+    CHECK(ScaleImage(source, 10, 40, mixed));
+    CHECK_EQ(mixed.Width(), 10);
+    CHECK_EQ(mixed.Height(), 40);
+    CHECK_EQ(mixed.Pixel(5, 20), 0xFF3366AAu);
+}
+
 CRISP_TEST(Transform, ScaleByPercent_asla_sifir_boyut_uretmez) {
     // %1'e indirilen 10x10 bir görüntü 0x0 olurdu ve Image::Create bunu
     // reddeder; sonuç en az 1x1 olmalı.

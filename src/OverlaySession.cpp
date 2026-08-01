@@ -52,7 +52,10 @@ OverlayResult RunSelectionOverlay(HINSTANCE instance, const Settings& settings,
     }
 
     const RECT screen = VirtualScreenRect();
-    if (!CaptureRect(screen, frozen)) {
+    // İMLEÇ DONDURULMUŞ GÖRÜNTÜYE ÇİZİLİR: kaplama açıldıktan sonra imleç
+    // artık kullanıcının seçim imlecidir ve yakalama anındaki hâli yalnızca
+    // burada, dondurma sırasında yakalanabilir.
+    if (!CaptureRect(screen, frozen, settings.includeCursor)) {
         LogV(L"Ekran dondurulamadı");
         return result;
     }
@@ -77,11 +80,16 @@ OverlayResult RunSelectionOverlay(HINSTANCE instance, const Settings& settings,
         (mode != OverlayMode::TextSelect) &&
         (settings.showMagnifier || mode == OverlayMode::ColorPick);
 
+    // Artı imleç yalnızca BÖLGE kipinde: renk seçerken büyüteç zaten hedefi
+    // gösteriyor ve metin seçerken ekranı kesen çizgiler kelimelerin üstünden
+    // geçerdi.
+    state.visual.crosshair = (mode == OverlayMode::Region);
+
     // Pencere vurgulaması yalnızca bölge kipinde anlamlı.
     state.allowHover = (mode == OverlayMode::Region) &&
                        (preferWindowPick || settings.showWindowHighlight);
 
-    if (!BuildDimmedCopy(frozen, state.dimmed)) {
+    if (!BuildDimmedCopy(frozen, settings.dimStrength, state.dimmed)) {
         return result;
     }
     // Dondurulmuş görüntünün sahipliği kaplamaya taşınır ve dönüşte geri

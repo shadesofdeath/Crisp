@@ -5,6 +5,8 @@
 // yok sayılacak pencere (kaplama) dışarıda bırakılır.
 #pragma once
 
+#include <string>
+
 #include <windows.h>
 
 namespace crisp {
@@ -27,5 +29,21 @@ namespace crisp {
 // döner, dolayısıyla bu kontrol olmadan ekranda görünmeyen hayalet pencereler
 // imlecin altında seçilebilir hâle gelir.
 [[nodiscard]] bool IsCapturableWindow(HWND window) noexcept;
+
+// "Aktif pencere" — kullanıcının Alt+Tab'la geçeceği pencere.
+//
+// GetForegroundWindow TEK BAŞINA YETMEZ ve bu bir hata olarak öğrenildi:
+// tepsi menüsünün açılabilmesi için TrackPopupMenuEx'ten önce
+// SetForegroundWindow(kendi penceremiz) çağrılmak ZORUNDADIR (belgelenmiş bir
+// kabuk gerekliliği). Menü kapandığında ön plan hâlâ Crisp'in görünmez mesaj
+// penceresidir, dolayısıyla tepsiden çağrılan "aktif pencere" her seferinde
+// kendimizi bulup vazgeçiyordu.
+//
+// Bu yüzden ön plan uygun değilse Z SIRASI taranır: kullanıcının penceresi
+// hâlâ tepede durur, yalnızca odakta değildir.
+[[nodiscard]] HWND ForegroundCapturableWindow() noexcept;
+
+// Pencerenin başlığı; dosya adı şablonundaki %pn için.
+[[nodiscard]] std::wstring WindowTitleText(HWND window);
 
 }  // namespace crisp

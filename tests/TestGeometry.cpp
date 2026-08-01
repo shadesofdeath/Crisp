@@ -3,6 +3,7 @@
 
 #include "Geometry.h"
 
+#include <cmath>
 #include <cstdlib>
 
 using namespace crisp::geom;
@@ -188,6 +189,34 @@ CRISP_TEST(Geometry, SnapToSquare_yonu_korur) {
 
 CRISP_TEST(Geometry, SnapToSquare_sifir_surukleme) {
     CHECK_POINT(SnapToSquare(POINT{100, 100}, POINT{100, 100}), 100, 100);
+}
+
+CRISP_TEST(Geometry, SnapToAngle_en_yakin_45_dereceye_kilitler) {
+    const POINT anchor{100, 100};
+    // Neredeyse yatay → tam yatay.
+    CHECK_POINT(SnapToAngle(anchor, POINT{200, 105}), 200, 100);
+    // Neredeyse dikey → tam dikey.
+    CHECK_POINT(SnapToAngle(anchor, POINT{104, 200}), 100, 200);
+    // Neredeyse 45° → tam 45° (uzunluk korunur, bileşenler eşitlenir).
+    const POINT diagonal = SnapToAngle(anchor, POINT{180, 170});
+    CHECK_EQ(diagonal.x - anchor.x, diagonal.y - anchor.y);
+}
+
+CRISP_TEST(Geometry, SnapToAngle_uzunlugu_korur) {
+    // İZDÜŞÜM DEĞİL DÖNDÜRME: 20° tutup Shift'e basan kullanıcı çizginin
+    // yönünün düzelmesini bekler, boyunun kısalmasını değil.
+    const POINT anchor{0, 0};
+    const POINT result = SnapToAngle(anchor, POINT{100, 30});
+    const double length = std::sqrt(static_cast<double>(result.x) * result.x +
+                                    static_cast<double>(result.y) * result.y);
+    const double original = std::sqrt(100.0 * 100.0 + 30.0 * 30.0);
+    CHECK(length > original - 1.5 && length < original + 1.5);
+}
+
+CRISP_TEST(Geometry, SnapToAngle_sifir_surukleme_guvenli) {
+    // Sıfır uzunlukta açı tanımsızdır; atan2(0,0) sonucu kullanmak imleci
+    // rastgele bir yöne fırlatırdı.
+    CHECK_POINT(SnapToAngle(POINT{50, 50}, POINT{50, 50}), 50, 50);
 }
 
 CRISP_TEST(Zoom, ZoomStep_carpansal_buyur) {
