@@ -66,6 +66,17 @@ void Paint(HWND window, State& state);
 // Kaydırma çubuğunu içerik yüksekliğine göre günceller ve kaydırmayı sınırlar.
 void UpdateScrollBar(HWND window, State& state);
 
+// --- Eylemler (HistoryActions.cpp) ------------------------------------------
+[[nodiscard]] const Tile* Selected(const State& state) noexcept;
+void EnsureVisible(HWND window, State& state);
+void MoveSelection(HWND window, State& state, int delta);
+void EditSelected(HWND window, State& state);
+void CopySelected(HWND window, const State& state);
+void RevealSelected(const State& state);
+void DeleteSelected(HWND window, State& state);
+void ClearAll(HWND window, State& state);
+void ShowContextMenu(HWND window, State& state, POINT screen);
+
 [[nodiscard]] int TileAt(const State& state, POINT client) noexcept;
 
 }  // namespace history

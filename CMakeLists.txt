@@ -123,6 +123,7 @@ set(CRISP_APP_SOURCES
     src/main.cpp
     src/App.cpp
     src/AppCapture.cpp
+    src/AppText.cpp
     src/Overlay.cpp
     src/OverlayPaint.cpp
     src/AlphaLayer.cpp
@@ -132,6 +133,7 @@ set(CRISP_APP_SOURCES
     src/MessageWindow.cpp
     src/EditorWindow.cpp
     src/EditorInput.cpp
+    src/EditorSession.cpp
     src/EditorRender.cpp
     src/EditorLayout.cpp
     src/EditorChrome.cpp
@@ -140,9 +142,11 @@ set(CRISP_APP_SOURCES
     src/EditorTooltip.cpp
     src/HistoryWindow.cpp
     src/HistoryInput.cpp
+    src/HistoryActions.cpp
     src/SettingsWindow.cpp
     src/HotkeyEdit.cpp
     src/SettingsInput.cpp
+    src/SettingsValues.cpp
     src/Toast.cpp
     src/PinWindow.cpp
     src/Ocr.cpp

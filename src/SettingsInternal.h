@@ -91,6 +91,12 @@ void LoadIntoControls(HWND window, const State& state);
 // Denetimlerdeki değerleri state.working'e okur.
 void ReadFromControls(HWND window, State& state);
 
+// --- Değer alışverişi (SettingsValues.cpp) ----------------------------------
+[[nodiscard]] std::wstring GetText(HWND window, int id);
+[[nodiscard]] bool PickFolder(HWND owner, std::wstring& folder);
+void ResetToDefaults(HWND window, State& state);
+void ClearHistory(HWND window, const State& state);
+
 void Paint(HWND window, State& state);
 
 }  // namespace settings_ui

@@ -15,6 +15,12 @@
 
 namespace crisp {
 
+// Kaplamayı çalıştırıp seçili alanı kırpar (AppCapture.cpp). Yakalama ve
+// metin akışları ayrı dosyalarda olduğu için paylaşılır.
+[[nodiscard]] bool RunRegionCapture(HINSTANCE instance, const Settings& settings,
+                                    bool preferWindowPick, Image& out,
+                                    POINT& origin);
+
 enum class CaptureMode {
     Region,       // sürükleyerek alan
     Window,       // imlecin altındaki pencere

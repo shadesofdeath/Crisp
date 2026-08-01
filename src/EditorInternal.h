@@ -161,6 +161,10 @@ void LayoutButtons(State& state, const RECT& client);
 void LayoutCanvas(State& state, const RECT& client);
 void Paint(HWND window, State& state);
 
+// Pencere yordamı; sınıfı kaydeden EditorSession.cpp'den görünmesi gerekir.
+LRESULT CALLBACK EditorProc(HWND window, UINT message, WPARAM wParam,
+                            LPARAM lParam);
+
 // --- Araç çubuğu çizimi (EditorChrome.cpp) ----------------------------------
 void FillRectColor(HDC dc, const RECT& r, COLORREF color);
 void FrameRectColor(HDC dc, const RECT& r, int thickness, COLORREF color);
