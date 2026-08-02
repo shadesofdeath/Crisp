@@ -134,6 +134,17 @@ void ResetToDefaults(HWND window, State& state);
 // duran bir "API anahtarı" kutusu, kullanıcıya bulması gereken bir şey olduğunu
 // düşündürür.
 void UpdateUploadKeyState(HWND window, const State& state);
+
+// Servis listesini doldurur ve `state.uploadServiceIds`i onunla AYNI SIRAYA
+// kurar; ayraç satırının kimliği boş dizedir.
+void FillUploadServices(HWND box, State& state);
+
+// Bağlantı ömrünü okunur hâle getirir: 72 → "3 gün", 3 → "3 saat".
+//
+// SAAT CİNSİNDEN SAKLANIYOR, ÇÜNKÜ ÜÇ SAATLİK BİR SERVİS VAR — ama kimse "720
+// saat" diye okumuyor. Tam güne bölünen her süre gün olarak yazılır.
+[[nodiscard]] std::wstring FormatLifetime(unsigned hours);
+
 void ClearHistory(HWND window, const State& state);
 
 void Paint(HWND window, State& state);

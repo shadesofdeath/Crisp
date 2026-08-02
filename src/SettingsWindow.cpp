@@ -338,35 +338,7 @@ void BuildControls(HWND window, State& state) {
                                          Loc::Str(IDS_SET_UPLOAD_SERVICE).c_str(),
                                          L"COMBOBOX", CBS_DROPDOWNLIST | WS_VSCROLL);
 
-    size_t serviceCount = 0;
-    const UploadServiceInfo* services = UploadServices(serviceCount);
-    for (size_t i = 0; i < serviceCount; ++i) {
-        const UploadServiceInfo& info = services[i];
-
-        std::wstring label;
-        if (info.service == UploadService::None) {
-            label = Loc::Str(IDS_SET_UPLOAD_NONE);
-        } else {
-            label = info.displayName;
-            // SÜRE VE ANAHTAR İHTİYACI ADIN YANINDA DURUYOR. Bir servisi
-            // seçtikten sonra "bu neden anahtar istiyor" ya da "bağlantım neden
-            // öldü" diye sormak zorunda kalmak, listede iki kelimeyle
-            // önlenebilecek bir şey.
-            if (info.lifetimeHours > 0) {
-                wchar_t suffix[48] = {};
-                ::swprintf_s(suffix, L"  ·  %u sa", info.lifetimeHours);
-                label += suffix;
-            }
-            if (info.needsKey) {
-                label += L"  ·  ";
-                label += info.keyLabel;
-            }
-        }
-
-        ::SendMessageW(uploadBox, CB_ADDSTRING, 0,
-                       reinterpret_cast<LPARAM>(label.c_str()));
-        state.uploadServiceIds.emplace_back(info.id);
-    }
+    FillUploadServices(uploadBox, state);
 
     // ES_PASSWORD: anahtar omuz üstünden okunacak bir şey değil. Kullanıcı onu
     // bir kez yapıştırıp bir daha bakmıyor; açıkta durmasının bir faydası yok.

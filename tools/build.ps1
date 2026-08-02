@@ -28,6 +28,10 @@
 .PARAMETER Package
     Derleme sonrası cpack ile portable ZIP üretir.
 
+.PARAMETER Installer
+    Inno Setup ile kurulum .exe'si üretir. ISCC.exe bulunamazsa hata verir;
+    winget install JRSoftware.InnoSetup ile kurulur.
+
 .EXAMPLE
     tools\build.ps1 -Config Release -Test
 
@@ -43,7 +47,8 @@ param(
     [switch] $NoTests,
     [switch] $Test,
     [switch] $Clean,
-    [switch] $Package
+    [switch] $Package,
+    [switch] $Installer
 )
 
 $ErrorActionPreference = 'Stop'
@@ -216,6 +221,52 @@ if ($Package) {
         '-C' $Config `
         '-B' $buildDir
     Assert-ExitCode 'cpack'
+}
+
+if ($Installer) {
+    if ($CoreOnly) {
+        throw '-Installer için uygulama hedefi gerekir; -CoreOnly ile birlikte kullanılamaz.'
+    }
+
+    Write-Step 'Kurulum programı (Inno Setup)'
+
+    # ISCC ÜÇ YERDE ARANIYOR. winget kurulumu, yönetici hakkı olmadığında
+    # %LOCALAPPDATA%\Programs altına düşüyor ve klasik Program Files yolunu
+    # bekleyen bir betik onu bulamıyor.
+    $isccCandidates = @(
+        (Join-Path $env:LOCALAPPDATA 'Programs\Inno Setup 6\ISCC.exe'),
+        (Join-Path ${env:ProgramFiles(x86)} 'Inno Setup 6\ISCC.exe'),
+        (Join-Path $env:ProgramFiles 'Inno Setup 6\ISCC.exe')
+    )
+    $iscc = $isccCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
+    if (-not $iscc) {
+        $iscc = (Get-Command 'iscc' -ErrorAction SilentlyContinue).Source
+    }
+    if (-not $iscc) {
+        throw "ISCC.exe bulunamadı. Kurmak için: winget install JRSoftware.InnoSetup"
+    }
+
+    # Sürüm numarası CMake'ten okunur; kurulum dosyasının adına ve
+    # "Uygulamalar ve özellikler" girdisine o yazılır.
+    $cmakeLists = Join-Path $repoRoot 'CMakeLists.txt'
+    $versionMatch = Select-String -LiteralPath $cmakeLists -Pattern 'VERSION\s+(\d+\.\d+\.\d+)' |
+        Select-Object -First 1
+    if (-not $versionMatch) {
+        throw "CMakeLists.txt içinde sürüm numarası bulunamadı: $cmakeLists"
+    }
+    $version = $versionMatch.Matches[0].Groups[1].Value
+    Write-Host "  Sürüm     : $version"
+
+    # Sihirbaz görselleri her seferinde üretiliyor: simge değişirse kurulum da
+    # değişsin, ve depoda elle güncellenmesi gereken bir .bmp durmasın.
+    & (Join-Path $PSScriptRoot 'make-wizard-images.ps1') | Out-Null
+
+    & $iscc `
+        "/DAppVersion=$version" `
+        "/DSourceDir=$buildDir" `
+        "/DOutputDir=$buildDir" `
+        (Join-Path $repoRoot 'packaging\Crisp.iss')
+    Assert-ExitCode 'ISCC'
 }
 
 Write-Step 'Tamamlandı'

@@ -118,8 +118,8 @@ UploadResult UploadPng(UploadService service, const std::wstring& apiKey,
         return result;
     }
 
-    Handle http(::WinHttpOpenRequest(connection.get(), L"POST", request.path.c_str(),
-                                     nullptr, WINHTTP_NO_REFERER,
+    Handle http(::WinHttpOpenRequest(connection.get(), request.verb.c_str(),
+                                     request.path.c_str(), nullptr, WINHTTP_NO_REFERER,
                                      WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE));
     if (!http) {
         result.error = UploadError::Network;

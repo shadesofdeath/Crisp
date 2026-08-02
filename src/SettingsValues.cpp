@@ -22,9 +22,80 @@
 namespace crisp {
 namespace settings_ui {
 
+std::wstring FormatLifetime(unsigned hours) {
+    const bool wholeDays = hours >= 24 && hours % 24 == 0;
+    const unsigned value = wholeDays ? hours / 24 : hours;
+    const std::wstring format =
+        Loc::Str(wholeDays ? IDS_SET_UPLOAD_DAYS : IDS_SET_UPLOAD_HOURS);
+
+    // Biçim dizesi ÇEVİRİ DOSYASINDAN geliyor ve içinde tek bir %u olması
+    // gerekiyor. Bir çeviride ikinci bir %u belirirse `swprintf_s` yığından
+    // çöp okur; o yüzden sayı doğrudan yazılıp yerine konuyor.
+    const size_t at = format.find(L"%u");
+    if (at == std::wstring::npos) {
+        return format;
+    }
+    wchar_t number[16];
+    ::swprintf_s(number, L"%u", value);
+    return format.substr(0, at) + number + format.substr(at + 2);
+}
+
+void FillUploadServices(HWND box, State& state) {
+    size_t count = 0;
+    const UploadServiceInfo* services = UploadServices(count);
+
+    for (size_t i = 0; i < count; ++i) {
+        const UploadServiceInfo& info = services[i];
+
+        // AYRAÇ, ÇÜNKÜ LİSTE İKİYE BÖLÜNÜYOR. On servisin hesap istemediğini,
+        // üçünün istediğini her satırı tek tek okuyarak anlamak gerekiyordu.
+        // Ayracın kimliği BOŞ; seçilemez olduğunu `UpdateUploadKeyState` bilir.
+        if (info.startsKeyGroup) {
+            const std::wstring divider =
+                L"──────  " + Loc::Str(IDS_SET_UPLOAD_NEEDS_KEY) + L"  ──────";
+            ::SendMessageW(box, CB_ADDSTRING, 0,
+                           reinterpret_cast<LPARAM>(divider.c_str()));
+            state.uploadServiceIds.emplace_back();
+        }
+
+        std::wstring label;
+        if (info.service == UploadService::None) {
+            label = Loc::Str(IDS_SET_UPLOAD_NONE);
+        } else {
+            // SÜRE VE BEDEL ADIN YANINDA DURUYOR. Bir servisi seçtikten sonra
+            // "bu neden anahtar istiyor" ya da "bağlantım neden öldü" diye
+            // sormak zorunda kalmak, listede iki kelimeyle önlenebilir.
+            label = info.displayName;
+            label += L"  ·  ";
+            label += info.lifetimeHours == 0 ? Loc::Str(IDS_SET_UPLOAD_FOREVER)
+                                             : FormatLifetime(info.lifetimeHours);
+            // "ücretsiz" AYRAÇLA BİRLİKTE DEĞİL, HER SATIRDA. Liste kapalıyken
+            // yalnızca seçili satır görünür ve orada grup başlığı diye bir şey
+            // yoktur.
+            label += L"  ·  ";
+            label += info.needsKey ? info.keyLabel : Loc::Str(IDS_SET_UPLOAD_FREE);
+        }
+
+        ::SendMessageW(box, CB_ADDSTRING, 0,
+                       reinterpret_cast<LPARAM>(label.c_str()));
+        state.uploadServiceIds.emplace_back(info.id);
+    }
+}
+
 void UpdateUploadKeyState(HWND window, const State& state) {
-    const LRESULT index =
+    LRESULT index =
         ::SendDlgItemMessageW(window, kIdUploadService, CB_GETCURSEL, 0, 0);
+
+    // AYRAÇ SEÇİLEMEZ. Bir combo box'ta her satır seçilebilir; ayraç bir satır
+    // olmak zorunda ama bir seçim olmamalı. Üstüne gelinirse bir sonrakine —
+    // yani anahtar isteyen ilk servise — kayar.
+    if (index >= 0 && static_cast<size_t>(index) < state.uploadServiceIds.size() &&
+        state.uploadServiceIds[static_cast<size_t>(index)].empty()) {
+        ++index;
+        ::SendDlgItemMessageW(window, kIdUploadService, CB_SETCURSEL,
+                              static_cast<WPARAM>(index), 0);
+    }
+
     bool needsKey = false;
     if (index >= 0 && static_cast<size_t>(index) < state.uploadServiceIds.size()) {
         const UploadService service =

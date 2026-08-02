@@ -27,7 +27,15 @@ struct UploadRequest {
     std::wstring host;      // "api.imgur.com"
     std::wstring path;      // "/3/image"
     std::wstring headers;   // CRLF ile ayrılmış ek başlıklar; boş olabilir
-    std::string body;       // multipart gövdesi, baytlar
+    std::string body;       // gövde baytları: multipart zarfı ya da dosyanın kendisi
+    // İSTİSNA VAR, O YÜZDEN ALAN VAR. On iki servis multipart/form-data ile
+    // POST kabul ediyor; bashupload.app etmiyor — gövdeyi olduğu gibi dosya
+    // sayıyor. Ona multipart göndermek hata vermiyor, çok daha kötüsünü
+    // yapıyor: sınırlayıcı satırlarını ve başlıkları da içeren zarfın TAMAMINI
+    // dosya olarak saklıyor ve geriye çalışan bir bağlantı döndürüyor.
+    // Bağlantıya tıklanana kadar hiçbir şey yanlış görünmüyor.
+    std::wstring verb = L"POST";
+    bool rawBody = false;   // true: gövde dosyanın kendisi, zarf yok
     bool valid = false;
     std::wstring error;     // valid=false ise sebebi, kullanıcıya gösterilecek hâlde
 };

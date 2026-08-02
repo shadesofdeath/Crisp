@@ -299,3 +299,10 @@
 
 // Yerleşmiş seçimin ipucu: boyutlandırma, taşıma ve onaylama.
 #define IDS_HINT_REGION_SETTLED 1226
+
+// Servis listesinin etiketleri: ayraç, ücretsiz işareti ve bağlantı ömrü.
+#define IDS_SET_UPLOAD_NEEDS_KEY 1227
+#define IDS_SET_UPLOAD_FREE      1228
+#define IDS_SET_UPLOAD_FOREVER   1229
+#define IDS_SET_UPLOAD_HOURS     1230
+#define IDS_SET_UPLOAD_DAYS      1231

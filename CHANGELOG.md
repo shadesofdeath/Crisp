@@ -5,6 +5,61 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.7.0 — thirteen places to put a screenshot, and a way to install it
+
+### Added — six more upload services
+
+kappa.lol and pone.rs (permanent), qu.ax (30 days), x0.at (3 days and up by
+size), temp.sh (3 days) and bashupload.app (24 hours). None of them wants an
+account. That makes ten keyless services and three that take a key.
+
+- **The list has a divider in it now.** Thirteen entries where three behave
+  differently is a list you have to read twice; the keyless ones come first,
+  longest-lived first, then a rule, then the three that want a key. Every row
+  also carries its own lifetime and either "free" or the name of the key it
+  wants — because with the list closed you only see the row you picked, and a
+  divider you cannot see explains nothing.
+- **The lifetime is written in days where days make sense.** It was stored in
+  hours and printed as `72 sa` — hours, in Turkish, in all sixteen languages.
+- Not every service returns a direct image link and the README now says which:
+  qu.ax and temp.sh hand back a page, bashupload serves a download. They are
+  in the list because they were asked for, not because they are equivalent.
+
+Each of the six was verified by uploading through Crisp's own code, not by
+reading documentation — which is how two of the following were found.
+
+### Fixed
+
+- **bashupload was storing the multipart envelope as the file.** It does not
+  parse `multipart/form-data`; it treats the request body as the file, so what
+  landed on the server was the boundary lines, the headers and the PNG, saved
+  as one file — and it answered with a working link the whole time. Nothing
+  looked wrong until you clicked it. It gets the raw bytes over `PUT` now, which
+  is what its own documentation always said, and a test pins the request shape.
+- bashupload also answers with an `http://` address. It is upgraded to `https://`
+  before it reaches the clipboard; sending the request over TLS and then handing
+  back a plaintext link would have been theatre.
+- Without an expiry header bashupload deletes the file after one download — the
+  first person you send the link to gets the image and the second gets nothing.
+  Crisp asks for the longest window the server allows.
+
+### Added — an installer
+
+`Crisp-x.y.z-setup-x64.exe`, alongside the portable ZIP and containing the same
+executable. Start menu entry, optional desktop shortcut, optional start at
+sign-in, proper uninstaller, fifteen languages.
+
+- **It asks for no administrator rights.** Crisp writes only to `HKCU` and
+  installs one file; with no elevation available it installs under your own
+  profile instead of demanding a UAC prompt for nothing.
+- **Uninstalling leaves your settings alone.** Shortcuts, the save folder and
+  the API key stay in `HKCU` so a reinstall finds them.
+- **It closes a running Crisp first.** Restart Manager could not: it asks
+  *windows* to close and Crisp is a tray application whose only window is
+  hidden, so an uninstall while Crisp was running removed the shortcuts, left
+  the executable behind, and reported success. The installer now asks the window
+  class to close, which is the same clean shutdown as quitting from the tray.
+
 ## 0.6.1 — say that it is still working
 
 ### Added

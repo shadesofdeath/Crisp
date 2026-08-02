@@ -41,11 +41,13 @@ namespace crisp {
 // SAYILAR AYAR DOSYASINA YAZILMAZ — kimlik olarak `UploadServiceId` döndürdüğü
 // metin kullanılır. Enum'a ortadan bir üye eklemek, ayar dosyasında başka bir
 // servisi seçili hâle getirirdi.
+// YENİ ÜYE SONA EKLENİR. Sayılar ayar dosyasına yazılmıyor, ama listedeki
+// GÖRÜNME SIRASI `kServices` tablosunun sırasıdır — ikisi birbirinden ayrı ve
+// öyle kalmalı. Enum'a ortadan eklemek, `service >= Count` sınırını ve gelecekte
+// birinin sayıyı dizin sanmasını riske atar.
 enum class UploadService : unsigned {
     None = 0,
-    // Anahtar istemeyenler. Kalıcı olan başta: süreli bir servise koyup
-    // unutulan bağlantı, bir süre sonra sessizce ölür ve bunu ancak karşı
-    // taraf fark eder.
+    // Anahtar istemeyenler.
     Catbox,      // catbox.moe — kalıcı
     Litterbox,   // litterbox.catbox.moe — 72 saat
     Uguu,        // uguu.se — 3 saat
@@ -54,6 +56,13 @@ enum class UploadService : unsigned {
     Imgur,       // api.imgur.com — Client ID
     ImgBB,       // api.imgbb.com — API anahtarı
     FreeImage,   // freeimage.host — API anahtarı (Chevereto)
+    // Sonradan eklenen, anahtar istemeyenler.
+    KappaLol,    // kappa.lol — kalıcı
+    PoneRs,      // pone.rs — kalıcı
+    QuAx,        // qu.ax — 30 gün; bağlantı bir SAYFA, doğrudan görüntü değil
+    X0At,        // x0.at — boyuta göre 3–100 gün
+    TempSh,      // temp.sh — 3 gün
+    BashUpload,  // bashupload.app — 24 saat, indirme olarak sunulur
     Count,
 };
 
@@ -74,7 +83,19 @@ struct UploadServiceInfo {
     // SÜRELİ SERVİSLER GİZLENMEZ, SÖYLENİR. Bir ekran görüntüsünü paylaşıp üç
     // saat sonra ölen bir bağlantı bırakmak, kullanıcının kendi seçtiği bir şey
     // olmalı — sonradan keşfettiği bir şey değil.
+    //
+    // EN KISA SÜRE YAZILIR. x0.at dosya boyutuna göre 3 ile 100 gün arası
+    // tutuyor; büyük olanı yazmak, küçük bir ekran görüntüsünün gerçekte ne
+    // kadar yaşayacağı konusunda kullanıcıyı yanıltırdı.
     unsigned lifetimeHours = 0;
+
+    // Listede bu satırın üstüne ayraç çizilir. Anahtar isteyen servislerin
+    // ilkinde işaretli.
+    //
+    // AYRAÇ VERİDE, ÇÜNKÜ SIRA VERİDE. Ayarlar penceresinin "beşinciden sonra
+    // çizgi koy" diye bir sayı tutması, tabloya bir servis eklendiği gün
+    // sessizce yanlış yere çizerdi.
+    bool startsKeyGroup = false;
 };
 
 // Bilinen servisler, arayüzün göstereceği sırayla: önce anahtar istemeyenler.
@@ -153,6 +174,18 @@ struct UploadResult {
 // JSON. Ayrım burada, tek yerde.
 [[nodiscard]] std::wstring ExtractUploadLink(UploadService service,
                                              const std::string& body);
+
+// Gövdedeki, `http` ile başlayan ilk satır. Boş dize: öyle bir satır yok.
+//
+// GÖVDENİN TAMAMI ADRES DEĞİL. bashupload adresin etrafına boş satırlar ve
+// dosyanın ne zaman öleceğini anlatan iki dilli bir uyarı yazıyor; adres
+// bunların arasından tek başına çıkarılmalı.
+//
+// Bulunan adres `http://` ise `https://` yapılır. Servis kendi adresini
+// şifresiz yazıyor ama şifreli hâli de çalışıyor (sınandı); kullanıcının
+// panosuna şifresiz bir bağlantı koymak, gönderdiğimiz isteğin şifreli
+// olmasını anlamsızlaştırırdı.
+[[nodiscard]] std::wstring FirstHttpLine(const std::string& body);
 
 // JSON gövdesinde noktalı bir yol arar: `JsonFindString(body, "data.link")`.
 //

@@ -9,6 +9,18 @@ Copy to clipboard is the **only** default output action. Save to file, open
 editor, pin to screen, reveal in folder, copy path, copy file, OCR to clipboard
 and upload are all off until you turn them on.
 
+## Get it
+
+Two downloads on the [releases page](https://github.com/shadesofdeath/Crisp/releases),
+both the same executable:
+
+- **`Crisp-x.y.z-portable-x64.zip`** — unzip and run. Writes nothing outside
+  `HKCU`, or nothing at all if you drop an empty `Crisp.ini` next to it.
+- **`Crisp-x.y.z-setup-x64.exe`** — Start menu entry, optional desktop shortcut,
+  optional start-at-sign-in, and an uninstaller. Asks for no administrator
+  rights: with none it installs under your own profile. Uninstalling removes
+  what it installed and leaves your settings alone.
+
 ## Region
 
 `Ctrl+Shift+S`. The overlay freezes the whole virtual desktop and paints that
@@ -124,15 +136,39 @@ its own** — the one thing here that can surprise you after you have opted in,
 which is why it sits last in a list of nine where the other eight keep the image
 on your machine.
 
-- No account: Catbox (permanent), Litterbox (72 h), Uguu (3 h), 0x0.st.
-- Your own key: Imgur (Client ID), ImgBB, Freeimage.host. Without a key the
-  request is never built; there is no anonymous fallback.
+Every service in the list is one somebody else runs. Read what you are sending
+before you send it.
+
+Thirteen services. The list is split in two, with a divider, and every entry
+says how long its links live and what it costs you:
+
+| No account | Link lives |
+| --- | --- |
+| Catbox, kappa.lol, pone.rs | permanent |
+| 0x0.st, qu.ax | 30 days |
+| Litterbox, x0.at, temp.sh | 3 days |
+| bashupload.app | 24 hours |
+| Uguu | 3 hours |
+
+| Your own key | |
+| --- | --- |
+| Imgur | Client ID |
+| ImgBB, Freeimage.host | API key |
+
+- Without a key the request is never built; there is no anonymous fallback.
+- Most services hand back a direct image link. **qu.ax and temp.sh return a
+  page** with the image on it, not the image itself — fine for sending to a
+  person, no good as an `<img src>`. **bashupload.app** serves its files as
+  downloads rather than displaying them, and 24 hours is its ceiling.
 - The returned link goes to the clipboard. No browser is opened.
-- HTTPS only, over WinHTTP, with no certificate checks relaxed.
+- HTTPS only, over WinHTTP, with no certificate checks relaxed. bashupload
+  answers with an `http://` address; it is upgraded before it reaches you.
 - The API key is stored in plain text in the registry or the ini file. It is
   masked on screen and nowhere else.
-- The seven-service list is closed — no custom or self-hosted endpoint.
+- The list is closed — no custom or self-hosted endpoint.
 - Recent links live in the tray menu: the last ten, click one to copy it again.
+- Slow services take fifteen to twenty seconds. A notification stays up for the
+  whole wait, counting the seconds, and the result replaces it.
 
 Nothing else here touches the network: no update check, no telemetry, no crash
 reporting.
@@ -180,10 +216,11 @@ the Windows SDK, no external dependencies and no package manager step. The
 application manifest declares Windows 10/11.
 
 ```
-tools\build.ps1 -Config Release -Test
+tools\build.ps1 -Config Release -Test -Package -Installer
 ```
 
-Or by hand:
+`-Installer` needs Inno Setup (`winget install JRSoftware.InnoSetup`); everything
+else needs nothing but MSVC. Or by hand:
 
 ```
 cmake -S . -B build\Release -G Ninja -DCMAKE_BUILD_TYPE=Release

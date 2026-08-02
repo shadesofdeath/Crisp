@@ -200,3 +200,138 @@ CRISP_TEST(Upload, Utf8_gidis_donusu) {
     CHECK(WideToUtf8(L"").empty());
     CHECK(Utf8ToWide("").empty());
 }
+
+// --- Sonradan eklenen altı servis ------------------------------------------
+//
+// HEPSİ GERÇEK YANITLAR. Aşağıdaki gövdeler uydurulmadı; her biri servise bir
+// PNG gönderilip dönen yanıttan alındı. Bir şemayı hayal ederek yazılan sınama,
+// yalnızca hayalin kendisiyle tutarlı olur.
+
+CRISP_TEST(Upload, QuAx_dizinin_ilk_ogesinden_okur) {
+    const std::string body =
+        R"({"files":[{"expires":1788291577,"file_name":"eAdMU",)"
+        R"("hash":"026caf92","size":313,"url":"https://qu.ax/eAdMU"}],"success":true})";
+    CHECK(ExtractUploadLink(UploadService::QuAx, body) ==
+          std::wstring(L"https://qu.ax/eAdMU"));
+}
+
+CRISP_TEST(Upload, KappaLol_baglantiyi_silme_adresiyle_karistirmaz) {
+    // `delete` de bir adres ve `link`ten SONRA geliyor; yol adı arıyor, sırayı
+    // değil, ama yanlış alanı okuyan bir sürüm bu sınamada yakalanır.
+    const std::string body =
+        R"({"id":"SatlA2","ext":".png","type":"image/png","key":"UmxXrt74",)"
+        R"("link":"https://kappa.lol/SatlA2",)"
+        R"("delete":"https://kappa.lol/delete?UmxXrt74"})";
+    CHECK(ExtractUploadLink(UploadService::KappaLol, body) ==
+          std::wstring(L"https://kappa.lol/SatlA2"));
+}
+
+CRISP_TEST(Upload, BashUpload_adresi_uyarilarin_arasindan_cikarir) {
+    // Gövde: iki boş satır, adres, sonra iki dilli bir süre uyarısı.
+    const std::string body =
+        "\n\nhttp://bashupload.app/487u2s.bin\n\n"
+        "\xF0\x9F\x95\x90 24小时\n"
+        "   Note: This file will expire after 24 hours.\n";
+    // http:// olarak geliyor, https:// olarak kopyalanıyor.
+    CHECK(ExtractUploadLink(UploadService::BashUpload, body) ==
+          std::wstring(L"https://bashupload.app/487u2s.bin"));
+}
+
+CRISP_TEST(Upload, FirstHttpLine_adres_yoksa_bos_doner) {
+    CHECK(FirstHttpLine("").empty());
+    CHECK(FirstHttpLine("bir hata oldu\nikinci satir\n").empty());
+    // "http" ile BAŞLAMAYAN bir satırın içindeki adres sayılmaz: gövdenin
+    // hangi kısmının adres olduğunu tahmin etmeye çalışmıyoruz.
+    CHECK(FirstHttpLine("adres: https://x.example/a.png\n").empty());
+    CHECK(FirstHttpLine("https://x.example/a.png") ==
+          std::wstring(L"https://x.example/a.png"));
+}
+
+CRISP_TEST(Upload, Yeni_duz_metin_servisleri) {
+    CHECK(ExtractUploadLink(UploadService::TempSh, "https://temp.sh/zWELn/crisp.png\n") ==
+          std::wstring(L"https://temp.sh/zWELn/crisp.png"));
+    CHECK(ExtractUploadLink(UploadService::X0At, "https://x0.at/iwjj.png\n\n") ==
+          std::wstring(L"https://x0.at/iwjj.png"));
+    CHECK(ExtractUploadLink(UploadService::PoneRs, "https://u.pone.rs/nyqpdjsl.png\n") ==
+          std::wstring(L"https://u.pone.rs/nyqpdjsl.png"));
+}
+
+CRISP_TEST(Upload, Her_servisin_bir_istegi_kurulabiliyor) {
+    // ANAHTARSIZ HER SERVİS ANAHTARSIZ KURULABİLMELİ. Tabloya yeni bir satır
+    // eklerken `BuildUploadRequest`teki switch'i güncellemeyi unutmak, o
+    // servisi seçen kullanıcı için sessiz bir çökme değil ama sessiz bir
+    // "hiçbir şey olmadı" olurdu.
+    const std::vector<unsigned char> png{0x89, 'P', 'N', 'G'};
+    size_t count = 0;
+    const UploadServiceInfo* services = UploadServices(count);
+    for (size_t i = 0; i < count; ++i) {
+        const UploadServiceInfo& info = services[i];
+        if (info.service == UploadService::None) {
+            continue;
+        }
+        const std::wstring key = info.needsKey ? L"anahtar" : L"";
+        const UploadRequest request =
+            BuildUploadRequest(info.service, key, png, L"crisp.png");
+        CHECK(request.valid);
+        CHECK(!request.path.empty());
+        CHECK(!request.body.empty());
+        CHECK(std::wstring(info.host) == request.host);
+    }
+}
+
+CRISP_TEST(Upload, Ayrac_yalnizca_bir_kez_ve_anahtar_grubunun_basinda) {
+    size_t count = 0;
+    const UploadServiceInfo* services = UploadServices(count);
+
+    int dividers = 0;
+    bool seenKeyService = false;
+    for (size_t i = 0; i < count; ++i) {
+        if (services[i].startsKeyGroup) {
+            ++dividers;
+            // Ayraçtan ÖNCE anahtar isteyen bir servis görülmüş olmamalı.
+            CHECK(!seenKeyService);
+            CHECK(services[i].needsKey);
+        }
+        if (services[i].needsKey) {
+            seenKeyService = true;
+        }
+    }
+    CHECK_EQ(dividers, 1);
+}
+
+CRISP_TEST(Upload, BashUpload_zarf_degil_dosyanin_kendisini_gonderir) {
+    // MULTIPART GÖNDERİLİRSE SUNUCU ZARFI DOSYA SANIYOR. Hata da vermiyor:
+    // çalışan bir bağlantı dönüyor ve bağlantının ardındaki dosya, sınırlayıcı
+    // satırlarıyla birlikte multipart gövdesinin tamamı oluyor. Bağlantıya
+    // tıklanana kadar hiçbir şey yanlış görünmüyor, ve bu sınama tam olarak o
+    // sessizliği kırmak için var.
+    const std::vector<unsigned char> png{0x89, 'P', 'N', 'G', 0x0D, 0x0A};
+    const UploadRequest request =
+        BuildUploadRequest(UploadService::BashUpload, L"", png, L"crisp.png");
+
+    CHECK(request.valid);
+    CHECK(request.verb == std::wstring(L"PUT"));
+    CHECK(request.rawBody);
+    CHECK(request.path == std::wstring(L"/crisp.png"));
+    CHECK_EQ(request.body.size(), png.size());
+    CHECK(request.body.find("Content-Disposition") == std::string::npos);
+    CHECK(request.headers.find(L"X-Expiration-Seconds") != std::wstring::npos);
+}
+
+CRISP_TEST(Upload, Digerleri_multipart_ve_POST_kalir) {
+    const std::vector<unsigned char> png{0x89, 'P', 'N', 'G'};
+    size_t count = 0;
+    const UploadServiceInfo* services = UploadServices(count);
+    for (size_t i = 0; i < count; ++i) {
+        const UploadService service = services[i].service;
+        if (service == UploadService::None || service == UploadService::BashUpload) {
+            continue;
+        }
+        const std::wstring key = services[i].needsKey ? L"anahtar" : L"";
+        const UploadRequest request =
+            BuildUploadRequest(service, key, png, L"crisp.png");
+        CHECK(request.verb == std::wstring(L"POST"));
+        CHECK(!request.rawBody);
+        CHECK(request.headers.find(L"multipart/form-data") != std::wstring::npos);
+    }
+}
