@@ -361,6 +361,17 @@ void App::UploadInBackground(const Image& image) {
         return;
     }
 
+    // SÜRDÜĞÜNÜ SÖYLE. Yükleme servise ve dosya boyutuna göre yirmi saniyeyi
+    // bulabiliyor ve o süre boyunca ekranda hiçbir şey yoktu: kullanıcının
+    // gördüğü, yakalamanın bildirimi sönüyor ve sonra uzun bir sessizlik.
+    // İşin sürdüğü ile unutulduğu aynı görünüyordu. Bu bildirim sönmez ve
+    // saniyeleri sayar; yerini sonucu bildiren bildirim alır.
+    m_uploadPending = true;
+    if (m_settings.showNotification) {
+        ShowProgressToast(m_instance, image, Loc::Str(IDS_UPLOAD_WORKING),
+                          UploadServiceOf(service).displayName);
+    }
+
     // AYRILMIŞ İŞ PARÇACIĞI: yakalama akışı burada bitiyor ve kullanıcı bir
     // saniyeliğine donmuş bir tepsi uygulaması görmemeli. Yükleme kendi hızında
     // biter ve sonucu bir mesajla geri gönderir.
@@ -396,6 +407,7 @@ void App::UploadInBackground(const Image& image) {
 void App::FinishBackgroundUpload(LPARAM lParam) {
     const std::unique_ptr<UploadToast> payload(
         reinterpret_cast<UploadToast*>(lParam));
+    m_uploadPending = false;
     if (!payload) {
         return;
     }

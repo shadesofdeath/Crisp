@@ -8,7 +8,7 @@ project(crisp
         # deÄŸiÅŸiklik gÃ¼nlÃ¼ÄŸÃ¼ 0.4.0'a gelmiÅŸken burasÄ± hÃ¢lÃ¢ 0.1.0 diyordu, ve
         # sÃ¼rÃ¼m numarasÄ±nÄ± arÅŸivin adÄ±na yazan CPack yanlÄ±ÅŸ adlÄ± bir paket
         # Ã¼retiyordu.
-        VERSION 0.6.0
+        VERSION 0.6.1
         DESCRIPTION "Screen capture tool for Windows"
         LANGUAGES CXX RC)
 

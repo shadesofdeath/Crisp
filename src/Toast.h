@@ -25,6 +25,19 @@ void ShowCaptureToast(HINSTANCE instance, const Image& capture,
                       const std::wstring& title, const std::wstring& detail,
                       const std::wstring& openPath);
 
+// Süren bir iş için bildirim: SÖNMEZ, yerini bir sonraki bildirim alana kadar
+// durur, ve ayrıntı satırının sonunda geçen saniyeyi sayar.
+//
+// SÖNMEMESİ ASIL ÖZELLİĞİ. Yükleme servise göre yirmi saniye sürebiliyor ve
+// üç saniyede sönen bir "yükleniyor" bildirimi, kalan on yedi saniye boyunca
+// kullanıcıya hiçbir şey söylemiyor: işin sürdüğü ile unutulduğu aynı görünür.
+//
+// Yine de sonsuz değil: çağıran taraf sonucu bildirmeden ölürse bildirim
+// `kStuckMs` sonunda kendiliğinden kapanır. Ekranda sonsuza dek duran bir
+// kutu, hiç göstermemekten kötüdür.
+void ShowProgressToast(HINSTANCE instance, const Image& capture,
+                       const std::wstring& title, const std::wstring& detail);
+
 // Uygulama kapanırken; açık bildirim varsa kapatır.
 void CloseCaptureToast() noexcept;
 

@@ -34,6 +34,11 @@ constexpr int kFadeInMs = 120;
 constexpr int kHoldMs = 2600;
 constexpr int kFadeOutMs = 320;
 
+// Süren iş bildiriminin sabrı: iki dakika sonra kendiliğinden kapanır. Hiçbir
+// yükleme bu kadar sürmemeli; sürdüyse de ekranda kalıcı bir kutu bırakmaktansa
+// kapanması yeğdir.
+constexpr int kStuckMs = 120000;
+
 struct ToastState {
     Image thumbnail;
     std::wstring title;
@@ -42,6 +47,9 @@ struct ToastState {
     unsigned dpi = 96;
     int elapsed = 0;
     bool hovered = false;
+
+    // Süren bir iş: sönme yok, ayrıntının sonunda saniye sayacı var.
+    bool progress = false;
 };
 
 // TEK BİLDİRİM: ikinci yakalama birincinin bildirimini devralır. Üst üste
@@ -162,12 +170,22 @@ void Paint(HWND window, ToastState& state) {
                     DT_NOPREFIX);
     ::SelectObject(memory, old1);
 
+    // SAYAÇ AYRINTININ İÇİNDE, ÇÜNKÜ ZAMAN BURADA. Geçen süreyi bilen tek yer
+    // bu dosya; çağıran tarafın her saniye metin güncellemesi için bir yol
+    // açmak, aynı bilgiyi iki yere koymak olurdu.
+    std::wstring detail = state.detail;
+    if (state.progress) {
+        wchar_t seconds[16];
+        ::swprintf_s(seconds, L"  ·  %d s", state.elapsed / 1000);
+        detail += seconds;
+    }
+
     RECT detailArea{textLeft, titleArea.bottom, width - pad,
                     titleArea.bottom + Scale(20, dpi)};
     const HGDIOBJ old2 = ::SelectObject(memory, fontDetail);
     ::SetTextColor(memory, state.hovered && !state.openPath.empty() ? colors.accent
                                                                    : colors.textDim);
-    ::DrawTextW(memory, state.detail.c_str(), -1, &detailArea,
+    ::DrawTextW(memory, detail.c_str(), -1, &detailArea,
                 DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_PATH_ELLIPSIS |
                     DT_NOPREFIX);
     ::SelectObject(memory, old2);
@@ -183,7 +201,16 @@ void Paint(HWND window, ToastState& state) {
 }
 
 // Geçen süreye göre 0-255 arası opaklık.
-[[nodiscard]] BYTE AlphaForElapsed(int elapsed, bool hovered) noexcept {
+[[nodiscard]] BYTE AlphaForElapsed(int elapsed, bool hovered,
+                                   bool progress) noexcept {
+    if (progress) {
+        // Süren iş: belirir ve durur. Sonucu bildiren bildirim gelince yerini
+        // ona bırakır — ya da kimse gelmezse `kStuckMs` sonunda pes eder.
+        if (elapsed < kFadeInMs) {
+            return static_cast<BYTE>(255 * elapsed / kFadeInMs);
+        }
+        return elapsed >= kStuckMs ? 0 : 255;
+    }
     if (hovered) {
         // İmleç üstündeyken sönmez: kullanıcı tıklamak üzereyken bildirimin
         // altından kaçması, en sinir bozucu arayüz hatalarından biridir.
@@ -228,15 +255,24 @@ LRESULT CALLBACK ToastProc(HWND window, UINT message, WPARAM wParam,
             const bool hovered = ::PtInRect(&bounds, cursor) != FALSE;
             if (hovered != g_state->hovered) {
                 g_state->hovered = hovered;
-                if (hovered) {
+                if (hovered && !g_state->progress) {
                     // Beklemeyi baştan başlat, yoksa imleç çekilir çekilmez
-                    // bildirim anında kaybolurdu.
+                    // bildirim anında kaybolurdu. Süren işte sayaç geri
+                    // sarılmamalı: gösterdiği şey gerçek bir süre.
                     g_state->elapsed = kFadeInMs;
                 }
                 ::InvalidateRect(window, nullptr, FALSE);
             }
 
-            const BYTE alpha = AlphaForElapsed(g_state->elapsed, hovered);
+            // Sayaç saniyede bir değişiyor; her 25 ms'de bir yeniden çizmek
+            // aynı pikselleri kırk kez boyamak olurdu.
+            const int previous = g_state->elapsed - static_cast<int>(kTickMs);
+            if (g_state->progress && g_state->elapsed / 1000 != previous / 1000) {
+                ::InvalidateRect(window, nullptr, FALSE);
+            }
+
+            const BYTE alpha =
+                AlphaForElapsed(g_state->elapsed, hovered, g_state->progress);
             if (alpha == 0) {
                 ::DestroyWindow(window);
                 return 0;
@@ -297,11 +333,11 @@ LRESULT CALLBACK ToastProc(HWND window, UINT message, WPARAM wParam,
     return registered;
 }
 
-}  // namespace
-
-void ShowCaptureToast(HINSTANCE instance, const Image& capture,
-                      const std::wstring& title, const std::wstring& detail,
-                      const std::wstring& openPath) {
+// İki genel işlevin ortak gövdesi. Aralarındaki tek fark `progress`, ve o da
+// yalnızca sönme davranışıyla sayacı değiştiriyor.
+void ShowToast(HINSTANCE instance, const Image& capture,
+               const std::wstring& title, const std::wstring& detail,
+               const std::wstring& openPath, bool progress) {
     if (!EnsureWindowClass(instance)) {
         return;
     }
@@ -317,6 +353,7 @@ void ShowCaptureToast(HINSTANCE instance, const Image& capture,
     state->title = title;
     state->detail = detail;
     state->openPath = openPath;
+    state->progress = progress;
 
     // Bildirim, YAKALAMANIN ALINDIĞI monitörde açılır: iki ekranlı bir
     // kurulumda diğer ekranın köşesinde belirmesi, hiç belirmemesiyle aynı
@@ -368,6 +405,20 @@ void ShowCaptureToast(HINSTANCE instance, const Image& capture,
     ::SetLayeredWindowAttributes(window, 0, 0, LWA_ALPHA);
     ::ShowWindow(window, SW_SHOWNOACTIVATE);
     ::SetTimer(window, kTimerId, kTickMs, nullptr);
+}
+
+}  // namespace
+
+void ShowCaptureToast(HINSTANCE instance, const Image& capture,
+                      const std::wstring& title, const std::wstring& detail,
+                      const std::wstring& openPath) {
+    ShowToast(instance, capture, title, detail, openPath, false);
+}
+
+void ShowProgressToast(HINSTANCE instance, const Image& capture,
+                       const std::wstring& title, const std::wstring& detail) {
+    // Tıklanacak bir dosya yok: iş daha bitmedi.
+    ShowToast(instance, capture, title, detail, std::wstring(), true);
 }
 
 void CloseCaptureToast() noexcept {

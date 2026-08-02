@@ -119,8 +119,17 @@ CRISP_TEST(Sound, Windows_tamponu_kabul_ediyor) {
     // BAYT DÜZENİ SINAMASI YETMEZ: başlık alanları tutarlı görünüp yine de
     // waveform aygıtının reddettiği bir tampon üretilebilir. Burada ses
     // GERÇEKTEN çalınır (SND_SYNC ile, ~110 ms) ve PlaySound'un kendisi
-    // biçimi doğrular. Ses aygıtı olmayan bir makinede SND_NODEFAULT sessizce
-    // başarısız olmaz, false döner — o da bir bilgi.
+    // biçimi doğrular.
+    //
+    // AYGIT YOKSA SINAMA DA YOK. `PlaySound` çıkış aygıtı bulunmayan bir
+    // makinede FALSE döner ve bu, tamponla ilgili hiçbir şey söylemez —
+    // makinenin donanımıyla ilgili bir şey söyler. Sürüm sunucusunda ses kartı
+    // yok ve bu sınama orada, kodda hiçbir şey değişmeden, kırmızı yanıyordu.
+    // Ses kartı olan bir makinede sınama aynen çalışmaya devam ediyor.
+    if (::waveOutGetNumDevs() == 0) {
+        return;
+    }
+
     const std::vector<uint8_t> wav = BuildShutterWav();
     const BOOL played = ::PlaySoundW(reinterpret_cast<LPCWSTR>(wav.data()),
                                      nullptr,

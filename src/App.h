@@ -148,6 +148,11 @@ private:
     // ikinci bir kaplama açılmamalı.
     bool m_busy = false;
 
+    // Kendiliğinden başlamış bir yükleme sürüyor. Yakalama bildirimini
+    // susturur: o sırada ekranda duran "yükleniyor" kutusu daha güncel bir şey
+    // söylüyor ve üstüne yazmak onu yok ederdi.
+    bool m_uploadPending = false;
+
     // Geri sayım bittiğinde çalıştırılacak eylem ve kalan saniye.
     HotkeyAction m_pendingAction = HotkeyAction::None;
     unsigned m_countdown = 0;

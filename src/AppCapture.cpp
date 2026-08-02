@@ -234,6 +234,15 @@ void App::Announce(const Image& image, bool copied, bool pinned,
         return;
     }
 
+    // SÜREN YÜKLEME BİLDİRİMİN SAHİBİDİR. `RunExtraTasks` bu çağrıdan ÖNCE
+    // çalışıyor ve kendiliğinden yükleme oradan başlıyor; buradaki bildirim
+    // onunkinin üstüne binseydi, "yükleniyor" kutusu doğduğu anda kapanır ve
+    // kullanıcı yirmi saniyelik sessizliğe geri dönerdi. Yüklemenin sonucu
+    // zaten kendi bildirimini getiriyor.
+    if (m_uploadPending) {
+        return;
+    }
+
     // BAŞLIK NE OLDUĞUNU SÖYLER, ne olmasını istediğimizi değil: kopyalama
     // başarısız olduysa "kopyalandı" yazmak kullanıcıyı olmayan bir panoya
     // güvendirirdi.

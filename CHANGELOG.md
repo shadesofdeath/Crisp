@@ -5,6 +5,30 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.6.1 — say that it is still working
+
+### Added
+
+- **A notification while an upload is in flight.** Some services take fifteen to
+  twenty seconds, and for all of that time the screen said nothing: the capture
+  notification faded and then there was silence. Work in progress and work
+  forgotten looked identical. This one does not fade — that is the point of it —
+  and it counts the seconds, so a slow upload is visibly different from a stuck
+  one. The result notification takes its place; if the result never comes, it
+  gives up after two minutes rather than sitting there forever.
+
+  While it is up, the capture notification stays out of the way. It runs first
+  and would otherwise destroy the progress box the moment it was created.
+
+### Fixed
+
+- **The shutter-sound test asserted that the machine had a sound card.**
+  `PlaySound` returns false with no output device, which says nothing about the
+  bytes being correct — the test's own comment had said so and asserted anyway.
+  The build server has no audio, so the suite went red on a commit that changed
+  nothing about sound. It skips where there is no device and runs everywhere
+  else.
+
 ## 0.6.0 — the selection you can actually adjust
 
 ### Changed — the selection overlay
