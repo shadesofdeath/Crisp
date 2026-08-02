@@ -3,6 +3,7 @@
 #include "EditorInternal.h"
 
 #include "Geometry.h"
+#include "Messages.h"
 
 #include <shellapi.h>
 #include <shellscalingapi.h>
@@ -417,6 +418,14 @@ LRESULT CALLBACK EditorProc(HWND window, UINT message, WPARAM wParam,
             }
             return 0;
         }
+
+        // Arka plandaki yükleme bitti. `lParam` sonucu taşıyan bir yükün adresi
+        // ve sahipliği burada devralınır; ayrıntısı EditorUpload.cpp'de.
+        case WM_CRISP_UPLOAD_DONE:
+            if (state != nullptr) {
+                FinishUpload(window, *state, lParam);
+            }
+            return 0;
 
         case WM_DESTROY:
             ::PostQuitMessage(0);

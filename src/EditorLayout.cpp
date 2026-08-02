@@ -8,6 +8,7 @@
 #include "EditorInternal.h"
 
 #include "Geometry.h"
+#include "Upload.h"
 #include "resource.h"
 
 #include <algorithm>
@@ -26,8 +27,8 @@ constexpr ToolKind kTools[] = {
 constexpr int kImageActions[] = {kActionRotateLeft, kActionRotateRight,
                                  kActionScale, kActionEffects, kActionOcr};
 constexpr int kEditActions[] = {kActionUndo, kActionRedo, kActionClear};
-constexpr int kFileActions[] = {kActionCopy, kActionSave, kActionSaveAs,
-                                kActionClose};
+constexpr int kFileActions[] = {kActionCopy, kActionUpload, kActionSave,
+                                kActionSaveAs, kActionClose};
 
 [[nodiscard]] int GroupWidth(int group, unsigned dpi) noexcept {
     const int side = Scale(kButtonSide, dpi);
@@ -60,6 +61,12 @@ void AddAction(State& state, int group, int action, int& x, int top, int side,
         button.enabled = state.document.CanRedo();
     } else if (action == kActionClear) {
         button.enabled = !state.document.empty();
+    } else if (action == kActionUpload) {
+        // SERVİS SEÇİLMEMİŞSE DÜĞME KAPALI. Her basışta "önce ayarlardan bir
+        // servis seç" diyen bir düğme, kapalı bir düğmenin zaten sessizce
+        // söylediği şeyi gürültüyle söylerdi.
+        button.enabled =
+            UploadServiceFromId(state.settings.uploadService) != UploadService::None;
     }
     state.buttons.push_back(button);
     x += side + gap;

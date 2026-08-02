@@ -4,7 +4,11 @@ cmake_minimum_required(VERSION 3.25)
 cmake_policy(SET CMP0091 NEW)
 
 project(crisp
-        VERSION 0.1.0
+        # CHANGELOG.md ile aynı numara olmalı. İkisi birbirinden kopmuştu:
+        # değişiklik günlüğü 0.4.0'a gelmişken burası hâlâ 0.1.0 diyordu, ve
+        # sürüm numarasını arşivin adına yazan CPack yanlış adlı bir paket
+        # üretiyordu.
+        VERSION 0.5.0
         DESCRIPTION "Screen capture tool for Windows"
         LANGUAGES CXX RC)
 
@@ -60,6 +64,8 @@ set(CRISP_CORE_SOURCES
     src/Annotation.cpp
     src/History.cpp
     src/Sound.cpp
+    src/Upload.cpp
+    src/UploadHttp.cpp
 )
 
 set(CRISP_CORE_HEADERS
@@ -81,6 +87,8 @@ set(CRISP_CORE_HEADERS
     src/Annotation.h
     src/History.h
     src/Sound.h
+    src/Upload.h
+    src/UploadInternal.h
 )
 
 add_library(crisp_core STATIC ${CRISP_CORE_SOURCES} ${CRISP_CORE_HEADERS})
@@ -124,6 +132,7 @@ target_link_libraries(crisp_core PUBLIC
     ole32           # CoCreateInstance
     shlwapi
     uxtheme         # SetWindowTheme — koyu kaydırma çubuğu
+    winhttp         # görsel yükleme; TEK ağ bağımlılığı
 )
 
 # ---------------------------------------------------------------------------
@@ -158,6 +167,7 @@ set(CRISP_APP_SOURCES
     src/EditorGlyphs.cpp
     src/EditorStatus.cpp
     src/EditorFile.cpp
+    src/EditorUpload.cpp
     src/EditorText.cpp
     src/EditorEffects.cpp
     src/EditorSelect.cpp
@@ -273,6 +283,7 @@ if(CRISP_TESTS)
         tests/TestCodec.cpp
         tests/TestClipboard.cpp
         tests/TestSettings.cpp
+        tests/TestUpload.cpp
         tests/TestWindowPick.cpp
         tests/TestOcrLayout.cpp
         tests/TestAnnotation.cpp

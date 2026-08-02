@@ -263,6 +263,9 @@ void ApplyAction(HWND window, State& state, int action) {
         case kActionCopy:
             CopyToClipboard(window, state);
             return;
+        case kActionUpload:
+            BeginUpload(window, state);
+            return;
         case kActionSave:
             SaveToFolder(window, state);
             return;

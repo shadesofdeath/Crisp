@@ -11,6 +11,7 @@
 #include "Localization.h"
 #include "MessageWindow.h"
 #include "Theme.h"
+#include "Upload.h"
 #include "Util.h"
 #include "resource.h"
 
@@ -20,6 +21,21 @@
 
 namespace crisp {
 namespace settings_ui {
+
+void UpdateUploadKeyState(HWND window, const State& state) {
+    const LRESULT index =
+        ::SendDlgItemMessageW(window, kIdUploadService, CB_GETCURSEL, 0, 0);
+    bool needsKey = false;
+    if (index >= 0 && static_cast<size_t>(index) < state.uploadServiceIds.size()) {
+        const UploadService service =
+            UploadServiceFromId(state.uploadServiceIds[static_cast<size_t>(index)]);
+        needsKey = UploadServiceOf(service).needsKey;
+    }
+    const HWND key = ::GetDlgItem(window, kIdUploadKey);
+    if (key != nullptr) {
+        ::EnableWindow(key, needsKey ? TRUE : FALSE);
+    }
+}
 
 void SetCheck(HWND window, int id, bool checked) {
     ::SendDlgItemMessageW(window, id, BM_SETCHECK,
@@ -174,6 +190,22 @@ void LoadIntoControls(HWND window, const State& state) {
     ::SendDlgItemMessageW(window, kIdFormat, CB_SETCURSEL,
                           static_cast<WPARAM>(FormatIndex(state, s.saveFormat)),
                           0);
+
+    // TANINMAYAN SERVİS ADI 0'A, YANİ "YOK"A DÜŞER. Ayar dosyası ileri bir
+    // sürümden gelmiş olabilir; bilmediğimiz bir servise görüntü göndermeye
+    // çalışmaktansa hiçbir yere göndermemek doğrusu.
+    int uploadIndex = 0;
+    for (size_t i = 0; i < state.uploadServiceIds.size(); ++i) {
+        if (state.uploadServiceIds[i] == s.uploadService) {
+            uploadIndex = static_cast<int>(i);
+            break;
+        }
+    }
+    ::SendDlgItemMessageW(window, kIdUploadService, CB_SETCURSEL,
+                          static_cast<WPARAM>(uploadIndex), 0);
+    ::SetDlgItemTextW(window, kIdUploadKey, s.uploadApiKey.c_str());
+    UpdateUploadKeyState(window, state);
+
     SetNumber(window, kIdQuality, s.saveQuality);
     SetNumber(window, kIdHistoryLimit, s.historyLimit);
     SetNumber(window, kIdDelay, s.delaySeconds);
@@ -198,6 +230,7 @@ void LoadIntoControls(HWND window, const State& state) {
     SetCheck(window, kIdAfterCopyFile, s.after.copyFileToClipboard);
     SetCheck(window, kIdAfterReveal, s.after.revealInFolder);
     SetCheck(window, kIdAfterOcr, s.after.copyTextViaOcr);
+    SetCheck(window, kIdAfterUpload, s.after.uploadImage);
     SetCheck(window, kIdNotify, s.showNotification);
 
     for (int slot = 0; slot < kHotkeySlots; ++slot) {
@@ -227,6 +260,18 @@ void ReadFromControls(HWND window, State& state) {
         s.saveFormat = state.formatCodes[static_cast<size_t>(formatIndex)];
     }
 
+    const LRESULT uploadIndex =
+        ::SendDlgItemMessageW(window, kIdUploadService, CB_GETCURSEL, 0, 0);
+    if (uploadIndex >= 0 &&
+        static_cast<size_t>(uploadIndex) < state.uploadServiceIds.size()) {
+        s.uploadService = state.uploadServiceIds[static_cast<size_t>(uploadIndex)];
+    }
+    // ANAHTAR, SERVİS DEĞİŞSE DE SİLİNMEZ. Imgur'dan ImgBB'ye geçip geri dönen
+    // kullanıcı anahtarını yeniden yapıştırmak zorunda kalmamalı; hangi
+    // anahtarın hangi servise ait olduğu ise zaten kullanıcının bildiği bir şey
+    // ve yanlış servise gönderilen bir anahtar reddedilmekten öteye gitmez.
+    s.uploadApiKey = GetText(window, kIdUploadKey);
+
     s.saveFolder = GetText(window, kIdFolder);
     s.saveQuality = GetNumber(window, kIdQuality, s.saveQuality);
     s.historyLimit = GetNumber(window, kIdHistoryLimit, s.historyLimit);
@@ -252,6 +297,7 @@ void ReadFromControls(HWND window, State& state) {
     s.after.copyFileToClipboard = GetCheck(window, kIdAfterCopyFile);
     s.after.revealInFolder = GetCheck(window, kIdAfterReveal);
     s.after.copyTextViaOcr = GetCheck(window, kIdAfterOcr);
+    s.after.uploadImage = GetCheck(window, kIdAfterUpload);
     s.showNotification = GetCheck(window, kIdNotify);
 
     for (int slot = 0; slot < kHotkeySlots; ++slot) {

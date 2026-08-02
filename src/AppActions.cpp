@@ -17,6 +17,7 @@
 #include "Ocr.h"
 #include "PinWindow.h"
 #include "Toast.h"
+#include "Upload.h"
 #include "Util.h"
 #include "WindowPick.h"
 #include "resource.h"
@@ -24,6 +25,7 @@
 #include <shellapi.h>
 
 #include <string>
+#include <thread>
 
 namespace crisp {
 namespace {
@@ -318,6 +320,63 @@ void App::RunExtraTasks(const Image& image, const std::wstring& savedPath) {
         ::ShellExecuteW(nullptr, L"open", L"explorer.exe", arguments.c_str(),
                         nullptr, SW_SHOWNORMAL);
     }
+
+    // YÜKLEME EN SONDA VE PANOYU EN SON O YAZAR. Yukarıdaki üç pano görevi gibi
+    // bu da panoya yazıyor; bir bağlantı geldiyse kullanıcının istediği odur.
+    // Yolu ya da tanınan metni, bağlantı varken yapıştırmak isteyen kimse yok.
+    if (after.uploadImage) {
+        UploadInBackground(image);
+    }
+}
+
+void App::UploadInBackground(const Image& image) {
+    const UploadService service = UploadServiceFromId(m_settings.uploadService);
+    if (service == UploadService::None) {
+        // Kutu işaretli ama servis seçilmemiş. Sessizce geçmek doğru: ayarlar
+        // penceresi zaten servis seçilmeden hiçbir şeyin yüklenmeyeceğini
+        // yazıyor ve her yakalamada bir hata kutusu açmak cezalandırmak olurdu.
+        return;
+    }
+
+    // PNG BURADA KODLANIR, İŞ PARÇACIĞINDAN ÖNCE. `Image` bir GDI nesnesi
+    // tutuyor; ömrünü iki iş parçacığına birden bağlamak, yakalama akışı bitip
+    // görüntü yok edildiğinde çöken bir yarış olurdu. Baytların sahibi yok.
+    auto png = std::make_shared<std::vector<uint8_t>>();
+    if (!EncodePng(image, *png)) {
+        LogV(L"Otomatik yükleme: PNG kodlanamadı");
+        return;
+    }
+
+    // AYRILMIŞ İŞ PARÇACIĞI: yakalama akışı burada bitiyor ve kullanıcı bir
+    // saniyeliğine donmuş bir tepsi uygulaması görmemeli. Yükleme kendi hızında
+    // biter, sonucunu bildirimle söyler.
+    const HWND window = m_window;
+    const HINSTANCE instance = m_instance;
+    const std::wstring key = m_settings.uploadApiKey;
+    const bool notify = m_settings.showNotification;
+
+    std::thread([window, instance, service, key, png, notify]() {
+        const UploadResult result = UploadPng(service, key, *png, L"crisp.png");
+
+        if (result.ok) {
+            if (!CopyTextToClipboard(result.link.c_str(), window)) {
+                LogV(L"Yükleme bağlantısı panoya kopyalanamadı");
+            }
+        } else {
+            LogV(L"Otomatik yükleme başarısız: %s", result.error.c_str());
+        }
+
+        if (!notify) {
+            return;
+        }
+        // BİLDİRİM YÜKLEME BİTİNCE ÇIKAR, yakalanınca değil. "Bağlantı
+        // kopyalandı" diyen bir bildirimin ardından sessizce başarısız olan bir
+        // yükleme, kullanıcıya panosunda olmayan bir bağlantıyı yapıştırtırdı.
+        Image none;
+        ShowCaptureToast(instance, none,
+                         Loc::Str(result.ok ? IDS_UPLOAD_COPIED : IDS_UPLOAD_FAILED),
+                         result.ok ? result.link : result.error, std::wstring());
+    }).detach();
 }
 
 }  // namespace crisp

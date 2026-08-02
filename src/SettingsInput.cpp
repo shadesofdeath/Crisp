@@ -108,6 +108,15 @@ LRESULT CALLBACK SettingsProc(HWND window, UINT message, WPARAM wParam,
                 case kIdReset:
                     ResetToDefaults(window, *state);
                     return 0;
+                // Servis değişince anahtar alanı açılır ya da kapanır. Kapalı
+                // bir alan, doldurulması gerekmediğini söyler: Catbox
+                // seçiliyken açık duran bir "API anahtarı" kutusu, kullanıcıya
+                // bulması gereken bir şey olduğunu düşündürürdü.
+                case kIdUploadService:
+                    if (HIWORD(wParam) == CBN_SELCHANGE) {
+                        UpdateUploadKeyState(window, *state);
+                    }
+                    return 0;
                 case kIdHistoryClear:
                     ClearHistory(window, *state);
                     return 0;

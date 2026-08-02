@@ -7,6 +7,7 @@
 #include "ImageCodec.h"
 #include "Localization.h"
 #include "Theme.h"
+#include "Upload.h"
 #include "Util.h"
 #include "resource.h"
 
@@ -91,10 +92,38 @@ public:
     //
     // KURAL GÖRÜNÜR OLMALI: "Ctrl/Alt/Shift gerekir" kuralını yalnızca uyarı
     // sesiyle öğretmek, kullanıcıyı tuşa basıp hiçbir şey olmamasıyla baş başa
-    // bırakıyordu. Yükseklik üç satıra yeter; kırpılmış bir ipucu, hiç
-    // olmamasından beterdir ve Almanca/Rusça çeviriler İngilizceden uzun.
+    // bırakıyordu.
+    //
+    // YÜKSEKLİK ÖLÇÜLÜR, VARSAYILMAZ. Burada sabit 46 piksel — kabaca üç satır —
+    // yazıyordu ve yanındaki yorum "kırpılmış bir ipucu, hiç olmamasından
+    // beterdir" diye uyarıyordu. Tam da o oldu: metinler uzayınca hem kısayol
+    // hem yükleme ipucunun son satırı pencerenin dibinde kesildi. Bir çeviri de
+    // aynı şeyi yapabilirdi; Almanca ve Rusça karşılıklar İngilizceden uzun.
+    //
+    // DT_CALCRECT metni gerçek yazı tipiyle ve gerçek sütun genişliğiyle
+    // ölçüyor, dolayısıyla kaç satır sürdüğünün önemi kalmıyor.
     void Note(const wchar_t* text) {
-        const int height = Scale(46, m_state.dpi);
+        int height = Scale(46, m_state.dpi);
+
+        if (const HDC dc = ::GetDC(m_parent); dc != nullptr) {
+            const HGDIOBJ previous =
+                m_state.font != nullptr ? ::SelectObject(dc, m_state.font) : nullptr;
+            RECT measure{0, 0, m_width, 0};
+            ::DrawTextW(dc, text, -1, &measure,
+                        DT_CALCRECT | DT_WORDBREAK | DT_NOPREFIX);
+            if (previous != nullptr) {
+                ::SelectObject(dc, previous);
+            }
+            ::ReleaseDC(m_parent, dc);
+
+            // Ölçülenden bir satır fazlası: STATIC denetimi metni kendi
+            // sarıyor ve satır kırma noktaları DrawTextW ile birebir aynı
+            // olmayabiliyor.
+            const int measured = static_cast<int>(measure.bottom - measure.top) +
+                                 Scale(18, m_state.dpi);
+            height = measured > height ? measured : height;
+        }
+
         (void)::CreateWindowExW(0, L"STATIC", text,
                                 WS_CHILD | WS_VISIBLE | SS_LEFT, m_left,
                                 m_y + Scale(4, m_state.dpi), m_width, height,
@@ -294,6 +323,57 @@ void BuildControls(HWND window, State& state) {
                           Loc::Str(IDS_SET_MOSAIC_STRENGTH).c_str(), L"EDIT",
                           ES_NUMBER | WS_BORDER, Scale(70, dpi));
 
+    // YÜKLEME KENDİ GRUBUNDA VE ORTA SÜTUNDA.
+    //
+    // Kendi grubunda: "Kaydetme"nin içine konsaydı, diske yazmakla internete
+    // göndermek aynı başlığın altında görünürdü ve bu ayrımı bir grup
+    // başlığından daha azıyla anlatmak doğru olmaz.
+    //
+    // Orta sütunda, çünkü sol sütun doluydu: dördüncü grup, alt şeritteki
+    // düğmelerle arasında sekiz piksel bırakıyordu. Orta sütunda iki yüz
+    // altmış piksel boşluk duruyordu. Pencere sabit ölçülü ve uzatılamıyor;
+    // gerekçesi kWidth/kHeight'ın yanında yazılı.
+    middle.Group(Loc::Str(IDS_SET_GROUP_UPLOAD).c_str());
+    const HWND uploadBox = middle.Labelled(kIdUploadService,
+                                         Loc::Str(IDS_SET_UPLOAD_SERVICE).c_str(),
+                                         L"COMBOBOX", CBS_DROPDOWNLIST | WS_VSCROLL);
+
+    size_t serviceCount = 0;
+    const UploadServiceInfo* services = UploadServices(serviceCount);
+    for (size_t i = 0; i < serviceCount; ++i) {
+        const UploadServiceInfo& info = services[i];
+
+        std::wstring label;
+        if (info.service == UploadService::None) {
+            label = Loc::Str(IDS_SET_UPLOAD_NONE);
+        } else {
+            label = info.displayName;
+            // SÜRE VE ANAHTAR İHTİYACI ADIN YANINDA DURUYOR. Bir servisi
+            // seçtikten sonra "bu neden anahtar istiyor" ya da "bağlantım neden
+            // öldü" diye sormak zorunda kalmak, listede iki kelimeyle
+            // önlenebilecek bir şey.
+            if (info.lifetimeHours > 0) {
+                wchar_t suffix[48] = {};
+                ::swprintf_s(suffix, L"  ·  %u sa", info.lifetimeHours);
+                label += suffix;
+            }
+            if (info.needsKey) {
+                label += L"  ·  ";
+                label += info.keyLabel;
+            }
+        }
+
+        ::SendMessageW(uploadBox, CB_ADDSTRING, 0,
+                       reinterpret_cast<LPARAM>(label.c_str()));
+        state.uploadServiceIds.emplace_back(info.id);
+    }
+
+    // ES_PASSWORD: anahtar omuz üstünden okunacak bir şey değil. Kullanıcı onu
+    // bir kez yapıştırıp bir daha bakmıyor; açıkta durmasının bir faydası yok.
+    (void)middle.Labelled(kIdUploadKey, Loc::Str(IDS_SET_UPLOAD_KEY).c_str(),
+                        L"EDIT", ES_AUTOHSCROLL | ES_PASSWORD | WS_BORDER);
+    middle.Note(Loc::Str(IDS_SET_UPLOAD_HINT).c_str());
+
     // --- Sağ sütun ----------------------------------------------------------
     Cursor right(window, state, rightLeft, pad, columnWidth);
 
@@ -306,6 +386,10 @@ void BuildControls(HWND window, State& state) {
     (void)right.Check(kIdAfterCopyFile, Loc::Str(IDS_SET_AFTER_COPYFILE).c_str());
     (void)right.Check(kIdAfterReveal, Loc::Str(IDS_SET_AFTER_REVEAL).c_str());
     (void)right.Check(kIdAfterOcr, Loc::Str(IDS_SET_AFTER_OCR).c_str());
+    // YÜKLEME BU LİSTENİN SONUNDA. Diğer sekizi görüntüyü bu makinede tutuyor;
+    // bu, internete gönderiyor. Aradaki farkı sıralamayla da olsa göstermek,
+    // dalgınlıkla işaretlenme ihtimalini azaltıyor.
+    (void)right.Check(kIdAfterUpload, Loc::Str(IDS_SET_AFTER_UPLOAD).c_str());
     (void)right.Check(kIdNotify, Loc::Str(IDS_SET_NOTIFY).c_str());
 
     right.Group(Loc::Str(IDS_SET_GROUP_HOTKEYS).c_str());

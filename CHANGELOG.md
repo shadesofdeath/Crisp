@@ -5,6 +5,88 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.5.0 — the shortcut you actually wanted
+
+Three things a user reported: two fixed here, the third half-built and honest
+about it.
+
+### Changed — shortcuts
+
+- **Any key can be a shortcut on its own now.** `Ctrl`, `Alt` and `Shift` are no
+  longer required. The old rule was well meant — a letter bound by itself is
+  taken away from every text box on the system — but it enforced that judgement
+  on the user's behalf, and *silently*: the shortcut box refused the key with a
+  beep and no explanation, and a modifier-less shortcut already in the settings
+  file was deleted on load. Someone who wanted one key for one screenshot found
+  their choice quietly undone at the next start.
+
+  The cost has not gone away, it moved to where it can be read. The hint under
+  the shortcut list now says which keys are taken from typing, in all sixteen
+  languages, and `HotkeyNeedsModifier` — a rule — became
+  `HotkeyTypesCharacters` — a fact. It no longer refuses anything.
+
+- **`Insert`, `Home`, `End`, `Page Up`/`Page Down`, the arrows and the menu key**
+  join the list of keys with nothing to lose. None of them types a character, and
+  on a keyboard without a numeric pad they are exactly the spare keys left to
+  bind.
+
+- **`Win`+letter is not deleted either.** Windows reserves *most* of those
+  combinations, not all, and the only component that knows which are free is
+  `RegisterHotKey`. The ones Windows owns were already reported as "could not be
+  registered"; deleting them beforehand withheld that explanation.
+
+### Fixed — multiple monitors
+
+- **The overlay hint no longer straddles two screens.** It was centred on a
+  rectangle named `monitor` that actually held the *virtual screen* — every
+  display joined together. On one monitor the two are the same thing and the bug
+  is invisible; on two, the horizontal centre of the virtual screen is precisely
+  the seam between the displays, so the box was cut in half down the middle. It
+  is now centred on the monitor the pointer is on.
+
+- **The magnifier no longer jumps to the other screen.** Same root cause, quieter
+  symptom: the panel flips to the other side of the cursor when it runs out of
+  room, and it was measuring that room against the whole desktop. With the
+  pointer near the right edge of the first monitor there was "room", so the
+  magnifier appeared on the second one, away from where the user was looking.
+  What it magnifies still comes from the whole desktop, which is correct; only
+  the placement changed.
+
+### Added — upload
+
+- **Send a capture to an image host and get a link back.** Seven services, four
+  of which need no account at all: Catbox (permanent), Litterbox (72 h), Uguu
+  (3 h), 0x0.st, plus Imgur, ImgBB and Freeimage.host, which take an API key you
+  paste into Settings. The key box is disabled until the chosen service needs
+  one, and each service's lifetime and key requirement is written next to its
+  name in the list.
+
+- **Two ways to trigger it, both off until you ask.** The editor gains an Upload
+  button, disabled while no service is chosen. Or tick **Upload and copy the
+  link** under *After capture* and every capture goes up on its own, with the
+  link on the clipboard and a notification when it lands — not when the capture
+  was taken, so a failed upload cannot be mistaken for a link you can paste.
+
+  This is the first network code Crisp has had. "No upload, no account" survives
+  as the default rather than as a rule: the setting ships as *Do not upload*, and
+  with no service chosen the program never opens a socket.
+
+- **The transport is deliberately boring.** Everything is HTTPS, certificate
+  validation is not relaxed anywhere, and the API key travels in the header for
+  Imgur and in the body for ImgBB — never in a query string, where it would end
+  up in redirects and server logs. Both are pinned by tests.
+
+  21 tests cover request building and response parsing without touching the
+  network, including the one that matters: ImgBB returns `url` three times in one
+  response — `data.url`, `data.display_url` and `data.thumb.url` — and a naive
+  search for the first one hands back the thumbnail.
+
+  Verified against the keyless services from a real machine: Catbox and Uguu
+  return links that download back as the same PNG. Litterbox accepts the upload
+  but its host was unreachable from the test network, and 0x0.st answered 503 to
+  the POST while serving GET normally — `curl` reproduced both identically, so
+  those are the services refusing, not the code.
+
 ## 0.4.0 — the gaps ShareX fills
 
 A feature-by-feature comparison against ShareX, then the parts worth having

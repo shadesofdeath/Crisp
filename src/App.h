@@ -100,6 +100,10 @@ private:
     // kopyala, klasörde göster, metni tanı.
     void RunExtraTasks(const Image& image, const std::wstring& savedPath);
 
+    // Görüntüyü seçili servise ARKA PLANDA gönderir ve dönen bağlantıyı panoya
+    // koyar. Hemen döner; yükleme kendi iş parçacığında sürer.
+    void UploadInBackground(const Image& image);
+
     // Geçmiş penceresini açar; kullanıcı bir kayıt seçerse düzenleyiciye taşır.
     void ShowHistory();
     void RememberInHistory(const Image& image);

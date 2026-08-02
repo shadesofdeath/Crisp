@@ -63,6 +63,9 @@ enum ControlId {
     kIdMosaicStrength,
     kIdHistoryLimit,
     kIdHistoryClear,
+    kIdUploadService,
+    kIdUploadKey,
+    kIdAfterUpload,
     kIdReset,
     kIdOk,
     kIdCancel,
@@ -89,6 +92,10 @@ struct State {
     // Biçim listesi ÇALIŞMA ZAMANINDA kurulur (kullanılamayan biçimler
     // atlanır), bu yüzden dizin→kod eşlemesi sabit olamaz.
     std::vector<std::wstring> formatCodes;
+    // Yükleme servisi birleşik kutusundaki sıra → servis kimliği. Enum sırasına
+    // güvenilmez: liste "yok" girdisiyle başlıyor ve ileride bir servis
+    // listeden çıkarılabilir.
+    std::vector<std::wstring> uploadServiceIds;
 
     unsigned dpi = 96;
     bool accepted = false;
@@ -120,6 +127,13 @@ void ReadFromControls(HWND window, State& state);
 [[nodiscard]] std::wstring GetText(HWND window, int id);
 [[nodiscard]] bool PickFolder(HWND owner, std::wstring& folder);
 void ResetToDefaults(HWND window, State& state);
+
+// Anahtar alanını, seçili servis anahtar istiyorsa açar, istemiyorsa kapatır.
+//
+// KAPALI BİR ALAN, DOLDURULMASI GEREKMEDİĞİNİ SÖYLER. Catbox seçiliyken açık
+// duran bir "API anahtarı" kutusu, kullanıcıya bulması gereken bir şey olduğunu
+// düşündürür.
+void UpdateUploadKeyState(HWND window, const State& state);
 void ClearHistory(HWND window, const State& state);
 
 void Paint(HWND window, State& state);

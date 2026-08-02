@@ -257,3 +257,15 @@
 
 // Kısayol kutularının altındaki kural satırı
 #define IDS_SET_HOTKEY_HINT     1200
+
+// Görsel yükleme
+#define IDS_SET_GROUP_UPLOAD    1201
+#define IDS_SET_UPLOAD_SERVICE  1202
+#define IDS_SET_UPLOAD_KEY      1203
+#define IDS_SET_UPLOAD_HINT     1204
+#define IDS_SET_UPLOAD_NONE     1205
+#define IDS_UPLOAD_WORKING      1206
+#define IDS_UPLOAD_COPIED       1207
+#define IDS_UPLOAD_FAILED       1208
+#define IDS_ED_UPLOAD           1209
+#define IDS_SET_AFTER_UPLOAD    1210

@@ -56,6 +56,7 @@ constexpr UINT kDelayMs = 550;
         case kActionRedo:        return IDS_TIP_REDO;
         case kActionClear:       return IDS_TIP_CLEAR;
         case kActionCopy:        return IDS_TIP_COPY;
+        case kActionUpload:      return IDS_ED_UPLOAD;
         case kActionSave:        return IDS_TIP_SAVE;
         case kActionSaveAs:      return IDS_TIP_SAVE_AS;
         default:                 return IDS_TIP_CLOSE;

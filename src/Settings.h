@@ -71,6 +71,15 @@ struct AfterCapture {
     bool copyFileToClipboard = false;   // dosyanın kendisi (CF_HDROP)
     bool revealInFolder = false;        // Explorer'da göster
     bool copyTextViaOcr = false;        // görüntüdeki metni tanı ve panoya koy
+
+    // Yakalar yakalamaz seçili servise gönder; dönen bağlantıyı panoya koy.
+    //
+    // KAPALI GELİR VE BU LİSTEDEKİ DİĞERLERİNDEN DAHA ÖNEMLİ BİR ŞEKİLDE
+    // KAPALI GELİR. Diğer eylemlerin hepsi bu makinede kalıyor — panoya, diske,
+    // ekrana. Bu, görüntüyü internete gönderiyor ve bir daha geri alınamıyor.
+    // Açan kullanıcı bunu bilerek açmış olmalı, ve `uploadService` "none"
+    // olduğu sürece bu kutu işaretli olsa bile hiçbir şey gönderilmez.
+    bool uploadImage = false;
 };
 
 struct Hotkey {

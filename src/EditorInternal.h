@@ -77,6 +77,7 @@ enum ActionId {
     kActionRedo,
     kActionClear,
     kActionCopy,
+    kActionUpload,
     kActionSave,
     kActionSaveAs,
     kActionClose,
@@ -147,6 +148,9 @@ struct State {
     COLORREF color = RGB(255, 59, 48);
     int thickness = 3;
     bool fillShapes = false;
+    // Bir yükleme sürüyor. İkinci bir tık ikinci bir istek başlatırdı ve hangi
+    // bağlantının panoya düştüğü sıraya kalırdı.
+    bool uploading = false;
 
     // SEÇİM ARACI: eklenmiş bir şekli seçip taşımak, silmek, rengini
     // değiştirmek. -1 = seçim yok.
@@ -313,6 +317,10 @@ void Rebuild(State& state);
 
 // Geçerli görüntüyü (şekiller pişmiş hâliyle) verir.
 [[nodiscard]] bool CurrentFlattened(const State& state, Image& out);
+
+// Yüklemeyi başlatır (arka planda) ve biten yüklemeyi karşılar.
+void BeginUpload(HWND window, State& state);
+void FinishUpload(HWND window, State& state, LPARAM lParam);
 
 // --- Dosya ve pano (EditorFile.cpp) -----------------------------------------
 // Üçü de PENCEREYİ KAPATMAZ ve durum çubuğunda kısa bir onay gösterir.

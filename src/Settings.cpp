@@ -151,6 +151,7 @@ void Settings::Load(const SettingsStore& store) {
     store.ReadBool(L"CopyFileToClipboard", after.copyFileToClipboard);
     store.ReadBool(L"RevealInFolder", after.revealInFolder);
     store.ReadBool(L"CopyTextViaOcr", after.copyTextViaOcr);
+    store.ReadBool(L"UploadImage", after.uploadImage);
 
     store.ReadUnsigned(L"DelaySeconds", delaySeconds);
     store.ReadBool(L"ShowMagnifier", showMagnifier);
@@ -239,6 +240,7 @@ bool Settings::Save(const SettingsStore& store) const {
     ok = store.WriteBool(L"CopyFileToClipboard", after.copyFileToClipboard) && ok;
     ok = store.WriteBool(L"RevealInFolder", after.revealInFolder) && ok;
     ok = store.WriteBool(L"CopyTextViaOcr", after.copyTextViaOcr) && ok;
+    ok = store.WriteBool(L"UploadImage", after.uploadImage) && ok;
 
     ok = store.WriteUnsigned(L"DelaySeconds", delaySeconds) && ok;
     ok = store.WriteBool(L"ShowMagnifier", showMagnifier) && ok;

@@ -9,6 +9,12 @@ namespace crisp {
 // SINIFINA aittir ve alt sınıflandırılmış denetimlerle çakışabilir.
 inline constexpr UINT WM_CRISP_TRAY = WM_APP + 1;
 
+// Yükleme bitti; lParam sonucu taşıyan bir yükün adresi ve alan taraf onu siler.
+//
+// MESAJ, ÇÜNKÜ AĞ ARKA PLANDA. Sonucu doğrudan pencereye yazmak, arayüz
+// nesnelerine başka bir iş parçacığından dokunmak olurdu.
+inline constexpr UINT WM_CRISP_UPLOAD_DONE = WM_APP + 2;
+
 // Gecikmeli yakalama sayacı.
 inline constexpr UINT_PTR TIMER_DELAY = 1;
 
