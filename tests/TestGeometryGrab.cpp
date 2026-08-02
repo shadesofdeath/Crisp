@@ -9,6 +9,7 @@
 // yalnızca "hangi fonksiyon ne zaman çağrılıyor".
 #include "TestFramework.h"
 
+#include "ActionBar.h"
 #include "Geometry.h"
 
 using namespace crisp;
@@ -226,4 +227,130 @@ CRISP_TEST(GeometryGrab, En_kucuk_kenar_ekran_kenarinda_da_tutulur) {
     const RECT r = ResizeByGrab(origin, Grab::W, POINT{900, 100}, kMinSide, kScreen);
     CHECK(r.left >= kScreen.left);
     CHECK(Width(r) >= kMinSide);
+}
+
+// --- Eylem çubuğunun yerleşimi ----------------------------------------------
+
+CRISP_TEST(ActionBar, Secimin_altina_sag_kenara_hizali) {
+    const RECT screen{0, 0, 1920, 1080};
+    const SIZE bar{200, 42};
+    const RECT selection{400, 300, 900, 600};
+
+    const POINT p = geom::ActionBarPlacement(selection, bar, 8, screen);
+    CHECK_EQ(p.x, selection.right - bar.cx);   // sağa hizalı
+    CHECK_EQ(p.y, selection.bottom + 8);       // altında
+}
+
+CRISP_TEST(ActionBar, Altta_yer_yoksa_uste_cikar) {
+    const RECT screen{0, 0, 1920, 1080};
+    const SIZE bar{200, 42};
+    // Alt kenarı ekranın dibinde: aşağıda 42+8 piksel yok.
+    const RECT selection{400, 300, 900, 1060};
+
+    const POINT p = geom::ActionBarPlacement(selection, bar, 8, screen);
+    CHECK_EQ(p.y, selection.top - 8 - bar.cy);
+    CHECK(p.y >= screen.top);
+}
+
+CRISP_TEST(ActionBar, Iki_tarafta_da_yer_yoksa_icine_iner) {
+    const RECT screen{0, 0, 1920, 1080};
+    const SIZE bar{200, 42};
+    // Ekranın tamamı seçili: ne üstte ne altta yer var.
+    const RECT selection = screen;
+
+    const POINT p = geom::ActionBarPlacement(selection, bar, 8, screen);
+    CHECK(p.y >= screen.top);
+    CHECK(p.y + bar.cy <= screen.bottom);
+    // Seçimin İÇİNDE, alt kenarına yakın.
+    CHECK(p.y > selection.top);
+}
+
+CRISP_TEST(ActionBar, Ekran_disina_hicbir_zaman_tasmaz) {
+    // NEGATİF KÖKENLİ SANAL EKRAN: soldaki ikinci monitör.
+    const RECT screen{-1920, -200, 1920, 1080};
+    const SIZE bar{240, 42};
+
+    const RECT places[] = {
+        {-1900, -180, -1700, -100},   // sol üst köşe
+        {1700, 1000, 1900, 1070},     // sağ alt köşe
+        {-1920, -200, 1920, 1080},    // tamamı
+        {0, 0, 300, 60},              // küçük
+    };
+
+    for (const RECT& selection : places) {
+        const POINT p = geom::ActionBarPlacement(selection, bar, 8, screen);
+        CHECK(p.x >= screen.left);
+        CHECK(p.y >= screen.top);
+        CHECK(p.x + bar.cx <= screen.right);
+        CHECK(p.y + bar.cy <= screen.bottom);
+    }
+}
+
+CRISP_TEST(ActionBar, Dugmeler_bitisik_ve_cubugun_icinde) {
+    const RECT screen{0, 0, 1920, 1080};
+    const RECT selection{400, 300, 1200, 700};
+
+    ActionButton buttons[static_cast<size_t>(OverlayAction::Count)]{};
+    RECT bar{};
+    const int count = ActionButtons(selection, screen, 96, true, buttons, bar);
+
+    // Yükleme açıkken altı düğme.
+    CHECK_EQ(count, 6);
+    for (int i = 0; i < count; ++i) {
+        CHECK(buttons[i].bounds.left >= bar.left);
+        CHECK(buttons[i].bounds.right <= bar.right);
+        CHECK(buttons[i].bounds.top >= bar.top);
+        CHECK(buttons[i].bounds.bottom <= bar.bottom);
+        CHECK(buttons[i].nameId != 0);
+        if (i > 0) {
+            // Bitişik: öncekinin sağ kenarı sonrakinin sol kenarı.
+            CHECK_EQ(buttons[i - 1].bounds.right, buttons[i].bounds.left);
+        }
+    }
+}
+
+CRISP_TEST(ActionBar, Servis_secilmemisse_yukle_dugmesi_yok) {
+    const RECT screen{0, 0, 1920, 1080};
+    const RECT selection{400, 300, 1200, 700};
+
+    ActionButton buttons[static_cast<size_t>(OverlayAction::Count)]{};
+    RECT bar{};
+    const int count = ActionButtons(selection, screen, 96, false, buttons, bar);
+
+    CHECK_EQ(count, 5);
+    for (int i = 0; i < count; ++i) {
+        CHECK(buttons[i].action != OverlayAction::Upload);
+    }
+}
+
+CRISP_TEST(ActionBar, Cubuk_secimden_genisse_hic_cizilmez) {
+    const RECT screen{0, 0, 1920, 1080};
+    // 40 piksel genişliğinde bir seçim: altı düğme oraya sığmaz.
+    const RECT selection{400, 300, 440, 340};
+
+    ActionButton buttons[static_cast<size_t>(OverlayAction::Count)]{};
+    RECT bar{};
+    CHECK_EQ(ActionButtons(selection, screen, 96, true, buttons, bar), 0);
+    CHECK(geom::IsEmpty(bar));
+}
+
+CRISP_TEST(ActionBar, Isabet_testi_cizilen_kutulari_kullanir) {
+    const RECT screen{0, 0, 1920, 1080};
+    const RECT selection{400, 300, 1200, 700};
+
+    ActionButton buttons[static_cast<size_t>(OverlayAction::Count)]{};
+    RECT bar{};
+    const int count = ActionButtons(selection, screen, 96, true, buttons, bar);
+    CHECK(count > 0);
+
+    for (int i = 0; i < count; ++i) {
+        const RECT& box = buttons[i].bounds;
+        const POINT centre{box.left + geom::Width(box) / 2,
+                           box.top + geom::Height(box) / 2};
+        CHECK_EQ(ActionButtonAt(buttons, count, centre), i);
+    }
+
+    // Çubuğun dışı hiçbir düğme değil.
+    CHECK_EQ(ActionButtonAt(buttons, count, POINT{bar.left - 10, bar.top - 10}), -1);
+    CHECK_EQ(ActionButtonAt(buttons, count, POINT{bar.right + 10, bar.bottom + 10}), -1);
 }

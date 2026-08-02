@@ -8,6 +8,7 @@
 #include "Capture.h"
 #include "History.h"
 #include "Hotkeys.h"
+#include "Overlay.h"
 #include "Settings.h"
 #include "TrayIcon.h"
 
@@ -21,11 +22,13 @@ namespace crisp {
                                     bool preferWindowPick, Image& out,
                                     POINT& origin);
 
-// Aynısı, ama seçilen dikdörtgeni de verir — "son bölge" onu saklar.
+// Aynısı, ama seçilen dikdörtgeni ve kullanıcının eylem çubuğundan seçtiği
+// eylemi de verir — "son bölge" ilkini saklar, teslimat ikincisini uygular.
 [[nodiscard]] bool RunRegionCaptureRect(HINSTANCE instance,
                                         const Settings& settings,
                                         bool preferWindowPick, Image& out,
-                                        POINT& origin, RECT& selection);
+                                        POINT& origin, RECT& selection,
+                                        OverlayAction& action);
 
 // Komut satırı argümanını bir eyleme çevirir; tanınmayan argüman None döner.
 // Dosya yolu argümanları burada değil, çağıranda ele alınır.
@@ -93,7 +96,15 @@ private:
     void CaptureAllMonitors();
     void CaptureLastRegion();
     void OpenClipboardImage();
-    void DeliverCapture(const Image& image, POINT origin, HWND sourceWindow);
+    // `action` None değilse AYARLARDAKİ yakalama sonrası eylemleri geçersiz
+    // kılar ve yalnızca o iş yapılır. Kaplamanın eylem çubuğu bunu gönderir.
+    void DeliverCapture(const Image& image, POINT origin, HWND sourceWindow,
+                        OverlayAction action = OverlayAction::None);
+
+    // Çubuktan gelen tek eylemi uygular. `DeliverCapture`ın ayarları okuyan
+    // dalıyla aynı işleri yapar ama hangisinin çalışacağını kullanıcı seçmiştir.
+    void DeliverChosenAction(const Image& image, POINT origin,
+                             OverlayAction action);
     void OpenSaveFolder();
 
     // Yakalamadan sonra çalışan ikincil görevler: yolu kopyala, dosyayı
@@ -110,6 +121,10 @@ private:
     // tutamağı üzerinden açılır ve bildirim bir pencere oluşturur; ikisi de
     // yükleme iş parçacığından yapıldığında sessizce yanlış çalışıyordu.
     void FinishBackgroundUpload(LPARAM lParam);
+
+    // Bir alanı kaydıra kaydıra yakalar ve kareleri tek bir uzun görüntüde
+    // birleştirir. Ekrana sığmayan bir sayfanın tamamını almanın tek yolu.
+    void CaptureScrolling();
 
     // Geçmiş penceresini açar; kullanıcı bir kayıt seçerse düzenleyiciye taşır.
     void ShowHistory();

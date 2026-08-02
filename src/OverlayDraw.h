@@ -61,5 +61,36 @@ inline void DrawFrame(HDC dc, const RECT& r, LONG thickness, COLORREF color) {
                            r.bottom - thickness}, color);
 }
 
+// Koyu zeminli bir bilgi kutusu çizer ve kapladığı alanı döndürür.
+//
+// ÜÇ YERDE KULLANILIYOR: seçimin ölçü etiketi, eylem çubuğunun ipucu balonu ve
+// geri sayım göstergesi. Üçü de aynı şeyi istiyor — okunur bir metnin altına
+// zemin — ve üçü ayrı yazılsaydı biri diğerlerinden farklı görünmeye başlardı.
+inline RECT DrawPill(HDC dc, POINT topLeft, const wchar_t* text, HFONT font,
+                     unsigned dpi, COLORREF textColor) {
+    const HGDIOBJ oldFont = ::SelectObject(dc, font);
+
+    RECT measure{0, 0, 0, 0};
+    ::DrawTextW(dc, text, -1, &measure, DT_CALCRECT | DT_SINGLELINE | DT_NOPREFIX);
+
+    const LONG padX = Scale(8, dpi);
+    const LONG padY = Scale(4, dpi);
+    const RECT box{topLeft.x, topLeft.y,
+                   topLeft.x + geom::Width(measure) + padX * 2,
+                   topLeft.y + geom::Height(measure) + padY * 2};
+
+    FillRectColor(dc, box, kPanelBack);
+    DrawFrame(dc, box, 1, kPanelBorder);
+
+    RECT textArea{box.left + padX, box.top + padY, box.right - padX,
+                  box.bottom - padY};
+    ::SetBkMode(dc, TRANSPARENT);
+    ::SetTextColor(dc, textColor);
+    ::DrawTextW(dc, text, -1, &textArea, DT_SINGLELINE | DT_NOPREFIX);
+
+    ::SelectObject(dc, oldFont);
+    return box;
+}
+
 }  // namespace draw
 }  // namespace crisp

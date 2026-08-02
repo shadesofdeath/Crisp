@@ -10,6 +10,7 @@
 //      her şeyi yeniden çizdirirdi.
 #pragma once
 
+#include "ActionBar.h"
 #include "Capture.h"
 #include "OcrLayout.h"
 #include "Settings.h"
@@ -38,6 +39,7 @@ struct OverlayResult {
     RECT selection{};           // Region kipinde; ekran koordinatı
     uint32_t pickedColor = 0;   // ColorPick kipinde; 0xAARRGGBB
     std::wstring pickedText;    // TextSelect kipinde
+    OverlayAction action = OverlayAction::None;
 };
 
 // Seçim arayüzünü çalıştırır ve KULLANICI KARAR VERENE KADAR DÖNMEZ; kendi

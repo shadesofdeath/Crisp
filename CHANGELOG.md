@@ -5,6 +5,96 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.8.0 — the overlay stops being a one-way door
+
+### Added — an action bar on the settled selection
+
+Once a rectangle settles, a small bar appears beside it: copy, save, edit,
+recognise text, pin, upload. Hovering a button names it.
+
+The settings list under *After capture* answers "what should happen to **every**
+capture". There was no way to answer "what should happen to **this** one" —
+saving a single screenshot meant opening Settings, ticking a box, capturing,
+then going back and unticking it. The bar moves that decision to the moment of
+capture, and leaves the defaults alone.
+
+The Upload button is absent, not greyed, when no service is chosen: a disabled
+button invites a click and then explains nothing.
+
+### Added — scrolling capture
+
+Select a region, and Crisp scrolls the window under it, capturing as it goes,
+then joins the frames into one tall image. A chat log or a long page can be
+taken in one piece instead of three screenshots stitched by hand.
+
+The joining is the hard part and it lives in `crisp_core`: give it two frames
+and it finds how far the second moved, or says it cannot. **It says "cannot"
+rather than guessing** — every search has a best candidate, including between
+two unrelated images, and treating that as an answer would produce a picture
+made of two unrelated strips, silently.
+
+The comparison band is taken from a third of the way down the frame, not the
+top: a window title bar or a sticky page header does not move when you scroll,
+and comparing a region that never changes only ever answers "it did not move".
+
+Scrolling stops on its own when nothing new appears — the end of the page, or a
+window that does not scroll at all. 30 frames is the ceiling, for pages that
+scroll forever.
+
+### Added — pinned images survive a restart
+
+Pins were held in memory only. Closing Crisp — or a Windows update — took them
+with it, and nothing had been written anywhere, so there was no way back.
+
+They are saved to `%LOCALAPPDATA%\Crisp\Pins` as plain PNGs with a
+tab-separated index holding position, zoom and opacity, and restored at startup.
+The history folder deliberately has no index; here there is one, because a pin
+has a place on screen and a PNG does not record that.
+
+*Being killed from Task Manager still loses them: the save runs on a clean
+exit.*
+
+### Added — type a size into the overlay
+
+`Ctrl+C` on the overlay copied the selection's position and size as text. The
+reverse now exists: `Ctrl+V` reads a size from the clipboard and applies it.
+`1200x630`, `1200 × 630`, `1200, 630` and the exact text `Ctrl+C` produces all
+work — the separators are ignored, the numbers are not.
+
+"This has to be exactly 1200×630" previously meant dragging pixel by pixel while
+reading the magnifier.
+
+### Added — delayed window and delayed monitor
+
+Delayed capture existed but always meant *region*. The machinery could already
+delay anything; only the way to ask for it was missing. The tray menu's
+**Delayed** entry is now a submenu of three, and `-delayed-window` /
+`-delayed-monitor` work on the command line.
+
+### Changed — the editor
+
+- **The select tool resizes shapes.** It moved, deleted and restyled them but
+  did not resize — while drawing four corner handles that did nothing, the same
+  broken promise the overlay's handles used to make. One proportional mapping
+  handles arrows, rectangles and freehand alike, because all three are
+  ultimately lists of coordinates; the eight special cases the old comment
+  predicted were never needed. Handles are grabbed and drawn from the same
+  function as the overlay's.
+- **Blur, mosaic and crop preview live.** They drew a dashed outline and nothing
+  else, on the grounds that computing the real effect every mouse-move would be
+  slow. It was not measured, and it was wrong: the blur is a two-pass sliding
+  window, linear in area, and the preview needs only the selected region at
+  screen scale. The cost of the outline was real, though — blur is a redaction
+  tool, and not seeing how much it hides until you let go means looking at the
+  thing you are trying to hide one more time.
+- Crop dims what will be discarded rather than outlining what will be kept.
+
+### Fixed
+
+- The auto-upload progress notification could not animate while the capture loop
+  held the message queue; the loop pumps messages now.
+- 327 tests, 41 of them new.
+
 ## 0.7.1 — read the whole row
 
 ### Fixed

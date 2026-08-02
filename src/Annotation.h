@@ -71,6 +71,28 @@ struct Shape {
     // Şekli verilen kadar öteler (seçim aracıyla taşıma).
     void Offset(int dx, int dy) noexcept;
 
+    // Şekli `from` dikdörtgeninden `to` dikdörtgenine oranlayarak taşır ve
+    // ölçekler (seçim aracıyla boyutlandırma).
+    //
+    // TEK BİR ORANLAMA HER ŞEKLE YETİYOR. Ok ve çizgi iki uçtan, dikdörtgen ve
+    // elips köşelerden, serbest çizim ise yüzlerce noktadan oluşuyor; üçüne
+    // ayrı boyutlandırma yazmak üç ayrı hata yüzeyi demekti. Her koordinatı
+    // aynı oranla eşlemek üçünü birden doğru yapıyor: bir okun ucu da, bir
+    // kavisin ortası da olması gereken yerde kalıyor.
+    //
+    // KALINLIK ÖLÇEKLENMEZ. Kullanıcı kalınlığı ayrıca seçiyor; iki katına
+    // büyütülen bir kutunun çizgisinin de kalınlaşması, seçmediği bir şeyin
+    // değişmesi olurdu.
+    //
+    // `from` bir eksende sıfır genişlikteyse o eksende yalnızca ötelenir:
+    // sıfıra bölmek yerine şeklin o yöndeki ölçüsü korunur.
+    void ScaleTo(const RECT& from, const RECT& to) noexcept;
+
+    // Şeklin boyutlandırılmasının bir anlamı var mı? Metin ve rozet TEK
+    // NOKTADIR; sınırları sıfır ölçülüdür ve onları "boyutlandırmak" yalnızca
+    // taşımak olurdu — ki zaten taşınabiliyorlar.
+    [[nodiscard]] bool Resizable() const noexcept;
+
     // Normalleştirilmiş sınırlayıcı dikdörtgen; sürükleme yönünden bağımsız.
     [[nodiscard]] RECT Bounds() const noexcept;
 };

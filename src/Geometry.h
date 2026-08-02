@@ -56,6 +56,48 @@ namespace geom {
 [[nodiscard]] POINT SizeLabelPlacement(const RECT& selection, SIZE labelSize,
                                        LONG gap, const RECT& bounds) noexcept;
 
+// Yerleşmiş seçimin eylem çubuğunun sol-üst köşesi. Seçimin ALTINA, sağ
+// kenarına hizalı oturur; aşağıda yer yoksa üstüne çıkar, iki tarafta da yer
+// yoksa seçimin İÇİNE, alt kenarına iner.
+//
+// İÇERİ GİRMEK SON ÇARE AMA EKRAN DIŞINA TAŞMAKTAN İYİ. Ekranı kaplayan bir
+// seçimde çubuğun sığacağı bir dış kenar yoktur; monitörün dışına konan çubuk
+// hiç görünmez, seçimin üstüne binen çubuk ise birkaç yüz pikseli örter — ve
+// orası kullanıcının zaten seçtiği, dolayısıyla baktığı yerdir.
+//
+// Yatayda `bounds` içine sıkıştırılır: seçim ekranın soluna yakınken sağ
+// kenarına hizalanan çubuk dışarı taşardı.
+[[nodiscard]] POINT ActionBarPlacement(const RECT& selection, SIZE barSize,
+                                       LONG gap, const RECT& bounds) noexcept;
+
+// Metinden okunmuş bir seçim.
+struct ParsedSelection {
+    bool ok = false;
+    bool hasPosition = false;   // yalnızca ölçü verilmişse false
+    LONG x = 0;
+    LONG y = 0;
+    LONG width = 0;
+    LONG height = 0;
+};
+
+// Serbest metinden seçim ölçüsü (ve varsa konumu) okur.
+//
+// Ctrl+C SEÇİMİN SAYILARINI KOPYALIYORDU, TERSİ YOKTU. "Bu ekran görüntüsü tam
+// 1200×630 olmalı" diyen kullanıcının elinde fareyi piksel piksel sürüklemekten
+// başka yol yoktu; oysa sayılar zaten bir yerde yazılıydı.
+//
+// AYIRICI ÖNEMSENMEZ, SAYILAR ÖNEMSENİR. Kabul edilenler `1200x630`,
+// `1200 × 630`, `1200, 630`, ve Ctrl+C'nin kendi ürettiği
+// `100, 200  1200 × 630`. İki sayı ölçü demek, dört sayı konum ve ölçü.
+// Kullanıcının hangi ayırıcıyı yazdığını tahmin etmeye çalışmak yerine
+// aradaki her şeyi atlamak, hem daha kısa hem daha affedici.
+//
+// NEGATİF SAYI YOK: eksi işareti ayırıcı olabilir (`1200-630`) ve bir seçimin
+// negatif ölçüsü zaten olamaz. Konumun negatif olabildiği tek yer soldaki
+// ikinci monitör; oraya elle sayı yazan kullanıcı yok denecek kadar az ve
+// bunun bedeli `1200-630` yazanın hiçbir şey alamaması olurdu.
+[[nodiscard]] ParsedSelection ParseSelectionText(const wchar_t* text) noexcept;
+
 // İki nokta arasındaki dikdörtgeni, kenar oranını koruyacak biçimde ayarlar
 // (Shift ile kare seçim). anchor sabit kalır, other en yakın kareye çekilir.
 [[nodiscard]] POINT SnapToSquare(POINT anchor, POINT other) noexcept;

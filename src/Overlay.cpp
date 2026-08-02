@@ -5,6 +5,7 @@
 
 #include "Geometry.h"
 #include "Localization.h"
+#include "OverlayActions.h"
 #include "OverlayPaint.h"
 #include "Util.h"
 #include "WindowPick.h"
@@ -118,6 +119,7 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam,
             } else if (!state->settled) {
                 UpdateHover(*state, window, cursor);
             }
+            state->visual.hoverAction = ActionAtCursor(*state, cursor);
             ::InvalidateRect(window, nullptr, FALSE);
             return 0;
         }
@@ -142,9 +144,27 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam,
                 ::InvalidateRect(window, nullptr, FALSE);
                 return 0;
             }
+            const POINT cursor = CursorInScreen();
+
+            // EYLEM ÇUBUĞU SÜRÜKLEMEDEN ÖNCE BAKILIR. Çubuk seçimin dışında
+            // duruyor; bu sınama olmasaydı bir düğmeye basmak, seçimi silip
+            // yeni bir sürükleme başlatan "dışarı tık" dalına düşerdi.
+            if (const int chosen = ActionAtCursor(*state, cursor); chosen >= 0) {
+                ActionButton buttons[static_cast<size_t>(OverlayAction::Count)]{};
+                RECT bar{};
+                const int count = ActionButtons(
+                    state->visual.selection, MonitorRectAtPoint(cursor),
+                    state->visual.dpi, state->visual.uploadEnabled, buttons, bar);
+                if (chosen < count) {
+                    state->result.action = buttons[chosen].action;
+                    Finish(window, *state, true, state->visual.selection);
+                    return 0;
+                }
+            }
+
             // Fare kaplamanın dışına çıksa da hareketleri almaya devam et;
             // yakalamayı BeginRegionGrab kuruyor.
-            BeginRegionGrab(window, *state, CursorInScreen());
+            BeginRegionGrab(window, *state, cursor);
             ::InvalidateRect(window, nullptr, FALSE);
             return 0;
         }
@@ -177,6 +197,12 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam,
                 // sürükleme başlatmalı, yoksa hızlı davranan kullanıcı ilk
                 // hareketini kaybederdi.
                 const POINT cursor = CursorInScreen();
+                // Çubuğun üstündeki ikinci basış: ilk basış zaten kaplamayı
+                // bitirmiş olmalı, ama bitirmediyse yeni bir sürükleme
+                // başlatmamalı.
+                if (ActionAtCursor(*state, cursor) >= 0) {
+                    return 0;
+                }
                 if (state->settled &&
                     geom::IsUsableSelection(state->visual.selection,
                                             kMinimumSelectionSide) &&

@@ -63,13 +63,14 @@ void FlashSaved(const std::wstring& path) {
 bool RunRegionCapture(HINSTANCE instance, const Settings& settings,
                       bool preferWindowPick, Image& out, POINT& origin) {
     RECT selection{};
+    OverlayAction action = OverlayAction::None;
     return RunRegionCaptureRect(instance, settings, preferWindowPick, out, origin,
-                                selection);
+                                selection, action);
 }
 
 bool RunRegionCaptureRect(HINSTANCE instance, const Settings& settings,
                           bool preferWindowPick, Image& out, POINT& origin,
-                          RECT& selection) {
+                          RECT& selection, OverlayAction& action) {
     Image frozen;
     const OverlayResult result = RunSelectionOverlay(
         instance, settings, OverlayMode::Region, preferWindowPick, frozen);
@@ -93,6 +94,7 @@ bool RunRegionCaptureRect(HINSTANCE instance, const Settings& settings,
 
     origin = POINT{result.selection.left, result.selection.top};
     selection = result.selection;
+    action = result.action;
     return true;
 }
 
@@ -100,9 +102,10 @@ void App::CaptureRegionOrWindow(bool preferWindowPick) {
     Image capture;
     POINT origin{};
     RECT selection{};
+    OverlayAction action = OverlayAction::None;
     ::Sleep(kMenuSettleMs);
     if (!RunRegionCaptureRect(m_instance, m_settings, preferWindowPick, capture,
-                              origin, selection)) {
+                              origin, selection, action)) {
         return;
     }
 
@@ -115,7 +118,7 @@ void App::CaptureRegionOrWindow(bool preferWindowPick) {
             LogV(L"Son bölge kaydedilemedi");
         }
     }
-    DeliverCapture(capture, origin, nullptr);
+    DeliverCapture(capture, origin, nullptr, action);
 }
 
 void App::CaptureCurrentMonitor() {
@@ -163,8 +166,105 @@ bool App::SaveCapture(const Image& image, std::wstring& savedPath,
     return true;
 }
 
-void App::DeliverCapture(const Image& image, POINT origin, HWND sourceWindow) {
+void App::DeliverChosenAction(const Image& image, POINT origin,
+                              OverlayAction action) {
+    // GEÇMİŞ HER YOLDA KAYDEDİLİR. Çubuk "yakalama sonrası ne olsun" sorusunu
+    // cevaplıyor; geçmiş bir eylem değil, alınan her görüntünün kaydı.
+    RememberInHistory(image);
+
+    std::wstring savedPath;
+    bool copied = false;
+    bool pinned = false;
+
+    switch (action) {
+        case OverlayAction::Copy:
+            copied = CopyImageToClipboard(image, m_window);
+            if (!copied) {
+                LogV(L"Panoya kopyalama başarısız");
+            }
+            break;
+
+        case OverlayAction::Save:
+            if (SaveCapture(image, savedPath, nullptr)) {
+                FlashSaved(savedPath);
+            } else {
+                ReportSaveFailure();
+                return;
+            }
+            break;
+
+        case OverlayAction::Edit: {
+            Image edited;
+            if (!CropImage(image, 0, 0, image.Width(), image.Height(), edited)) {
+                return;
+            }
+            const EditorResult result = RunEditor(m_instance, m_settings, edited);
+            if (!result.accepted) {
+                return;
+            }
+            savedPath = result.savedPath;
+            copied = result.copied;
+            if (!savedPath.empty()) {
+                FlashSaved(savedPath);
+            }
+            // Düzenlenen hâli de geçmişe girer; yukarıdaki kayıt ham yakalamaydı.
+            RememberInHistory(edited);
+            Announce(edited, copied, false, savedPath);
+            return;
+        }
+
+        case OverlayAction::Pin:
+            pinned = PinImageToScreen(m_instance, image, origin);
+            break;
+
+        case OverlayAction::Upload:
+            // Bildirimi yükleme kendisi getirir: bağlantı geldiğinde.
+            UploadInBackground(image);
+            return;
+
+        case OverlayAction::Ocr: {
+            // AppText.cpp'deki kipin aynısı: tanıma çalışmıyorsa ve metin
+            // bulunamadıysa ayrı şeyler söylenir, ve boş sonuç panoyu EZMEZ.
+            std::wstring text;
+            if (!RecognizeText(image, text)) {
+                ShowMessage(m_instance, m_window, Loc::Str(IDS_OCR_UNAVAILABLE),
+                            MessageIcon::Warning);
+                return;
+            }
+            if (text.empty()) {
+                ShowMessage(m_instance, m_window,
+                            Loc::Str(IDS_OCR_NO_TEXT_REGION),
+                            MessageIcon::Information);
+                return;
+            }
+            if (!CopyTextToClipboard(text.c_str(), m_window)) {
+                LogV(L"Tanınan metin panoya kopyalanamadı");
+                return;
+            }
+            copied = true;
+            break;
+        }
+
+        default:
+            return;
+    }
+
+    Announce(image, copied, pinned, savedPath);
+}
+
+void App::DeliverCapture(const Image& image, POINT origin, HWND sourceWindow,
+                         OverlayAction action) {
     if (!image.Valid()) {
+        return;
+    }
+
+    // SES HER İKİ YOLDA DA ÇALAR ama eylem seçildiyse gerisi atlanır: kullanıcı
+    // ne olacağını söyledi, ayarların ne dediğinin bir önemi kalmadı.
+    if (action != OverlayAction::None) {
+        if (m_settings.playShutterSound) {
+            PlayShutter();
+        }
+        DeliverChosenAction(image, origin, action);
         return;
     }
 

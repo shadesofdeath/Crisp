@@ -50,9 +50,19 @@ struct OverlayVisual {
     // içinden taşınıyor. `OverlayState::settled`den yansıtılır, tıpkı
     // `dragging` gibi.
     //
-    // Boyamayı üç yerde değiştiriyor: artı imleç kalkar (nişan alma bitti),
-    // pencere vurgusu kalkar (pencere seçme bitti), ipucu farklı satırı gösterir.
+    // Boyamayı dört yerde değiştiriyor: artı imleç kalkar (nişan alma bitti),
+    // pencere vurgusu kalkar (pencere seçme bitti), ipucu farklı satırı gösterir
+    // ve eylem çubuğu belirir.
     bool settled = false;
+
+    // Eylem çubuğu. Yerleşmiş seçimde çizilir; `hoverAction` imlecin altındaki
+    // düğmenin dizini ya da -1.
+    //
+    // ÇUBUK BURADA DEĞİL, DURUMDA HESAPLANIYOR: yerleşimi ve isabet testi aynı
+    // fonksiyondan gelmeli, ve isabet testini yapan taraf boyamayı beklemez.
+    bool showActionBar = false;
+    bool uploadEnabled = false;
+    int hoverAction = -1;
 
     // --- Metin seçme kipi ----------------------------------------------------
     bool textSelect = false;

@@ -11,6 +11,8 @@
 // Arayüz tutmadığı bir söz veriyordu.
 #include "OverlayInternal.h"
 
+#include "OverlayActions.h"
+
 #include "Geometry.h"
 #include "Util.h"
 
@@ -177,9 +179,29 @@ void ClearRegionSelection(HWND window, OverlayState& state) {
     ::InvalidateRect(window, nullptr, FALSE);
 }
 
+int ActionAtCursor(const OverlayState& state, POINT cursor) {
+    if (!state.settled || !state.visual.showActionBar ||
+        state.grab != geom::Grab::None) {
+        return -1;
+    }
+    ActionButton buttons[static_cast<size_t>(OverlayAction::Count)]{};
+    RECT bar{};
+    const int count = ActionButtons(state.visual.selection,
+                                    MonitorRectAtPoint(cursor), state.visual.dpi,
+                                    state.visual.uploadEnabled, buttons, bar);
+    return ActionButtonAt(buttons, count, cursor);
+}
+
 HCURSOR RegionCursor(const OverlayState& state) {
     if (state.mode == OverlayMode::TextSelect) {
         return ::LoadCursorW(nullptr, IDC_IBEAM);
+    }
+
+    // ÇUBUĞUN ÜSTÜNDE OK. Artı imleç "buraya nişan al" der; düğmenin üstünde
+    // nişan alınacak bir şey yok, tıklanacak bir şey var. Tutamak isabet
+    // testinden ÖNCE bakılıyor çünkü çubuk seçimin alt kenarına değebiliyor.
+    if (ActionAtCursor(state, CursorInScreen()) >= 0) {
+        return ::LoadCursorW(nullptr, IDC_ARROW);
     }
 
     if (state.grab != geom::Grab::None) {

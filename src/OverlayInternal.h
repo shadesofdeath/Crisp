@@ -95,6 +95,9 @@ void BeginRegionGrab(HWND window, OverlayState& state, POINT cursor);
 void UpdateRegionGrab(HWND window, OverlayState& state, POINT cursor);
 void EndRegionGrab(HWND window, OverlayState& state);
 void ClearRegionSelection(HWND window, OverlayState& state);
+// İmlecin altındaki eylem düğmesinin dizini; çubuk görünmüyorsa ya da imleç
+// düğmelerin dışındaysa -1.
+[[nodiscard]] int ActionAtCursor(const OverlayState& state, POINT cursor);
 [[nodiscard]] HCURSOR RegionCursor(const OverlayState& state);
 [[nodiscard]] bool HandleOverlayShortcut(HWND window, OverlayState& state,
                                          WPARAM key);

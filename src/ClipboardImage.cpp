@@ -361,6 +361,41 @@ bool CopyTextToClipboard(const wchar_t* text, HWND owner) {
     return true;
 }
 
+bool ReadTextFromClipboard(std::wstring& out, HWND owner) {
+    if (::IsClipboardFormatAvailable(CF_UNICODETEXT) == FALSE) {
+        return false;
+    }
+
+    const clipboard_scope clipboard{owner};
+    if (!clipboard.ok()) {
+        return false;
+    }
+
+    const HANDLE handle = ::GetClipboardData(CF_UNICODETEXT);
+    if (handle == nullptr) {
+        return false;
+    }
+
+    // TUTAMAÇ PANOYA AİT: kilitlenir, okunur, serbest bırakılır — ama asla
+    // serbest BIRAKILMAZ (GlobalFree). Sahibi pano.
+    const global_lock lock{handle};
+    if (!lock.valid()) {
+        return false;
+    }
+
+    const auto* text = static_cast<const wchar_t*>(lock.get());
+    // Pano metni NUL ile biter; boyuttan hesaplamak, sonda çöp bırakabilir.
+    const size_t bytes = ::GlobalSize(handle);
+    const size_t limit = bytes / sizeof(wchar_t);
+    size_t length = 0;
+    while (length < limit && text[length] != L'\0') {
+        ++length;
+    }
+
+    out.assign(text, length);
+    return true;
+}
+
 bool CopyFileToClipboard(const std::wstring& path, HWND owner) {
     if (path.empty()) {
         return false;

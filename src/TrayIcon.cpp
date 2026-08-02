@@ -208,7 +208,25 @@ int TrayIcon::ShowMenu(HWND owner) {
     // bir komut, kullanıcının bozuk sandığı bir komuttur.
     ::AppendMenuW(menu, m_hasLastRegion ? MF_STRING : (MF_STRING | MF_GRAYED),
                   IDM_CAPTURE_LAST, Loc::Str(IDS_ACT_LAST_REGION).c_str());
-    add(IDM_CAPTURE_DELAYED, IDS_MENU_DELAYED, IDS_ACCEL_DELAYED);
+    // GECİKMELİ ARTIK ÜÇ ŞEY. Altyapı her yakalamayı geciktirebiliyordu ama
+    // menüde tek bir satır vardı ve o satır sabit olarak bölge demekti.
+    // Üçünü de üst düzeye koymak yakalama grubunu yarı yarıya uzatırdı.
+    {
+        const HMENU delayed = ::CreatePopupMenu();
+        if (delayed != nullptr) {
+            ::AppendMenuW(delayed, MF_STRING, IDM_CAPTURE_DELAYED,
+                          Loc::MenuText(IDS_MENU_DELAYED_REGION, IDS_ACCEL_DELAYED).c_str());
+            ::AppendMenuW(delayed, MF_STRING, IDM_DELAYED_WINDOW,
+                          Loc::Str(IDS_ACT_DELAYED_WINDOW).c_str());
+            ::AppendMenuW(delayed, MF_STRING, IDM_DELAYED_MONITOR,
+                          Loc::Str(IDS_ACT_DELAYED_MONITOR).c_str());
+            ::AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(delayed),
+                          Loc::Str(IDS_MENU_DELAYED).c_str());
+        }
+    }
+    // Kaydırmalı yakalama yakalama grubunun SONUNDA: diğer altısı bir karede
+    // biterken bu saniyeler sürüyor ve pencereyi kendisi kaydırıyor.
+    add(IDM_CAPTURE_SCROLL, IDS_MENU_SCROLL, 0);
     separator();
     add(IDM_SELECT_TEXT, IDS_MENU_SELECT_TEXT, 0);
     add(IDM_CAPTURE_OCR, IDS_MENU_REGION_TEXT, 0);

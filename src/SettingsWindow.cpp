@@ -205,6 +205,9 @@ UINT HotkeyActionLabel(HotkeyAction action) noexcept {
         case HotkeyAction::RegionText:   return IDS_ACT_REGION_TEXT;
         case HotkeyAction::PickColor:    return IDS_ACT_PICK_COLOR;
         case HotkeyAction::History:      return IDS_ACT_HISTORY;
+        case HotkeyAction::Scrolling:    return IDS_ACT_SCROLL;
+        case HotkeyAction::DelayedWindow:  return IDS_ACT_DELAYED_WINDOW;
+        case HotkeyAction::DelayedMonitor: return IDS_ACT_DELAYED_MONITOR;
         default:                         return IDS_ACT_NONE;
     }
 }

@@ -16,6 +16,8 @@
 #include "Messages.h"
 #include "Ocr.h"
 #include "PinWindow.h"
+#include "ScrollCapture.h"
+#include "Stitch.h"
 #include "Toast.h"
 #include "Upload.h"
 #include "UploadLog.h"
@@ -32,17 +34,6 @@
 
 namespace crisp {
 namespace {
-
-// Arka plandaki yüklemeden pencereye dönen sonuç. `WM_CRISP_UPLOAD_TOAST`in
-// `lParam`ı bunun adresidir ve alan taraf sahipliği devralır.
-//
-// CÜMLE BURADA HAZIR: `UploadErrorText` salt okunur bir kaynak tablosuna bakar,
-// hangi iş parçacığından çağrıldığı önemli değil, ve hazır bir metin taşımak
-// alan tarafını hata kodlarını yeniden yorumlamaktan kurtarıyor.
-struct UploadToast {
-    bool ok = false;
-    std::wstring text;   // başarıda bağlantı, başarısızlıkta hata cümlesi
-};
 
 // Tepsi menüsünün kapanmasını beklemek için; gerekçesi AppCapture.cpp'de.
 constexpr DWORD kMenuSettleMs = 120;
@@ -79,6 +70,9 @@ HotkeyAction ActionFromArgument(const wchar_t* argument) noexcept {
         {L"ocr", HotkeyAction::RegionText},
         {L"color", HotkeyAction::PickColor},
         {L"history", HotkeyAction::History},
+        {L"scroll", HotkeyAction::Scrolling},
+        {L"delayed-window", HotkeyAction::DelayedWindow},
+        {L"delayed-monitor", HotkeyAction::DelayedMonitor},
     };
     for (const Entry& entry : kEntries) {
         if (::_wcsicmp(argument, entry.name) == 0) {
@@ -100,6 +94,9 @@ int CommandForAction(HotkeyAction action) noexcept {
         case HotkeyAction::RegionText:   return IDM_CAPTURE_OCR;
         case HotkeyAction::PickColor:    return IDM_PICK_COLOR;
         case HotkeyAction::History:      return IDM_HISTORY;
+        case HotkeyAction::Scrolling:    return IDM_CAPTURE_SCROLL;
+        case HotkeyAction::DelayedWindow:  return IDM_DELAYED_WINDOW;
+        case HotkeyAction::DelayedMonitor: return IDM_DELAYED_MONITOR;
         // BİLİNMEYEN VE BOŞ EYLEM BÖLGE SEÇER: kullanıcı exe'ye tıkladıysa
         // (argümansız ikinci örnek) beklediği şey budur.
         default:                         return IDM_CAPTURE_REGION;
@@ -117,9 +114,16 @@ void App::RunAction(HotkeyAction action) {
             StartCapture(action, false);
             return;
         case HotkeyAction::Delayed:
-            // "Gecikmeli" TEK BAŞINA BİR EYLEM DEĞİL, bölge yakalamanın
-            // gecikmeli hâlidir; kullanıcının beklediği de budur.
+            // "Gecikmeli" TEK BAŞINA BİR EYLEM DEĞİL, bir yakalamanın gecikmeli
+            // hâlidir. Adı yalnızca "Gecikmeli" olan bölgeyi seçer; kullanıcının
+            // beklediği de budur.
             StartCapture(HotkeyAction::Region, true);
+            return;
+        case HotkeyAction::DelayedWindow:
+            StartCapture(HotkeyAction::Window, true);
+            return;
+        case HotkeyAction::DelayedMonitor:
+            StartCapture(HotkeyAction::Monitor, true);
             return;
         case HotkeyAction::SelectText:
             SelectTextOnScreen();
@@ -132,6 +136,9 @@ void App::RunAction(HotkeyAction action) {
             return;
         case HotkeyAction::History:
             ShowHistory();
+            return;
+        case HotkeyAction::Scrolling:
+            CaptureScrolling();
             return;
         default:
             return;
@@ -260,6 +267,90 @@ void App::CaptureLastRegion() {
     DeliverCapture(capture, POINT{clamped.left, clamped.top}, nullptr);
 }
 
+void App::CaptureScrolling() {
+    if (m_busy) {
+        return;
+    }
+    m_busy = true;
+    ::Sleep(kMenuSettleMs);
+
+    // ALAN NORMAL KAPLAMAYLA SEÇİLİR. Kaydırmalı yakalamaya özel bir seçim
+    // arayüzü yazmak aynı işi ikinci kez yapmak olurdu ve kullanıcı da zaten
+    // bildiği şeyi yapıyor. Pencere vurgusu kapalı: tek tıkla bir pencere
+    // yakalamanın burada karşılığı yok, kaydırılacak bir alan gerekiyor.
+    Image frozen;
+    const OverlayResult chosen = RunSelectionOverlay(
+        m_instance, m_settings, OverlayMode::Region, false, frozen);
+    m_busy = false;
+
+    if (!chosen.accepted || geom::IsEmpty(chosen.selection)) {
+        return;
+    }
+
+    // KAPLAMA KAPANDIKTAN SONRA MASAÜSTÜNÜN KENDİNİ ÇİZMESİ BEKLENİR.
+    //
+    // Kaplama tam ekran, en üstte ve masaüstünün DONDURULMUŞ, karartılmış
+    // görüntüsünü çiziyor. Yok edildiğinde altındaki pencereler kendi
+    // zamanlamalarıyla yeniden çiziliyor ve bu bir kareden uzun sürüyor.
+    //
+    // 150 MİLİSANİYE YETMİYORDU ve sonucu şuydu: İLK kare kaplamanın
+    // karartılmış artıklarını yakalıyor, ikinci kare gerçek masaüstünü
+    // gösteriyor, ikisi birbirini tutmuyor ve birleştirme daha ilk adımda
+    // duruyordu. Kullanıcının gördüğü "hiçbir şey yakalanamadı" oluyordu —
+    // oysa pencere gayet güzel kaydırılmıştı.
+    ::Sleep(450);
+
+    if (m_settings.showNotification) {
+        Image none;
+        ShowProgressToast(m_instance, none, Loc::Str(IDS_SCROLL_WORKING),
+                          Loc::Str(IDS_MENU_SCROLL));
+    }
+
+    std::vector<Image> frames;
+    const ScrollCaptureOptions options;
+    LogV(L"Kaydırmalı yakalama başlıyor: %ldx%ld",
+         geom::Width(chosen.selection), geom::Height(chosen.selection));
+    // MEŞGUL BAYRAĞI DÖNGÜ BOYUNCA KURULU KALIR. Toplama sırasında mesaj
+    // kuyruğu boşaltılıyor (bildirim görünsün diye) ve o sırada gelen bir
+    // kısayol ikinci bir yakalama başlatabilirdi.
+    m_busy = true;
+    const bool collected = CollectScrollFrames(chosen.selection, options, frames);
+    m_busy = false;
+
+    Image stitched;
+    size_t used = 0;
+    const bool joined =
+        collected && StitchVertical(frames, kScrollOverlapRows, stitched, &used);
+
+    // TEK KARE, KAYDIRILAMAMIŞ DEMEKTİR. Kullanıcı kaydırmalı yakalama istedi
+    // ve eline sıradan bir ekran görüntüsü geçti; bunu söylemeden vermek,
+    // aracın çalıştığını sanmasına yol açardı.
+    if (!joined || used <= 1) {
+        // SAYILAR GÜNLÜĞE YAZILIR. Kullanıcıya "hiçbir şey yakalanamadı"
+        // demek yeterli, ama bu iletiyi bir hata olarak bildiren birine
+        // "kaç kare toplandı" diye sorabilmek gerekiyor: sıfır kare
+        // yakalamanın, otuz karenin hiçbirinin eşleşmemesinden bambaşka bir
+        // sebebi var.
+        LogV(L"Kaydırmalı yakalama başarısız: toplanan %zu, birleşen %zu",
+             frames.size(), used);
+        CloseCaptureToast();
+        ShowMessage(m_instance, m_window, Loc::Str(IDS_SCROLL_FAILED),
+                    MessageIcon::Warning);
+        return;
+    }
+
+    // KAÇ KAREDE DURDUĞU SÖYLENİR. Sayfanın sonuna gelmek de, pencerenin
+    // kaydırmayı bırakması da, içeriğin değişmesi de aynı yerde bitiyor ve
+    // kullanıcı elindeki görüntünün tamam olup olmadığını bilmeli.
+    if (used < frames.size()) {
+        LogV(L"Kaydırmalı yakalama %zu/%zu karede durdu", used, frames.size());
+    }
+
+    CloseCaptureToast();
+    DeliverCapture(stitched, POINT{chosen.selection.left, chosen.selection.top},
+                   nullptr);
+}
+
 void App::OpenClipboardImage() {
     Image image;
     if (!ReadImageFromClipboard(image, m_window)) {
@@ -341,96 +432,6 @@ void App::RunExtraTasks(const Image& image, const std::wstring& savedPath) {
     if (after.uploadImage) {
         UploadInBackground(image);
     }
-}
-
-void App::UploadInBackground(const Image& image) {
-    const UploadService service = UploadServiceFromId(m_settings.uploadService);
-    if (service == UploadService::None) {
-        // Kutu işaretli ama servis seçilmemiş. Sessizce geçmek doğru: ayarlar
-        // penceresi zaten servis seçilmeden hiçbir şeyin yüklenmeyeceğini
-        // yazıyor ve her yakalamada bir hata kutusu açmak cezalandırmak olurdu.
-        return;
-    }
-
-    // PNG BURADA KODLANIR, İŞ PARÇACIĞINDAN ÖNCE. `Image` bir GDI nesnesi
-    // tutuyor; ömrünü iki iş parçacığına birden bağlamak, yakalama akışı bitip
-    // görüntü yok edildiğinde çöken bir yarış olurdu. Baytların sahibi yok.
-    auto png = std::make_shared<std::vector<uint8_t>>();
-    if (!EncodePng(image, *png)) {
-        LogV(L"Otomatik yükleme: PNG kodlanamadı");
-        return;
-    }
-
-    // SÜRDÜĞÜNÜ SÖYLE. Yükleme servise ve dosya boyutuna göre yirmi saniyeyi
-    // bulabiliyor ve o süre boyunca ekranda hiçbir şey yoktu: kullanıcının
-    // gördüğü, yakalamanın bildirimi sönüyor ve sonra uzun bir sessizlik.
-    // İşin sürdüğü ile unutulduğu aynı görünüyordu. Bu bildirim sönmez ve
-    // saniyeleri sayar; yerini sonucu bildiren bildirim alır.
-    m_uploadPending = true;
-    if (m_settings.showNotification) {
-        ShowProgressToast(m_instance, image, Loc::Str(IDS_UPLOAD_WORKING),
-                          UploadServiceOf(service).displayName);
-    }
-
-    // AYRILMIŞ İŞ PARÇACIĞI: yakalama akışı burada bitiyor ve kullanıcı bir
-    // saniyeliğine donmuş bir tepsi uygulaması görmemeli. Yükleme kendi hızında
-    // biter ve sonucu bir mesajla geri gönderir.
-    const HWND window = m_window;
-    const std::wstring key = m_settings.uploadApiKey;
-
-    std::thread([window, service, key, png]() {
-        const UploadResult result = UploadPng(service, key, *png, L"crisp.png");
-
-        // Defter BURADA yazılır: bir dosyaya satır eklemek arayüze dokunmuyor
-        // ve yükleme bitmişse kayıt da bitmiştir.
-        if (result.ok) {
-            UploadRecord record;
-            record.link = result.link;
-            record.service = UploadServiceId(service);
-            (void)AppendUploadRecord(record);
-        } else {
-            LogV(L"Otomatik yükleme başarısız: kod %u, durum %u",
-                 static_cast<unsigned>(result.error), result.status);
-        }
-
-        auto payload = std::make_unique<UploadToast>();
-        payload->ok = result.ok;
-        payload->text = result.ok ? result.link : UploadErrorText(result);
-
-        if (::PostMessageW(window, WM_CRISP_UPLOAD_TOAST, 0,
-                           reinterpret_cast<LPARAM>(payload.get())) != FALSE) {
-            (void)payload.release();   // sahiplik pencereye geçti
-        }
-    }).detach();
-}
-
-void App::FinishBackgroundUpload(LPARAM lParam) {
-    const std::unique_ptr<UploadToast> payload(
-        reinterpret_cast<UploadToast*>(lParam));
-    m_uploadPending = false;
-    if (!payload) {
-        return;
-    }
-
-    // PANO BURADA YAZILIR, İŞ PARÇACIĞINDA DEĞİL. `OpenClipboard` verilen
-    // pencerenin ÇAĞIRAN İŞ PARÇACIĞINA ait olmasını ister; yükleme iş
-    // parçacığından çağrıldığında sessizce başarısız oluyordu ve kullanıcı
-    // "kopyalandı" diyen bir bildirimle boş bir panoya kalıyordu.
-    if (payload->ok && !CopyTextToClipboard(payload->text.c_str(), m_window)) {
-        LogV(L"Yükleme bağlantısı panoya kopyalanamadı");
-    }
-
-    if (!m_settings.showNotification) {
-        return;
-    }
-
-    // BİLDİRİM YÜKLEME BİTİNCE ÇIKAR, yakalanınca değil. "Bağlantı kopyalandı"
-    // diyen bir bildirimin ardından sessizce başarısız olan bir yükleme,
-    // kullanıcıya panosunda olmayan bir bağlantıyı yapıştırtırdı.
-    Image none;
-    ShowCaptureToast(m_instance, none,
-                     Loc::Str(payload->ok ? IDS_UPLOAD_COPIED : IDS_UPLOAD_FAILED),
-                     payload->text, std::wstring());
 }
 
 }  // namespace crisp

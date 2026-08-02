@@ -136,6 +136,9 @@ enum class HotkeyAction : unsigned {
     RegionText,
     PickColor,
     History,
+    Scrolling,       // kaydıra kaydıra uzun bir sayfa
+    DelayedWindow,   // gecikmeli, imlecin altındaki pencere
+    DelayedMonitor,  // gecikmeli, imlecin bulunduğu monitör
     Count,
 };
 

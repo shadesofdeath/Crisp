@@ -97,6 +97,13 @@ bool App::Initialize(HINSTANCE instance) {
         ApplyShellMenuSetting();
     }
 
+    // İĞNELER GERİ GELİR. Ekrana iğnelenmiş bir görüntü, bir yeniden başlatma
+    // ya da bir güncellemeyle birlikte kayboluyordu — ve hiçbir yere
+    // kaydedilmediği için geri getirmenin yolu da yoktu.
+    if (const int restored = RestorePins(instance); restored > 0) {
+        LogV(L"%d iğne geri yüklendi", restored);
+    }
+
     ::SetTimer(m_window, TIMER_THEME, kThemePollMs, nullptr);
     return true;
 }
@@ -221,6 +228,9 @@ LRESULT App::HandleMessage(HWND window, UINT message, WPARAM wParam,
         }
 
         case WM_DESTROY:
+            // İĞNELER KAPATILMADAN ÖNCE YAZILIR: `CloseAllPins` pencereleri yok
+            // ediyor ve onlarla birlikte konumları da gidiyor.
+            SaveOpenPins();
             CloseAllPins();
             m_hotkeys.UnregisterAll();
             m_tray.Remove();
@@ -277,6 +287,15 @@ void App::OnCommand(int command) {
         case IDM_CAPTURE_DELAYED:
             RunAction(HotkeyAction::Delayed);
             break;
+        case IDM_CAPTURE_SCROLL:
+            CaptureScrolling();
+            break;
+        case IDM_DELAYED_WINDOW:
+            RunAction(HotkeyAction::DelayedWindow);
+            break;
+        case IDM_DELAYED_MONITOR:
+            RunAction(HotkeyAction::DelayedMonitor);
+            break;
         case IDM_SELECT_TEXT:
             SelectTextOnScreen();
             break;
@@ -302,7 +321,10 @@ void App::OnCommand(int command) {
             ShowAboutWindow(m_instance);
             break;
         case IDM_EXIT:
-            CloseAllPins();
+            // İĞNELER BURADA KAPATILMAZ. Kapatmayı ve ondan önce diske yazmayı
+            // WM_DESTROY yapıyor; burada da kapatmak, kaydedilecek bir şey
+            // kalmadan o noktaya varmak demekti — iğneler tam da bu yüzden hiç
+            // kaydedilmiyordu.
             CloseCaptureToast();
             ::DestroyWindow(m_window);
             break;

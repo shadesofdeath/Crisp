@@ -26,6 +26,9 @@
 #define IDM_CAPTURE_ALL         214
 #define IDM_CAPTURE_LAST        215
 #define IDM_OPEN_CLIPBOARD      216
+#define IDM_CAPTURE_SCROLL      218
+#define IDM_DELAYED_WINDOW      219
+#define IDM_DELAYED_MONITOR     220
 
 // Son yüklenen bağlantılar. Alt menüdeki her satır bir komut kimliği alır ve
 // tıklandığında o bağlantıyı panoya kopyalar; blok hâlinde ayrılmalarının
@@ -306,3 +309,21 @@
 #define IDS_SET_UPLOAD_FOREVER   1229
 #define IDS_SET_UPLOAD_HOURS     1230
 #define IDS_SET_UPLOAD_DAYS      1231
+
+// Yerleşmiş seçimin eylem çubuğundaki düğmelerin adları.
+#define IDS_BAR_COPY            1232
+#define IDS_BAR_SAVE            1233
+#define IDS_BAR_EDIT            1234
+#define IDS_BAR_OCR             1235
+#define IDS_BAR_PIN             1236
+#define IDS_BAR_UPLOAD          1237
+
+// Kaydırmalı yakalama
+#define IDS_MENU_SCROLL         1238
+#define IDS_SCROLL_WORKING      1239
+#define IDS_SCROLL_FAILED       1240
+#define IDS_SCROLL_PARTIAL      1241
+#define IDS_ACT_SCROLL          1242
+#define IDS_ACT_DELAYED_WINDOW  1243
+#define IDS_ACT_DELAYED_MONITOR 1244
+#define IDS_MENU_DELAYED_REGION 1245

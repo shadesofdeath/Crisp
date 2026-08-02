@@ -38,8 +38,12 @@ magnifier reads real pixels.
   drag a handle to resize, drag inside it to move, **Enter** or a double-click
   inside to capture. Small selections drop to corner handles only, and smaller
   ones to none at all, so the handles never crowd out the room to move.
+- **A settled selection grows a bar**: copy, save, edit, recognise text, pin,
+  upload. `Enter` still does whatever *After capture* says; the bar is how you
+  do something different **this once** without changing the defaults. The upload
+  button is absent, not greyed, when no service is chosen.
 
-Four more keys, all of them named in the on-screen hint:
+Five more keys, all of them named in the on-screen hint:
 
 | Key | Does |
 | --- | --- |
@@ -47,9 +51,28 @@ Four more keys, all of them named in the on-screen hint:
 | `1`–`9` | Nth monitor, ordered left to right rather than in driver order |
 | `0` | the entire virtual desktop |
 | `Ctrl+C` | copy the selection's position and size as text, taking no screenshot at all |
+| `Ctrl+V` | read a size from the clipboard and apply it |
+
+`Ctrl+V` accepts `1200x630`, `1200 × 630`, `1200, 630` and the exact text
+`Ctrl+C` writes — separators are ignored, numbers are not. Give it four numbers
+and it positions the rectangle too.
 
 Once a selection is settled the monitor keys reshape it instead of capturing;
 `Enter` remains the one commit.
+
+## Scrolling capture
+
+Select a region and Crisp scrolls the window under it, capturing as it goes,
+then joins the frames into one tall image — a long page or a chat log in one
+piece rather than three screenshots aligned by hand.
+
+It stops on its own at the end of the page, at 30 frames, or as soon as two
+frames cannot be matched. **It refuses rather than guesses:** any two images
+have a best-fitting offset, and treating that as an answer would silently
+produce a picture made of two unrelated strips.
+
+Not every window scrolls from a wheel event, and Crisp says so rather than
+handing back a single frame dressed up as a long one.
 
 ## Other captures
 
@@ -61,9 +84,8 @@ Once a selection is settled the monitor keys reshape it instead of capturing;
 - **Last region** — replays the last dragged rectangle, clamped to the current
   layout, and silently does nothing if none was stored. Click-picked windows are
   never stored.
-- **Delayed** — 3 s by default, 1–30, and region capture only; there is no
-  delayed window or monitor variant. With notifications off the countdown is
-  invisible, though the wait still happens.
+- **Delayed** — 3 s by default, 1–30, for region, window or monitor. With
+  notifications off the countdown is invisible, though the wait still happens.
 
 Every path is a GDI `BitBlt` of what is genuinely on screen — no DXGI, no
 `PrintWindow`, which returns black frames for hardware-accelerated content. The
@@ -86,10 +108,14 @@ line and arrow to 45 degrees.
   so 25 % and back to 100 % returns real pixels.
 - Effects: flip horizontal and vertical, auto-crop, padding, grayscale, invert,
   sepia, sharpen, and brightness, contrast and saturation in fixed steps.
-- Undo and redo, up to 64 document snapshots. The select tool moves, deletes and
-  restyles a shape; it does not resize one.
-- The text tool appends only: no caret navigation, no selection. There is no
-  live preview while dragging blur, mosaic or crop either, just a dashed outline.
+- Undo and redo, up to 64 document snapshots. The select tool moves, deletes,
+  restyles and resizes a shape — one proportional mapping, so an arrow keeps its
+  direction and a freehand curve keeps its shape.
+- Blur, mosaic and crop preview live while you drag. Blur is a redaction tool;
+  finding out it was not enough after you let go means looking at the thing you
+  were hiding one more time. Crop dims what will go rather than outlining what
+  will stay.
+- The text tool appends only: no caret navigation, no selection.
 - Crop, rotate, scale and every effect bake the annotations into pixels and clear
   the shape list. One undo reverses both.
 - Drop an image file on the window to edit it without capturing anything first.
@@ -114,8 +140,12 @@ Post-capture OCR is off by default.
 
 Puts a capture in a topmost layered window: drag anywhere on it, wheel to zoom,
 double-click for actual size, right-click for copy, save as, opacity and close.
-Nothing is written to disk, its Save As is PNG-only regardless of your chosen
-format, and pins do not survive app exit. Off by default.
+Its Save As is PNG-only regardless of your chosen format. Off by default.
+
+Pins survive a restart: position, zoom and opacity go to
+`%LOCALAPPDATA%\Crisp\Pins` as plain PNGs plus a tab-separated index, and come
+back when Crisp next starts. Killing the process from Task Manager still loses
+them — the save runs on a clean exit.
 
 ## History
 
@@ -198,7 +228,8 @@ Crisp.exe -region
 ```
 
 `region`, `window`, `active`, `monitor` (or `fullscreen`), `all`, `last`,
-`delayed`, `text`, `ocr`, `color`, `history`. A `/` prefix works as well as `-`.
+`delayed`, `delayed-window`, `delayed-monitor`, `scroll`, `text`, `ocr`, `color`,
+`history`. A `/` prefix works as well as `-`.
 An unknown or missing argument means region capture; a bare path opens that image
 in the editor.
 
@@ -232,7 +263,7 @@ nothing to install beside it. `-CoreOnly` builds the non-UI library and the test
 without the interface layer; `-Package` produces the portable ZIP. There is no
 installer and no MSIX manifest.
 
-284 tests run as a single CTest entry against `crisp_core`, the static library
+327 tests run as a single CTest entry against `crisp_core`, the static library
 holding everything that never creates a window — which is what makes the capture
 pipeline testable at all. A GitHub Actions workflow builds, tests and packages on
 every push. No test asserts anything about what is on screen at the time: one

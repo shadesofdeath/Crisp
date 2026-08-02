@@ -8,7 +8,7 @@ project(crisp
         # deÄŸiÅŸiklik gÃ¼nlÃ¼ÄŸÃ¼ 0.4.0'a gelmiÅŸken burasÄ± hÃ¢lÃ¢ 0.1.0 diyordu, ve
         # sÃ¼rÃ¼m numarasÄ±nÄ± arÅŸivin adÄ±na yazan CPack yanlÄ±ÅŸ adlÄ± bir paket
         # Ã¼retiyordu.
-        VERSION 0.7.1
+        VERSION 0.8.0
         DESCRIPTION "Screen capture tool for Windows"
         LANGUAGES CXX RC)
 
@@ -46,6 +46,9 @@ option(CRISP_APP      "Uygulama hedefini derle" ON)
 set(CRISP_CORE_SOURCES
     src/Util.cpp
     src/Geometry.cpp
+    src/ActionBar.cpp
+    src/Stitch.cpp
+    src/ScrollCapture.cpp
     src/GeometryGrab.cpp
     src/Capture.cpp
     src/WindowPick.cpp
@@ -69,11 +72,15 @@ set(CRISP_CORE_SOURCES
     src/UploadServices.cpp
     src/UploadHttp.cpp
     src/UploadLog.cpp
+    src/PinStore.cpp
 )
 
 set(CRISP_CORE_HEADERS
     src/Util.h
     src/Geometry.h
+    src/ActionBar.h
+    src/Stitch.h
+    src/ScrollCapture.h
     src/Capture.h
     src/WindowPick.h
     src/ImageCodec.h
@@ -93,6 +100,7 @@ set(CRISP_CORE_HEADERS
     src/Upload.h
     src/UploadInternal.h
     src/UploadLog.h
+    src/PinStore.h
 )
 
 add_library(crisp_core STATIC ${CRISP_CORE_SOURCES} ${CRISP_CORE_HEADERS})
@@ -149,6 +157,7 @@ set(CRISP_APP_SOURCES
     src/App.cpp
     src/AppCapture.cpp
     src/AppActions.cpp
+    src/AppUpload.cpp
     src/AppSettings.cpp
     src/AppText.cpp
     src/Overlay.cpp
@@ -156,6 +165,7 @@ set(CRISP_APP_SOURCES
     src/OverlaySession.cpp
     src/OverlayPaint.cpp
     src/OverlayPanels.cpp
+    src/OverlayActions.cpp
     src/OverlayAdjust.cpp
     src/AlphaLayer.cpp
     src/Localization.cpp
@@ -166,8 +176,10 @@ set(CRISP_APP_SOURCES
     src/MessagePaint.cpp
     src/EditorWindow.cpp
     src/EditorInput.cpp
+    src/EditorKeys.cpp
     src/EditorSession.cpp
     src/EditorRender.cpp
+    src/EditorPreview.cpp
     src/EditorLayout.cpp
     src/EditorChrome.cpp
     src/EditorGlyphs.cpp
@@ -195,6 +207,7 @@ set(CRISP_APP_SOURCES
     src/SettingsValues.cpp
     src/Toast.cpp
     src/PinWindow.cpp
+    src/PinPersist.cpp
     src/Ocr.cpp
     src/OcrScan.cpp
     src/TrayIcon.cpp
@@ -301,6 +314,8 @@ if(CRISP_TESTS)
         tests/TestClipboard.cpp
         tests/TestSettings.cpp
         tests/TestUpload.cpp
+    tests/TestStitch.cpp
+    tests/TestPinStore.cpp
         tests/TestWindowPick.cpp
         tests/TestOcrLayout.cpp
         tests/TestAnnotation.cpp

@@ -21,7 +21,25 @@ namespace crisp {
 [[nodiscard]] bool PinImageToScreen(HINSTANCE instance, const Image& image,
                                     POINT topLeft);
 
+// Aynısı, ama yakınlaştırma ve saydamlık da verilir. Diskten geri yükleme
+// bunu kullanır: kullanıcının %150'de ve yarı saydam bıraktığı bir iğne, geri
+// geldiğinde de öyle olmalı.
+[[nodiscard]] bool PinImageWithView(HINSTANCE instance, const Image& image,
+                                    POINT topLeft, int zoom, unsigned opacity);
+
 // Açık tüm iğneleri kapatır (uygulama çıkışında).
 void CloseAllPins() noexcept;
+
+// AÇIK İĞNELERİ DİSKE YAZAR.
+//
+// İĞNELER ÇIKIŞTA YOK OLUYORDU: yan yana karşılaştırmak için ekrana konmuş bir
+// görüntü, bir yeniden başlatmayla kayboluyordu ve hiçbir yere kaydedilmediği
+// için geri getirmenin yolu da yoktu.
+//
+// `CloseAllPins`ten ÖNCE çağrılmalı: kapatılan pencerenin durumu silinir.
+void SaveOpenPins();
+
+// Diskteki iğneleri geri yükler; kaç tanesinin açıldığını döndürür.
+[[nodiscard]] int RestorePins(HINSTANCE instance);
 
 }  // namespace crisp

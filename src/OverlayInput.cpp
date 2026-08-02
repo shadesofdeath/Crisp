@@ -218,6 +218,48 @@ bool HandleOverlayShortcut(HWND window, OverlayState& state, WPARAM key) {
         return true;
     }
 
+    // Ctrl+V: PANODAKİ ÖLÇÜYÜ SEÇİME UYGULAR — Ctrl+C'nin tersi.
+    //
+    // "Bu görüntü tam 1200×630 olmalı" diyen kullanıcının elinde, fareyi
+    // piksel piksel sürükleyip büyüteçten sayıyı okumaktan başka yol yoktu.
+    // Oysa sayı çoğu zaman zaten bir yerde yazılı: bir tasarım belgesinde, bir
+    // biçim tarifinde, ya da bir önceki seçimin Ctrl+C çıktısında.
+    //
+    // KONUM VERİLMEDİYSE SEÇİM YERİNDE KALIR. Yalnızca ölçü yapıştıran
+    // kullanıcı dikdörtgenin taşınmasını değil, boyutlanmasını bekliyor;
+    // seçim henüz yoksa imlecin çevresine ortalanır.
+    if (control && key == 'V') {
+        std::wstring text;
+        if (!ReadTextFromClipboard(text, window)) {
+            return true;
+        }
+        const geom::ParsedSelection parsed = geom::ParseSelectionText(text.c_str());
+        if (!parsed.ok) {
+            return true;
+        }
+
+        POINT origin{parsed.x, parsed.y};
+        if (!parsed.hasPosition) {
+            if (geom::IsEmpty(state.visual.selection)) {
+                origin = POINT{state.visual.cursor.x - parsed.width / 2,
+                               state.visual.cursor.y - parsed.height / 2};
+            } else {
+                origin = POINT{state.visual.selection.left,
+                               state.visual.selection.top};
+            }
+        }
+
+        const RECT wanted{origin.x, origin.y, origin.x + parsed.width,
+                          origin.y + parsed.height};
+        state.visual.selection = geom::ClampTo(wanted, state.visual.screen);
+        state.settled = true;
+        state.visual.settled = true;
+        state.visual.hover = RECT{};
+        state.visual.showHint = true;
+        ::InvalidateRect(window, nullptr, FALSE);
+        return true;
+    }
+
     // Boşluk: imlecin bulunduğu monitörün tamamını seçer ve bitirir.
     if (key == VK_SPACE) {
         const RECT monitor = MonitorRectAtCursor();

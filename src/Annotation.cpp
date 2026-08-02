@@ -41,6 +41,49 @@ void Shape::Offset(int dx, int dy) noexcept {
     }
 }
 
+namespace {
+
+// Tek bir koordinatı bir aralıktan diğerine eşler.
+//
+// TAM SAYI ARİTMETİĞİ, KAYAR NOKTA DEĞİL: koordinatlar piksel ve sonuç da
+// piksel olacak. Kayar noktaya geçip geri dönmek, aynı şekli aynı yere iki kez
+// boyutlandırmanın bir piksel oynamasına yol açardı.
+[[nodiscard]] LONG MapSpan(LONG value, LONG fromStart, LONG fromLength,
+                           LONG toStart, LONG toLength) noexcept {
+    if (fromLength == 0) {
+        // Sıfır genişlikli kaynak: oran tanımsız. Şeklin o eksendeki ölçüsü
+        // korunur, yalnızca ötelenir.
+        return value - fromStart + toStart;
+    }
+    return toStart + ::MulDiv(static_cast<int>(value - fromStart),
+                              static_cast<int>(toLength),
+                              static_cast<int>(fromLength));
+}
+
+}  // namespace
+
+void Shape::ScaleTo(const RECT& from, const RECT& to) noexcept {
+    const LONG fromWidth = from.right - from.left;
+    const LONG fromHeight = from.bottom - from.top;
+    const LONG toWidth = to.right - to.left;
+    const LONG toHeight = to.bottom - to.top;
+
+    const auto map = [&](POINT& p) {
+        p.x = MapSpan(p.x, from.left, fromWidth, to.left, toWidth);
+        p.y = MapSpan(p.y, from.top, fromHeight, to.top, toHeight);
+    };
+
+    map(start);
+    map(end);
+    for (POINT& p : points) {
+        map(p);
+    }
+}
+
+bool Shape::Resizable() const noexcept {
+    return kind != ToolKind::Text && kind != ToolKind::StepNumber;
+}
+
 RECT Shape::Bounds() const noexcept {
     if (!points.empty()) {
         // Serbest çizimde sınır noktaların tamamını kapsar; start/end yalnızca

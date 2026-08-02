@@ -10,6 +10,7 @@
 #include "Annotation.h"
 #include "Capture.h"
 #include "EditorWindow.h"
+#include "Geometry.h"
 #include "OcrLayout.h"
 #include "Settings.h"
 
@@ -161,6 +162,17 @@ struct State {
     bool movingShape = false;
     POINT moveGrab{};   // sürüklemenin başladığı görüntü noktası
 
+    // BOYUTLANDIRMA. Seçim çerçevesinin köşelerinde aylardır tutamaklar
+    // çiziliyordu ve hiçbiri fareye yanıt vermiyordu — kaplamadaki seçimin
+    // başına gelenin aynısı. `shapeGrab` hangi tutamağın tutulduğunu,
+    // `shapeOrigin` sürükleme başlarkenki sınırları söyler.
+    //
+    // BAŞLANGIÇ SINIRI SAKLANIYOR, ÇÜNKÜ ORANLAMA ONA GÖRE: her fare
+    // hareketinde şeklin O ANKİ sınırından yeniden ölçeklemek, yuvarlama
+    // hatalarını üst üste bindirir ve şekil sürüklendikçe erirdi.
+    geom::Grab shapeGrab = geom::Grab::None;
+    RECT shapeOrigin{};
+
     // Renk seçicide gösterilen "son kullanılanlar". Oturum boyunca yaşar;
     // diske yazılmaz, çünkü tek bir düzenleme oturumundan sonrasına taşınacak
     // kadar önemli bir tercih değil.
@@ -297,6 +309,20 @@ void OpenDroppedImage(HWND window, State& state, const std::wstring& path);
 // --- Seçim aracı (EditorSelect.cpp) -----------------------------------------
 // Noktanın altındaki şeklin indeksi; en ÜSTTEKİ kazanır (liste sonu = üst).
 [[nodiscard]] int ShapeAtPoint(const State& state, POINT image) noexcept;
+
+// İmlecin altındaki BOYUTLANDIRMA TUTAMAĞI; yoksa `Grab::None`. Nokta istemci
+// koordinatında verilir — tutamaklar ekranda sabit ölçüde ve yakınlaştırmadan
+// bağımsız.
+[[nodiscard]] geom::Grab ShapeHandleAt(const State& state, POINT client) noexcept;
+
+// İmlecin altındaki tutamağa uyan imleç; tutamak yoksa nullptr.
+[[nodiscard]] HCURSOR SelectCursor(HWND window, const State& state);
+
+// Araç seçer ve arayüzü tazeler (EditorKeys.cpp).
+void PickTool(HWND window, State& state, ToolKind tool);
+
+// Klavye kısayolları; işlendiyse true (EditorKeys.cpp).
+[[nodiscard]] bool OnKeyDown(HWND window, State& state, WPARAM key);
 // Seçim aracının fare olayları. İşlendiyse true döner.
 [[nodiscard]] bool SelectMouseDown(HWND window, State& state, POINT client);
 [[nodiscard]] bool SelectMouseMove(HWND window, State& state, POINT client);

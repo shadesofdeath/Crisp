@@ -11,6 +11,8 @@
 
 #include "Capture.h"
 
+#include <string>
+
 #include <windows.h>
 
 namespace crisp {
@@ -27,6 +29,13 @@ namespace crisp {
 
 // Metni panoya yazar (OCR sonucu için).
 [[nodiscard]] bool CopyTextToClipboard(const wchar_t* text, HWND owner);
+
+// Panodaki metni okur. Metin yoksa false döner ve `out` dokunulmaz.
+//
+// KAPLAMANIN ÖLÇÜ YAPIŞTIRABİLMESİ İÇİN. Ctrl+C seçimin sayılarını panoya
+// koyuyordu ama tersini yapan bir yol yoktu; "tam 1200×630 olsun" diyen
+// kullanıcının elinde fareyi piksel piksel sürüklemekten başka şey kalmıyordu.
+[[nodiscard]] bool ReadTextFromClipboard(std::wstring& out, HWND owner);
 
 // DOSYANIN KENDİSİNİ panoya koyar (CF_HDROP): Explorer'da ya da bir sohbet
 // penceresinde yapıştırıldığında dosya kopyalanır, görüntü değil.

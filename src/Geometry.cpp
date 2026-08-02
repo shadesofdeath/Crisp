@@ -106,6 +106,27 @@ POINT MagnifierPlacement(POINT cursor, SIZE panelSize, LONG gap,
     return p;
 }
 
+POINT ActionBarPlacement(const RECT& selection, SIZE barSize, LONG gap,
+                         const RECT& bounds) noexcept {
+    // SAĞ KENARA HİZALI: kullanıcının eli seçimi bitirdiği yerdedir, yani
+    // sağ-alt köşede. Sola hizalamak, sağa doğru sürüklenen her seçimden sonra
+    // fareyi dikdörtgenin bütün genişliği boyunca geri getirtirdi.
+    POINT p{selection.right - barSize.cx, selection.bottom + gap};
+
+    // Altta yer yoksa üste geç.
+    if (p.y + barSize.cy > bounds.bottom) {
+        p.y = selection.top - gap - barSize.cy;
+    }
+    // Üstte de yoksa seçimin İÇİNE, alt kenarına.
+    if (p.y < bounds.top) {
+        p.y = selection.bottom - gap - barSize.cy;
+    }
+
+    p.x = Clamp(p.x, bounds.left, Max(bounds.left, bounds.right - barSize.cx));
+    p.y = Clamp(p.y, bounds.top,  Max(bounds.top,  bounds.bottom - barSize.cy));
+    return p;
+}
+
 POINT SizeLabelPlacement(const RECT& selection, SIZE labelSize, LONG gap,
                          const RECT& bounds) noexcept {
     POINT p{selection.left, selection.top - gap - labelSize.cy};
@@ -192,6 +213,64 @@ POINT SnapToAngle(POINT anchor, POINT other) noexcept {
     const double snapped = std::round(std::atan2(dy, dx) / step) * step;
     return POINT{anchor.x + static_cast<LONG>(std::lround(std::cos(snapped) * length)),
                  anchor.y + static_cast<LONG>(std::lround(std::sin(snapped) * length))};
+}
+
+ParsedSelection ParseSelectionText(const wchar_t* text) noexcept {
+    ParsedSelection parsed;
+    if (text == nullptr) {
+        return parsed;
+    }
+
+    // En fazla dört sayı okunur; beşincisi metnin seçim olmadığını gösterir.
+    LONG numbers[4]{};
+    int count = 0;
+
+    for (const wchar_t* at = text; *at != L'\0'; ++at) {
+        if (*at < L'0' || *at > L'9') {
+            continue;
+        }
+        if (count == 4) {
+            return parsed;   // dörtten fazla sayı: bu bir seçim tarifi değil
+        }
+
+        // Taşmaya karşı: altı basamaktan uzun bir sayı zaten ekran ölçüsü
+        // olamaz ve okumaya devam etmek `LONG`u taşırabilir.
+        long long value = 0;
+        int digits = 0;
+        while (*at >= L'0' && *at <= L'9') {
+            if (digits < 7) {
+                value = value * 10 + (*at - L'0');
+                ++digits;
+            }
+            ++at;
+        }
+        --at;   // döngünün ++at'i sayının son basamağını atlamasın
+        numbers[count++] = static_cast<LONG>(value);
+    }
+
+    if (count == 2) {
+        parsed.width = numbers[0];
+        parsed.height = numbers[1];
+    } else if (count == 4) {
+        // Ctrl+C'nin yazdığı sıra: önce konum, sonra ölçü.
+        parsed.hasPosition = true;
+        parsed.x = numbers[0];
+        parsed.y = numbers[1];
+        parsed.width = numbers[2];
+        parsed.height = numbers[3];
+    } else {
+        return parsed;
+    }
+
+    // SIFIR ÖLÇÜ SEÇİM DEĞİLDİR. Metinde iki sayı bulunması, onların bir
+    // dikdörtgen tarif ettiği anlamına gelmiyor; "0 hata, 0 uyarı" da iki
+    // sayıdır ve seçim diye uygulanması saçma olurdu.
+    if (parsed.width <= 0 || parsed.height <= 0) {
+        return parsed;
+    }
+
+    parsed.ok = true;
+    return parsed;
 }
 
 POINT SnapToSquare(POINT anchor, POINT other) noexcept {

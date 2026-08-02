@@ -3,6 +3,7 @@
 
 #include "Geometry.h"
 #include "OverlayDraw.h"
+#include "OverlayActions.h"
 #include "OverlayPanels.h"
 #include "Util.h"
 
@@ -14,6 +15,7 @@ namespace {
 // Ortak ilkeller OverlayDraw.h'de; buradaki isimler değişmesin diye
 // tek tek alınıyorlar.
 using draw::DrawFrame;
+using draw::DrawPill;
 using draw::FillRectColor;
 using draw::kAccent;
 using draw::kPanelBack;
@@ -65,33 +67,6 @@ void DrawHandles(HDC dc, const RECT& screenSelection, const RECT& screen,
     // Segoe UI Windows 10/11'de daima vardır; bulunamazsa GDI en yakınını seçer.
     ::wcscpy_s(font.lfFaceName, L"Segoe UI");
     return ::CreateFontIndirectW(&font);
-}
-
-// Koyu zeminli bir bilgi kutusu çizer ve kapladığı alanı döndürür.
-RECT DrawPill(HDC dc, POINT topLeft, const wchar_t* text, HFONT font,
-              unsigned dpi, COLORREF textColor) {
-    const HGDIOBJ oldFont = ::SelectObject(dc, font);
-
-    RECT measure{0, 0, 0, 0};
-    ::DrawTextW(dc, text, -1, &measure, DT_CALCRECT | DT_SINGLELINE | DT_NOPREFIX);
-
-    const LONG padX = Scale(8, dpi);
-    const LONG padY = Scale(4, dpi);
-    const RECT box{topLeft.x, topLeft.y,
-                   topLeft.x + geom::Width(measure) + padX * 2,
-                   topLeft.y + geom::Height(measure) + padY * 2};
-
-    FillRectColor(dc, box, kPanelBack);
-    DrawFrame(dc, box, 1, kPanelBorder);
-
-    RECT textArea{box.left + padX, box.top + padY, box.right - padX,
-                  box.bottom - padY};
-    ::SetBkMode(dc, TRANSPARENT);
-    ::SetTextColor(dc, textColor);
-    ::DrawTextW(dc, text, -1, &textArea, DT_SINGLELINE | DT_NOPREFIX);
-
-    ::SelectObject(dc, oldFont);
-    return box;
 }
 
 // Metin katmanı: her SATIR yuvarlatılmış bir kutuya alınır, imlecin altındaki
@@ -263,6 +238,18 @@ void PaintOverlay(HDC target, const OverlayVisual& visual, HDC frozenDc,
             visual.selection, labelSize, Scale(8, visual.dpi), visual.screen);
         (void)DrawPill(target, ToClient(labelOrigin, visual.screen), size, fontBold,
                        visual.dpi, kTextPrimary);
+    }
+
+    // 3b. Eylem çubuğu: yalnızca seçim YERLEŞTİĞİNDE ve sürüklenmiyorken. Bir
+    // tutamak sürüklenirken çizmek, imlecin altından kaçan bir hedef bırakırdı.
+    if (visual.showActionBar && visual.settled && !visual.dragging) {
+        ActionButton buttons[static_cast<size_t>(OverlayAction::Count)]{};
+        RECT bar{};
+        const int count =
+            ActionButtons(visual.selection, MonitorRectAtPoint(visual.cursor),
+                          visual.dpi, visual.uploadEnabled, buttons, bar);
+        DrawActionBar(target, visual.screen, visual.dpi, buttons, count,
+                      visual.hoverAction, font);
     }
 
     // 4. Büyüteç her zaman en üstte: seçimin altında kalırsa işe yaramaz.

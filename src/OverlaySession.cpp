@@ -7,6 +7,7 @@
 #include "Geometry.h"
 #include "Localization.h"
 #include "OverlayPaint.h"
+#include "Upload.h"
 #include "Util.h"
 #include "WindowPick.h"
 #include "resource.h"
@@ -84,6 +85,16 @@ OverlayResult RunSelectionOverlay(HINSTANCE instance, const Settings& settings,
     // gösteriyor ve metin seçerken ekranı kesen çizgiler kelimelerin üstünden
     // geçerdi.
     state.visual.crosshair = (mode == OverlayMode::Region);
+
+    // Eylem çubuğu da yalnızca bölge kipinde: renk seçmede "kaydet"in, metin
+    // seçmede "iğnele"nin karşılığı yok.
+    //
+    // YÜKLE DÜĞMESİ SERVİS SEÇİLİYSE ÇİZİLİR. Kapalı bir düğme göstermek,
+    // kullanıcıya tıklayıp neden hiçbir şey olmadığını sorduran bir şey olurdu;
+    // ayarlarda servis seçilmemişken yükleme diye bir seçenek de yok.
+    state.visual.showActionBar = (mode == OverlayMode::Region);
+    state.visual.uploadEnabled =
+        UploadServiceFromId(settings.uploadService) != UploadService::None;
 
     // Pencere vurgulaması yalnızca bölge kipinde anlamlı.
     state.allowHover = (mode == OverlayMode::Region) &&

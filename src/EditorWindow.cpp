@@ -72,7 +72,7 @@ void DrawCanvas(HDC dc, HDC reference, State& state) {
         for (POINT& p : scaled.points) {
             p = toClient(p);
         }
-        RenderPreview(dc, scaled, state.dpi);
+        RenderPreview(dc, scaled, state.dpi, state.canvas);
     }
     if (!state.ocr.active && state.typing) {
         DrawTextDraft(dc, state);

@@ -315,3 +315,120 @@ CRISP_TEST(Effects, Mosaic_gecersiz_girdi_guvenli) {
     MosaicRegion(image, RECT{50, 50, 60, 60}, 4);   // dışarıda
     CHECK_EQ(image.Pixel(4, 4), 0xFF123456u);
 }
+
+// --- Şekil boyutlandırma ----------------------------------------------------
+//
+// Seçim aracı artık şekilleri boyutlandırıyor ve bunu tek bir oranlama ile
+// yapıyor. Aşağıdakiler o oranlamanın üç şekil ailesinde de doğru olduğunu
+// sabitliyor: iki uçlu (ok/çizgi), köşeli (dikdörtgen/elips) ve nokta
+// listesi (serbest çizim).
+
+CRISP_TEST(Annotation, ScaleTo_dikdortgeni_hedefe_oturtur) {
+    Shape shape;
+    shape.kind = ToolKind::Rectangle;
+    shape.start = POINT{10, 20};
+    shape.end = POINT{110, 120};
+
+    shape.ScaleTo(RECT{10, 20, 110, 120}, RECT{0, 0, 200, 50});
+
+    CHECK_EQ(shape.start.x, 0L);
+    CHECK_EQ(shape.start.y, 0L);
+    CHECK_EQ(shape.end.x, 200L);
+    CHECK_EQ(shape.end.y, 50L);
+}
+
+CRISP_TEST(Annotation, ScaleTo_okun_yonunu_korur) {
+    // OKUN UCU UÇ OLARAK KALMALI. Sınırlayıcı dikdörtgeni değil koordinatları
+    // eşlediğimiz için sağ-alttan sol-üste giden bir ok, boyutlandırıldıktan
+    // sonra da aynı yöne bakar.
+    Shape shape;
+    shape.kind = ToolKind::Arrow;
+    shape.start = POINT{100, 100};   // sağ alt
+    shape.end = POINT{0, 0};         // sol üst
+
+    shape.ScaleTo(RECT{0, 0, 100, 100}, RECT{0, 0, 50, 200});
+
+    CHECK_EQ(shape.start.x, 50L);
+    CHECK_EQ(shape.start.y, 200L);
+    CHECK_EQ(shape.end.x, 0L);
+    CHECK_EQ(shape.end.y, 0L);
+}
+
+CRISP_TEST(Annotation, ScaleTo_serbest_cizimin_kavisini_korur) {
+    Shape shape;
+    shape.kind = ToolKind::Pen;
+    shape.points = {POINT{0, 0}, POINT{50, 100}, POINT{100, 0}};
+
+    shape.ScaleTo(RECT{0, 0, 100, 100}, RECT{0, 0, 200, 50});
+
+    CHECK_EQ(shape.points[0].x, 0L);
+    CHECK_EQ(shape.points[0].y, 0L);
+    // Ortadaki nokta ORTADA kalır: kavis bozulmaz.
+    CHECK_EQ(shape.points[1].x, 100L);
+    CHECK_EQ(shape.points[1].y, 50L);
+    CHECK_EQ(shape.points[2].x, 200L);
+    CHECK_EQ(shape.points[2].y, 0L);
+}
+
+CRISP_TEST(Annotation, ScaleTo_sifir_genislikte_bolmez) {
+    // YATAY BİR ÇİZGİNİN YÜKSEKLİĞİ SIFIRDIR. Oranı hesaplamak sıfıra bölmek
+    // olurdu; o eksende yalnızca ötelenir.
+    Shape shape;
+    shape.kind = ToolKind::Line;
+    shape.start = POINT{0, 50};
+    shape.end = POINT{100, 50};
+
+    shape.ScaleTo(RECT{0, 50, 100, 50}, RECT{0, 80, 200, 80});
+
+    CHECK_EQ(shape.start.y, 80L);
+    CHECK_EQ(shape.end.y, 80L);
+    CHECK_EQ(shape.start.x, 0L);
+    CHECK_EQ(shape.end.x, 200L);
+}
+
+CRISP_TEST(Annotation, ScaleTo_kalinligi_degistirmez) {
+    Shape shape;
+    shape.kind = ToolKind::Rectangle;
+    shape.start = POINT{0, 0};
+    shape.end = POINT{10, 10};
+    shape.thickness = 3;
+
+    shape.ScaleTo(RECT{0, 0, 10, 10}, RECT{0, 0, 100, 100});
+    CHECK_EQ(shape.thickness, 3);
+}
+
+CRISP_TEST(Annotation, Metin_ve_rozet_boyutlandirilamaz) {
+    // Tek noktadırlar; "boyutlandırmak" yalnızca taşımak olurdu ve zaten
+    // taşınabiliyorlar. Tutamak çizmemenin de gerekçesi bu.
+    Shape text;
+    text.kind = ToolKind::Text;
+    CHECK(!text.Resizable());
+
+    Shape badge;
+    badge.kind = ToolKind::StepNumber;
+    CHECK(!badge.Resizable());
+
+    for (const ToolKind kind : {ToolKind::Arrow, ToolKind::Line,
+                                ToolKind::Rectangle, ToolKind::Ellipse,
+                                ToolKind::Pen, ToolKind::Highlighter,
+                                ToolKind::Blur, ToolKind::Mosaic}) {
+        Shape shape;
+        shape.kind = kind;
+        CHECK(shape.Resizable());
+    }
+}
+
+CRISP_TEST(Annotation, ScaleTo_ayni_dikdortgene_dokunmaz) {
+    Shape shape;
+    shape.kind = ToolKind::Ellipse;
+    shape.start = POINT{17, 23};
+    shape.end = POINT{91, 64};
+    const RECT same = shape.Bounds();
+
+    shape.ScaleTo(same, same);
+
+    CHECK_EQ(shape.start.x, 17L);
+    CHECK_EQ(shape.start.y, 23L);
+    CHECK_EQ(shape.end.x, 91L);
+    CHECK_EQ(shape.end.y, 64L);
+}

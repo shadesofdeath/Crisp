@@ -253,7 +253,7 @@ void DrawStepNumber(HDC dc, const Shape& shape, unsigned dpi) {
     ::DeleteObject(font);
 }
 
-void DrawOne(HDC dc, const Shape& shape, unsigned dpi) {
+void DrawOneImpl(HDC dc, const Shape& shape, unsigned dpi) {
     switch (shape.kind) {
         case ToolKind::Arrow:
             DrawArrow(dc, shape, dpi);
@@ -309,28 +309,9 @@ void RenderShapes(Image& image, const std::vector<Shape>& shapes, unsigned dpi) 
     for (const Shape& shape : shapes) {
         const RECT bounds = shape.Bounds();
         if (shape.kind == ToolKind::Blur) {
-            // Yarıçap alanla ölçeklenir: küçük bir seçimde 20 piksellik
-            // bulanıklık her şeyi tek renge indirirdi.
-            const LONG side =
-                geom::Width(bounds) < geom::Height(bounds) ? geom::Width(bounds)
-                                                           : geom::Height(bounds);
-            // ŞİDDET ŞEKİLDEN GELİR, ayardan değil: geri alma şekil
-            // listesini geri sarar ve ayar sonradan değiştirildiğinde eski
-            // bulanıklıklar da yeni şiddetle yeniden çizilirdi.
-            int radius = static_cast<int>(side / 12) * shape.strength / 100;
-            if (radius < 3) {
-                radius = 3;
-            }
-            BlurRegion(image, bounds, radius);
+            BlurRegion(image, bounds, BlurRadiusFor(shape));
         } else if (shape.kind == ToolKind::Mosaic) {
-            const LONG side =
-                geom::Width(bounds) < geom::Height(bounds) ? geom::Width(bounds)
-                                                           : geom::Height(bounds);
-            int block = static_cast<int>(side / 10) * shape.strength / 100;
-            if (block < 4) {
-                block = 4;
-            }
-            MosaicRegion(image, bounds, block);
+            MosaicRegion(image, bounds, MosaicBlockFor(shape));
         }
     }
 
@@ -347,7 +328,7 @@ void RenderShapes(Image& image, const std::vector<Shape>& shapes, unsigned dpi) 
     ::SetBkMode(memory.get(), TRANSPARENT);
 
     for (const Shape& shape : shapes) {
-        DrawOne(memory.get(), shape, dpi);
+        DrawOneImpl(memory.get(), shape, dpi);
     }
 
     // GDI ALFAYI SIFIRLAR: Rectangle, LineTo ve DrawText 32 bpp bir yüzeye
@@ -363,30 +344,8 @@ void RenderShapes(Image& image, const std::vector<Shape>& shapes, unsigned dpi) 
     }
 }
 
-void RenderPreview(HDC dc, const Shape& shape, unsigned dpi) {
-    if (dc == nullptr) {
-        return;
-    }
-    if (ToolIsEffect(shape.kind) || ToolIsImageOp(shape.kind)) {
-        // Efektin önizlemesi kesikli bir çerçeve: gerçek bulanıklığı her fare
-        // hareketinde hesaplamak büyük seçimlerde gözle görülür şekilde
-        // yavaşlar ve kullanıcının görmesi gereken şey alanın sınırı.
-        const HPEN pen = ::CreatePen(PS_DOT, 1, RGB(255, 255, 255));
-        if (pen == nullptr) {
-            return;
-        }
-        const HGDIOBJ oldPen = ::SelectObject(dc, pen);
-        const HGDIOBJ oldBrush = ::SelectObject(dc, ::GetStockObject(NULL_BRUSH));
-        const int oldRop = ::SetROP2(dc, R2_XORPEN);
-        const RECT bounds = shape.Bounds();
-        ::Rectangle(dc, bounds.left, bounds.top, bounds.right, bounds.bottom);
-        ::SetROP2(dc, oldRop);
-        ::SelectObject(dc, oldBrush);
-        ::SelectObject(dc, oldPen);
-        ::DeleteObject(pen);
-        return;
-    }
-    DrawOne(dc, shape, dpi);
+void DrawShape(HDC dc, const Shape& shape, unsigned dpi) {
+    DrawOneImpl(dc, shape, dpi);
 }
 
 }  // namespace crisp

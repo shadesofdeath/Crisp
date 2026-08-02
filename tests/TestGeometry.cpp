@@ -409,3 +409,64 @@ CRISP_TEST(Geometry, PanForZoomAnchor_sinirlarda_kalir) {
                                              1.0, POINT{100, 100}, 0.25);
     CHECK_POINT(pan, 0, 0);
 }
+
+// --- Panodan ölçü okuma ------------------------------------------------------
+//
+// Ctrl+C seçimin sayılarını panoya koyuyor; Ctrl+V tersini yapıyor. Aşağıdakiler
+// hangi metinlerin seçim sayıldığını ve — daha önemlisi — hangilerinin
+// SAYILMADIĞINI sabitliyor.
+
+CRISP_TEST(Geometry, ParseSelectionText_yaygin_bicimler) {
+    const wchar_t* forms[] = {
+        L"1200x630", L"1200 x 630", L"1200 × 630", L"1200, 630",
+        L"1200*630",  L"  1200   630  ", L"genislik 1200 yukseklik 630",
+    };
+    for (const wchar_t* form : forms) {
+        const ParsedSelection parsed = ParseSelectionText(form);
+        CHECK(parsed.ok);
+        CHECK(!parsed.hasPosition);
+        CHECK_EQ(parsed.width, 1200L);
+        CHECK_EQ(parsed.height, 630L);
+    }
+}
+
+CRISP_TEST(Geometry, ParseSelectionText_kendi_ciktisini_okur) {
+    // Ctrl+C'nin ürettiği biçim. Gidiş-dönüş çalışmazsa, kullanıcının bir
+    // seçimin sayılarını kopyalayıp başka bir yakalamada kullanması —
+    // özelliğin en bariz kullanımı — çalışmıyor demektir.
+    const ParsedSelection parsed =
+        ParseSelectionText(L"100, 200  1200 × 630");
+    CHECK(parsed.ok);
+    CHECK(parsed.hasPosition);
+    CHECK_EQ(parsed.x, 100L);
+    CHECK_EQ(parsed.y, 200L);
+    CHECK_EQ(parsed.width, 1200L);
+    CHECK_EQ(parsed.height, 630L);
+}
+
+CRISP_TEST(Geometry, ParseSelectionText_seçim_olmayani_reddeder) {
+    const wchar_t* rejects[] = {
+        nullptr,
+        L"",
+        L"merhaba",
+        L"1200",              // tek sayı bir dikdörtgen değil
+        L"1200 630 400",      // üç sayı: ne ölçü ne konum+ölçü
+        L"1 2 3 4 5",         // beş sayı: rastgele bir metin
+        L"0 x 630",           // sıfır ölçü
+        L"1200 x 0",
+        L"0 hata, 0 uyari",   // iki sayı ama seçim değil
+    };
+    for (const wchar_t* text : rejects) {
+        CHECK(!ParseSelectionText(text).ok);
+    }
+}
+
+CRISP_TEST(Geometry, ParseSelectionText_devasa_sayilari_tasirmaz) {
+    // Yedi basamaktan sonrası atılır: bir ekran ölçüsü olamaz ve okumaya
+    // devam etmek LONG'u taşırırdı.
+    const ParsedSelection parsed =
+        ParseSelectionText(L"99999999999999 x 630");
+    CHECK(parsed.ok);
+    CHECK(parsed.width > 0);
+    CHECK_EQ(parsed.height, 630L);
+}

@@ -4,6 +4,7 @@
 #include "ClipboardImage.h"
 #include "Geometry.h"
 #include "ImageCodec.h"
+#include "PinStore.h"
 #include "Localization.h"
 #include "MessageWindow.h"
 #include "Theme.h"
@@ -11,6 +12,7 @@
 #include "Util.h"
 
 #include <commdlg.h>
+#include <shlobj.h>
 // windowsx.h: GET_X_LPARAM / GET_Y_LPARAM. Elle kaydırmak yerine makro
 // kullanılır çünkü koordinatlar İŞARETLİDİR ve çok monitörlü kurulumda
 // negatif olabilir; LOWORD ile çıkarmak onları 65000 gibi değerlere çevirir.
@@ -306,11 +308,18 @@ LRESULT CALLBACK PinProc(HWND window, UINT message, WPARAM wParam, LPARAM lParam
 }  // namespace
 
 bool PinImageToScreen(HINSTANCE instance, const Image& image, POINT topLeft) {
+    return PinImageWithView(instance, image, topLeft, 100, 255);
+}
+
+bool PinImageWithView(HINSTANCE instance, const Image& image, POINT topLeft,
+                      int zoom, unsigned opacity) {
     if (!image.Valid() || !EnsureWindowClass(instance)) {
         return false;
     }
 
     auto state = std::make_unique<PinState>();
+    state->zoom = zoom;
+    state->opacity = static_cast<BYTE>(opacity);
 
     // Görüntü kopyalanır: çağıranın Image'ı bu çağrıdan sonra yok olabilir.
     if (!CropImage(image, 0, 0, image.Width(), image.Height(), state->image)) {
@@ -329,9 +338,17 @@ bool PinImageToScreen(HINSTANCE instance, const Image& image, POINT topLeft) {
 
     // Ekran dışına düşmesin: yakalama sağ kenardan yapıldıysa iğne tamamen
     // görünmez bir yere açılabilirdi.
+    // PENCERE ÖLÇÜSÜ YAKINLAŞTIRMAYA GÖRE. %150'de bırakılmış bir iğne
+    // görüntünün ham ölçüsüyle açılsaydı, geri gelen pencere kullanıcının
+    // bıraktığından küçük olurdu.
+    const int shownWidth =
+        ::MulDiv(state->image.Width(), state->zoom, 100);
+    const int shownHeight =
+        ::MulDiv(state->image.Height(), state->zoom, 100);
+
     const RECT screen = VirtualScreenRect();
-    RECT placement{topLeft.x, topLeft.y, topLeft.x + state->image.Width(),
-                   topLeft.y + state->image.Height()};
+    RECT placement{topLeft.x, topLeft.y, topLeft.x + shownWidth,
+                   topLeft.y + shownHeight};
     if (placement.right > screen.right) {
         placement.left -= placement.right - screen.right;
     }
@@ -350,7 +367,7 @@ bool PinImageToScreen(HINSTANCE instance, const Image& image, POINT topLeft) {
     const HWND window = ::CreateWindowExW(
         WS_EX_TOPMOST | WS_EX_TOOLWINDOW | WS_EX_LAYERED, kWindowClass,
         pinTitle.c_str(), WS_POPUP, placement.left, placement.top,
-        state->image.Width(), state->image.Height(), nullptr, nullptr, instance,
+        shownWidth, shownHeight, nullptr, nullptr, instance,
         raw);
 
     if (window == nullptr) {
@@ -366,6 +383,51 @@ bool PinImageToScreen(HINSTANCE instance, const Image& image, POINT topLeft) {
     ::ShowWindow(window, SW_SHOWNOACTIVATE);
     ::UpdateWindow(window);
     return true;
+}
+
+// Açık iğneleri diske yazılacak kayıtlara çevirir; görüntüleri de yazar.
+//
+// BURADA, ÇÜNKÜ `PinState` BU DOSYAYA AİT. Kaydetme mantığının geri kalanı
+// PinPersist.cpp'de; oraya çıkan tek şey bu işlev.
+std::vector<PinRecord> CollectOpenPins() {
+    std::vector<PinRecord> records;
+    const std::wstring folder = PinFolder();
+    if (folder.empty()) {
+        return records;
+    }
+    ::SHCreateDirectoryExW(nullptr, folder.c_str(), nullptr);
+
+    size_t index = 0;
+    for (const auto& pin : Pins()) {
+        if (pin == nullptr || pin->window == nullptr || !pin->image.Valid()) {
+            continue;
+        }
+
+        // KONUM PENCEREDEN OKUNUR, saklanan bir alandan değil: kullanıcı iğneyi
+        // sürükleyerek taşıyor ve o hareket hiçbir yere yazılmıyor.
+        RECT bounds{};
+        if (::GetWindowRect(pin->window, &bounds) == FALSE) {
+            continue;
+        }
+
+        wchar_t name[32] = {};
+        ::swprintf_s(name, L"pin-%02zu.png", index);
+        const std::wstring path = folder + L"\\" + name;
+        if (!SavePng(pin->image, path)) {
+            LogV(L"İğne görüntüsü yazılamadı: %s", path.c_str());
+            continue;
+        }
+
+        PinRecord record;
+        record.imageFile = name;
+        record.x = bounds.left;
+        record.y = bounds.top;
+        record.zoom = pin->zoom;
+        record.opacity = pin->opacity;
+        records.push_back(std::move(record));
+        ++index;
+    }
+    return records;
 }
 
 void CloseAllPins() noexcept {
