@@ -12,6 +12,7 @@
 #include "ShellIntegration.h"
 #include "Theme.h"
 #include "Toast.h"
+#include "UploadLog.h"
 #include "Util.h"
 #include "resource.h"
 
@@ -22,6 +23,7 @@
 #include <commctrl.h>
 
 #include <string>
+#include <vector>
 
 namespace crisp {
 namespace {
@@ -154,6 +156,12 @@ LRESULT App::HandleMessage(HWND window, UINT message, WPARAM wParam,
             OnHotkey(static_cast<int>(wParam));
             return 0;
 
+        // Kendiliğinden başlayan yükleme bitti. Panoyu yazmak ve bildirimi
+        // açmak buraya ait; iş parçacığı yalnızca ağı bekliyor.
+        case WM_CRISP_UPLOAD_TOAST:
+            FinishBackgroundUpload(lParam);
+            return 0;
+
         case WM_COMMAND:
             OnCommand(LOWORD(wParam));
             return 0;
@@ -227,7 +235,27 @@ LRESULT App::HandleMessage(HWND window, UINT message, WPARAM wParam,
 }
 
 void App::OnCommand(int command) {
+    // SON BAĞLANTILAR bir komut BLOĞUDUR, tek komut değil: alt menüdeki her
+    // satır kendi kimliğini alıyor, dolayısıyla switch'ten önce sınanmalı.
+    if (command >= IDM_LINK_FIRST && command <= IDM_LINK_LAST) {
+        const std::vector<UploadRecord> records =
+            ReadUploadLog(static_cast<size_t>(IDM_LINK_LAST - IDM_LINK_FIRST + 1));
+        const size_t index = static_cast<size_t>(command - IDM_LINK_FIRST);
+        // Menü açıldığından beri defter değişmiş olabilir — arka planda bir
+        // yükleme daha bitmiş olabilir — ve o durumda tıklanan satır kaymıştır.
+        if (index < records.size() &&
+            CopyTextToClipboard(records[index].link.c_str(), m_window)) {
+            const Image none;
+            ShowCaptureToast(m_instance, none, Loc::Str(IDS_LINK_COPIED),
+                             records[index].link, std::wstring());
+        }
+        return;
+    }
+
     switch (command) {
+        case IDM_LINK_CLEAR:
+            (void)ClearUploadLog();
+            break;
         case IDM_CAPTURE_REGION:
             RunAction(HotkeyAction::Region);
             break;

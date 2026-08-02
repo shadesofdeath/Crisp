@@ -3,10 +3,12 @@
 
 #include "Localization.h"
 #include "Messages.h"
+#include "UploadLog.h"
 #include "Util.h"
 #include "resource.h"
 
 #include <string>
+#include <vector>
 
 // WIN32_LEAN_AND_MEAN nedeniyle ikisi de <windows.h> ile gelmez:
 //   shellapi.h — NOTIFYICONDATAW, Shell_NotifyIconW
@@ -18,6 +20,40 @@ namespace crisp {
 namespace {
 
 constexpr UINT kIconId = 1;
+
+// Alt menüde gösterilecek en fazla bağlantı. Kimlik bloğu (IDM_LINK_FIRST..
+// IDM_LINK_LAST) bu kadarına yer ayırıyor; daha fazlası zaten okunacak bir
+// liste değil, kaydırılacak bir liste olurdu.
+constexpr size_t kMaxLinkEntries = 10;
+
+// Bir bağlantının menüdeki etiketi.
+//
+// UZUN ADRES KISALTILIR VE ORTASINDAN KISALTILIR: bir yükleme bağlantısının
+// ayırt edici kısmı sonundaki dosya adıdır, başındaki alan adı ise hangi
+// servise gittiğini söyler. Baştan kesmek hepsini birbirine benzetir, sondan
+// kesmek de öyle.
+[[nodiscard]] std::wstring LinkMenuLabel(const UploadRecord& record) {
+    constexpr size_t kMaxLabel = 56;
+
+    std::wstring label = record.link;
+    if (label.size() > kMaxLabel) {
+        const size_t head = kMaxLabel / 2 - 2;
+        const size_t tail = kMaxLabel - head - 3;
+        label = label.substr(0, head) + L"..." + label.substr(label.size() - tail);
+    }
+
+    // Menü metninde tek bir '&' bir sonraki harfi altı çizili kısayola çevirir
+    // ve adreste '&' bulunabilir.
+    std::wstring escaped;
+    escaped.reserve(label.size() + 4);
+    for (const wchar_t c : label) {
+        escaped += c;
+        if (c == L'&') {
+            escaped += c;
+        }
+    }
+    return escaped;
+}
 
 // Görev çubuğu açık temada mı? SystemUsesLightTheme, kabuğun (görev çubuğu,
 // başlat) temasını verir; AppsUseLightTheme uygulama pencerelerinin temasıdır
@@ -182,6 +218,31 @@ int TrayIcon::ShowMenu(HWND owner) {
                   IDM_OPEN_CLIPBOARD, Loc::Str(IDS_MENU_CLIPBOARD).c_str());
     add(IDM_HISTORY, IDS_MENU_HISTORY, 0);
     add(IDM_OPEN_FOLDER, IDS_MENU_OPEN_FOLDER, 0);
+
+    // SON BAĞLANTILAR. Yükleme bağlantıyı panoya koyup orada bırakıyordu; bir
+    // sonraki kopyalama onu siliyor ve kullanıcının elinde hiçbir şey
+    // kalmıyordu. Alt menü, çünkü ana menünün on kaydı taşıyacak yeri yok.
+    {
+        const HMENU links = ::CreatePopupMenu();
+        const std::vector<UploadRecord> records = ReadUploadLog(kMaxLinkEntries);
+
+        if (records.empty()) {
+            ::AppendMenuW(links, MF_STRING | MF_GRAYED, 0,
+                          Loc::Str(IDS_MENU_LINKS_EMPTY).c_str());
+        } else {
+            for (size_t i = 0; i < records.size(); ++i) {
+                ::AppendMenuW(links, MF_STRING,
+                              static_cast<UINT_PTR>(IDM_LINK_FIRST + i),
+                              LinkMenuLabel(records[i]).c_str());
+            }
+            ::AppendMenuW(links, MF_SEPARATOR, 0, nullptr);
+            ::AppendMenuW(links, MF_STRING, IDM_LINK_CLEAR,
+                          Loc::Str(IDS_MENU_LINKS_CLEAR).c_str());
+        }
+        ::AppendMenuW(menu, MF_POPUP, reinterpret_cast<UINT_PTR>(links),
+                      Loc::Str(IDS_MENU_LINKS).c_str());
+    }
+
     separator();
     add(IDM_SETTINGS, IDS_MENU_SETTINGS, 0);
     add(IDM_ABOUT, IDS_MENU_ABOUT, 0);

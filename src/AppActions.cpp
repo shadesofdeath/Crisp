@@ -18,17 +18,31 @@
 #include "PinWindow.h"
 #include "Toast.h"
 #include "Upload.h"
+#include "UploadLog.h"
+#include "UploadText.h"
 #include "Util.h"
 #include "WindowPick.h"
 #include "resource.h"
 
 #include <shellapi.h>
 
+#include <memory>
 #include <string>
 #include <thread>
 
 namespace crisp {
 namespace {
+
+// Arka plandaki yüklemeden pencereye dönen sonuç. `WM_CRISP_UPLOAD_TOAST`in
+// `lParam`ı bunun adresidir ve alan taraf sahipliği devralır.
+//
+// CÜMLE BURADA HAZIR: `UploadErrorText` salt okunur bir kaynak tablosuna bakar,
+// hangi iş parçacığından çağrıldığı önemli değil, ve hazır bir metin taşımak
+// alan tarafını hata kodlarını yeniden yorumlamaktan kurtarıyor.
+struct UploadToast {
+    bool ok = false;
+    std::wstring text;   // başarıda bağlantı, başarısızlıkta hata cümlesi
+};
 
 // Tepsi menüsünün kapanmasını beklemek için; gerekçesi AppCapture.cpp'de.
 constexpr DWORD kMenuSettleMs = 120;
@@ -349,34 +363,62 @@ void App::UploadInBackground(const Image& image) {
 
     // AYRILMIŞ İŞ PARÇACIĞI: yakalama akışı burada bitiyor ve kullanıcı bir
     // saniyeliğine donmuş bir tepsi uygulaması görmemeli. Yükleme kendi hızında
-    // biter, sonucunu bildirimle söyler.
+    // biter ve sonucu bir mesajla geri gönderir.
     const HWND window = m_window;
-    const HINSTANCE instance = m_instance;
     const std::wstring key = m_settings.uploadApiKey;
-    const bool notify = m_settings.showNotification;
 
-    std::thread([window, instance, service, key, png, notify]() {
+    std::thread([window, service, key, png]() {
         const UploadResult result = UploadPng(service, key, *png, L"crisp.png");
 
+        // Defter BURADA yazılır: bir dosyaya satır eklemek arayüze dokunmuyor
+        // ve yükleme bitmişse kayıt da bitmiştir.
         if (result.ok) {
-            if (!CopyTextToClipboard(result.link.c_str(), window)) {
-                LogV(L"Yükleme bağlantısı panoya kopyalanamadı");
-            }
+            UploadRecord record;
+            record.link = result.link;
+            record.service = UploadServiceId(service);
+            (void)AppendUploadRecord(record);
         } else {
-            LogV(L"Otomatik yükleme başarısız: %s", result.error.c_str());
+            LogV(L"Otomatik yükleme başarısız: kod %u, durum %u",
+                 static_cast<unsigned>(result.error), result.status);
         }
 
-        if (!notify) {
-            return;
+        auto payload = std::make_unique<UploadToast>();
+        payload->ok = result.ok;
+        payload->text = result.ok ? result.link : UploadErrorText(result);
+
+        if (::PostMessageW(window, WM_CRISP_UPLOAD_TOAST, 0,
+                           reinterpret_cast<LPARAM>(payload.get())) != FALSE) {
+            (void)payload.release();   // sahiplik pencereye geçti
         }
-        // BİLDİRİM YÜKLEME BİTİNCE ÇIKAR, yakalanınca değil. "Bağlantı
-        // kopyalandı" diyen bir bildirimin ardından sessizce başarısız olan bir
-        // yükleme, kullanıcıya panosunda olmayan bir bağlantıyı yapıştırtırdı.
-        Image none;
-        ShowCaptureToast(instance, none,
-                         Loc::Str(result.ok ? IDS_UPLOAD_COPIED : IDS_UPLOAD_FAILED),
-                         result.ok ? result.link : result.error, std::wstring());
     }).detach();
+}
+
+void App::FinishBackgroundUpload(LPARAM lParam) {
+    const std::unique_ptr<UploadToast> payload(
+        reinterpret_cast<UploadToast*>(lParam));
+    if (!payload) {
+        return;
+    }
+
+    // PANO BURADA YAZILIR, İŞ PARÇACIĞINDA DEĞİL. `OpenClipboard` verilen
+    // pencerenin ÇAĞIRAN İŞ PARÇACIĞINA ait olmasını ister; yükleme iş
+    // parçacığından çağrıldığında sessizce başarısız oluyordu ve kullanıcı
+    // "kopyalandı" diyen bir bildirimle boş bir panoya kalıyordu.
+    if (payload->ok && !CopyTextToClipboard(payload->text.c_str(), m_window)) {
+        LogV(L"Yükleme bağlantısı panoya kopyalanamadı");
+    }
+
+    if (!m_settings.showNotification) {
+        return;
+    }
+
+    // BİLDİRİM YÜKLEME BİTİNCE ÇIKAR, yakalanınca değil. "Bağlantı kopyalandı"
+    // diyen bir bildirimin ardından sessizce başarısız olan bir yükleme,
+    // kullanıcıya panosunda olmayan bir bağlantıyı yapıştırtırdı.
+    Image none;
+    ShowCaptureToast(m_instance, none,
+                     Loc::Str(payload->ok ? IDS_UPLOAD_COPIED : IDS_UPLOAD_FAILED),
+                     payload->text, std::wstring());
 }
 
 }  // namespace crisp

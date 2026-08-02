@@ -18,6 +18,18 @@
 
 namespace crisp {
 
+// Tutamağın ÇİZİLEN ve TUTULAN boyutu, 96 dpi mantıksal piksel.
+//
+// TUTMA ALANI ÇİZİLENDEN BÜYÜK: 7 piksellik bir kare fare hedefi değil. Çizim
+// küçük ve zarif, hedef geniş; ikisi ayrı sayı olduğu için ikisi de kendi işine
+// göre seçilebiliyor.
+//
+// BOYAMA BAŞLIĞINDA, ÇÜNKÜ İKİ TARAF DA OKUYOR: çizen OverlayPaint.cpp, tutan
+// OverlayAdjust.cpp. Çizilen tutamağın tutulamadığı bir sürüme giden en kısa
+// yol, bu sayıların iki yerde ayrı ayrı durmasıydı.
+inline constexpr int kHandleDrawSide = 7;
+inline constexpr int kHandleGrabSide = 13;
+
 // Kaplamanın o anki görsel durumu.
 struct OverlayVisual {
     RECT screen{};        // sanal ekran (ekran koordinatı) — istemcinin kökeni
@@ -33,6 +45,14 @@ struct OverlayVisual {
     // pencereyle hizalamaya yaramaz; bunun için ekranı kesen bir çizgi
     // gerekiyor.
     bool crosshair = true;
+
+    // Seçim bırakıldı ve artık ayarlanabilir: tutamaklarından boyutlandırılıyor,
+    // içinden taşınıyor. `OverlayState::settled`den yansıtılır, tıpkı
+    // `dragging` gibi.
+    //
+    // Boyamayı üç yerde değiştiriyor: artı imleç kalkar (nişan alma bitti),
+    // pencere vurgusu kalkar (pencere seçme bitti), ipucu farklı satırı gösterir.
+    bool settled = false;
 
     // --- Metin seçme kipi ----------------------------------------------------
     bool textSelect = false;

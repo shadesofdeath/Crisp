@@ -134,5 +134,61 @@ inline constexpr int kZoomMax = 800;
                                      int imageWidth, int imageHeight,
                                      double oldScale, POINT oldPan,
                                      double newScale) noexcept;
+
+// --- Seçim tutamakları (GeometryGrab.cpp) -----------------------------------
+//
+// Seçim, fare bırakıldıktan sonra ayarlanabiliyor: kenarlarından
+// boyutlandırılıyor, içinden taşınıyor. Aşağıdakiler o işin bütün aritmetiği ve
+// hepsi saf — pencere yok, DPI yok, ekran yok — çünkü yanlış gidebilecek şeyler
+// burada toplanıyor ve buranın tamamı sınanabilmeli.
+
+// Farenin seçimin neresini tuttuğu.
+enum class Grab { None, New, Move, N, S, E, W, NE, NW, SE, SW };
+
+// Tutamak kutuları, seçimle aynı koordinat uzayında.
+//
+// DÖNEN SAYI 0, 4 YA DA 8. Küçük bir seçimde sekiz tutamak birbirini yer:
+// karşılıklı olanlar üst üste biner, kenar ortaları köşelere değer, hangisini
+// tuttuğunuz rastlantıya kalır ve taşımaya hiç yer kalmaz. Bu yüzden seçim
+// küçüldükçe tutamaklar önce dörde iner, sonra tamamen kalkar ve dikdörtgenin
+// tamamı "taşı" olur:
+//
+//   0 tutamak : kenarlardan biri 3*handleSize'dan kısa
+//   4 (köşe)  : ikisi de >= 3*handleSize, biri < 5*handleSize
+//   8         : ikisi de >= 5*handleSize
+//
+// Sıra sabittir ve İSABET SIRASIDIR: NW, NE, SW, SE, N, S, W, E. Köşeler önce,
+// çünkü bir köşe kutusu kenar kutusuyla kesiştiğinde kullanıcının kastettiği
+// köşedir.
+//
+// ÇİZEN DE TUTAN DA BURAYI ÇAĞIRIR. İki ayrı hesap, çizilen tutamağın
+// tutulamadığı bir sürüme giden en kısa yol olurdu.
+//
+// DPI ölçeklemesi çağıranda kalır: `MulDiv` bir Win32 çağrısıdır ve bu başlık
+// Win32 çağırmaz.
+int HandleRects(const RECT& selection, LONG handleSize, RECT outRects[8],
+                Grab outGrabs[8]) noexcept;
+
+// İmleç seçimin neresinde. Önce tutamaklar (yukarıdaki sırayla), sonra iç
+// bölge, sonra `None`.
+[[nodiscard]] Grab HitTestSelection(const RECT& selection, POINT p,
+                                    LONG grabSize) noexcept;
+
+// `r`yi kaydırır, sonra BOYUTUNU KORUYARAK `bounds` içine geri iter.
+//
+// ClampTo BURADA KULLANILAMAZ: her kenarı bağımsız kırptığı için kenara dayanan
+// bir seçimi durdurmak yerine daraltırdı. Taşımak boyutu değiştirmez.
+//
+// `r`, `bounds`tan büyükse sığdırmanın yolu yoktur; orada ClampTo'ya düşer.
+[[nodiscard]] RECT OffsetClamped(const RECT& r, LONG dx, LONG dy,
+                                 const RECT& bounds) noexcept;
+
+// Tutulan kenarı imlece taşır; ötekiler yerinde kalır.
+//
+// FromCorners KULLANILMAZ. Bir kenarı karşısının ötesine sürüklemek, tutulan
+// tutamağın sürükleme ortasında ad değiştirmesi demek olurdu; hiçbir
+// düzenleyicide böyle olmaz. Kenar `minSide`da durur, dönmez.
+[[nodiscard]] RECT ResizeByGrab(const RECT& origin, Grab grab, POINT cursor,
+                                LONG minSide, const RECT& bounds) noexcept;
 }  // namespace geom
 }  // namespace crisp

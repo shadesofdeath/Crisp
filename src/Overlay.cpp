@@ -113,9 +113,9 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam,
                 if (state->dragging) {
                     UpdateTextSelection(*state, cursor);
                 }
-            } else if (state->dragging) {
-                UpdateSelection(*state, cursor);
-            } else {
+            } else if (state->grab != geom::Grab::None) {
+                UpdateRegionGrab(window, *state, cursor);
+            } else if (!state->settled) {
                 UpdateHover(*state, window, cursor);
             }
             ::InvalidateRect(window, nullptr, FALSE);
@@ -142,25 +142,24 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam,
                 ::InvalidateRect(window, nullptr, FALSE);
                 return 0;
             }
-            state->anchor = CursorInScreen();
-            state->dragging = true;
-            state->visual.dragging = true;
-            state->visual.showHint = false;
-            state->visual.selection = RECT{};
-            // Fare kaplamanın dışına çıksa da hareketleri almaya devam et.
-            ::SetCapture(window);
+            // Fare kaplamanın dışına çıksa da hareketleri almaya devam et;
+            // yakalamayı BeginRegionGrab kuruyor.
+            BeginRegionGrab(window, *state, CursorInScreen());
             ::InvalidateRect(window, nullptr, FALSE);
             return 0;
         }
 
         case WM_LBUTTONUP: {
-            if (state == nullptr || !state->dragging) {
+            if (state == nullptr) {
                 break;
             }
             if (state->mode == OverlayMode::TextSelect) {
+                if (!state->dragging) {
+                    break;
+                }
                 CommitTextSelection(window, *state);
             } else {
-                CommitDrag(window, *state);
+                EndRegionGrab(window, *state);
             }
             return 0;
         }
@@ -169,8 +168,25 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam,
         // (yani üçlü tık) satırın tamamını seçer — metin düzenleyicilerin
         // evrensel davranışı.
         case WM_LBUTTONDBLCLK: {
-            if (state == nullptr || state->mode != OverlayMode::TextSelect) {
+            if (state == nullptr) {
                 break;
+            }
+            if (state->mode != OverlayMode::TextSelect) {
+                // Yerleşmiş seçimin İÇİNE çift tık: onay. Dışına çift tık ise
+                // "baştan başlıyorum" demektir ve ikinci basış yeni bir
+                // sürükleme başlatmalı, yoksa hızlı davranan kullanıcı ilk
+                // hareketini kaybederdi.
+                const POINT cursor = CursorInScreen();
+                if (state->settled &&
+                    geom::IsUsableSelection(state->visual.selection,
+                                            kMinimumSelectionSide) &&
+                    ::PtInRect(&state->visual.selection, cursor) != FALSE) {
+                    Finish(window, *state, true, state->visual.selection);
+                } else {
+                    BeginRegionGrab(window, *state, cursor);
+                    ::InvalidateRect(window, nullptr, FALSE);
+                }
+                return 0;
             }
             const POINT image = ToImage(CursorInScreen(), state->visual.screen);
             const int word = ocrsel::WordAt(state->layout, image);
@@ -250,7 +266,11 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam,
 
             if (wParam == VK_SHIFT && !state->shiftHeld) {
                 state->shiftHeld = true;
-                if (state->dragging) {
+                // YALNIZ YENİ SÜRÜKLEMEDE. UpdateSelection dikdörtgeni
+                // `anchor`dan yeniden kuruyor ve taşıma ya da boyutlandırma
+                // sırasında `anchor` o sürüklemenin başlangıcı; Shift'e basmak
+                // seçimi eski çıpaya geri fırlatırdı.
+                if (state->grab == geom::Grab::New) {
                     UpdateSelection(*state, state->visual.cursor);
                     ::InvalidateRect(window, nullptr, FALSE);
                 }
@@ -271,7 +291,7 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam,
         case WM_KEYUP: {
             if (state != nullptr && wParam == VK_SHIFT) {
                 state->shiftHeld = false;
-                if (state->dragging) {
+                if (state->grab == geom::Grab::New) {
                     UpdateSelection(*state, state->visual.cursor);
                     ::InvalidateRect(window, nullptr, FALSE);
                 }
@@ -299,13 +319,16 @@ LRESULT CALLBACK OverlayProc(HWND window, UINT message, WPARAM wParam,
         case WM_ERASEBKGND:
             return 1;
 
+        // İMLEÇ BURADA SEÇİLİR, WM_MOUSEMOVE'DA DEĞİL. Fare yakalanmamışken
+        // Windows her hareketten ÖNCE WM_SETCURSOR gönderiyor; hareket
+        // işleyicisinden verilen bir imleç hemen ardından geri alınırdı.
+        // Metin seçmede I-kirişi, yerleşmiş seçimde tutamağa göre boyutlandırma
+        // imleci, kalan her yerde artı.
         case WM_SETCURSOR:
-            // Metin seçmede I-kirişi: kullanıcıya bunun bir alan değil METİN
-            // seçimi olduğunu imleç söyler.
-            ::SetCursor(::LoadCursorW(
-                nullptr, (state != nullptr && state->mode == OverlayMode::TextSelect)
-                             ? IDC_IBEAM
-                             : IDC_CROSS));
+            if (state == nullptr || LOWORD(lParam) != HTCLIENT) {
+                break;
+            }
+            ::SetCursor(RegionCursor(*state));
             return TRUE;
 
         // Kaplama odağı kaybederse (Alt+Tab, Win tuşu) iptal edilir: görünmez

@@ -306,6 +306,12 @@ void ShowCaptureToast(HINSTANCE instance, const Image& capture,
         return;
     }
     CloseCaptureToast();
+    if (g_window != nullptr) {
+        // Önceki kapanamadı. İkincisini üstüne koymak durumu kötüleştirir:
+        // `g_state` ikisi tarafından paylaşılır ve hangisinin ne çizdiği
+        // sıraya kalır.
+        return;
+    }
 
     auto state = std::make_unique<ToastState>();
     state->title = title;
@@ -365,10 +371,20 @@ void ShowCaptureToast(HINSTANCE instance, const Image& capture,
 }
 
 void CloseCaptureToast() noexcept {
-    if (g_window != nullptr) {
-        ::DestroyWindow(g_window);
-        g_window = nullptr;
+    if (g_window == nullptr) {
+        return;
     }
+    // BAŞKA BİR İŞ PARÇACIĞINDAN YOK EDİLEMEZ. `DestroyWindow` yalnızca
+    // pencereyi OLUŞTURAN iş parçacığında çalışır; başka yerden çağrıldığında
+    // sessizce FALSE döner. Kendiliğinden yükleme bir süre bildirimini kendi
+    // iş parçacığından açtı: birinci bildirim kapanmıyor, ikincisi ise mesaj
+    // döngüsü olmayan bir iş parçacığında doğuyor ve saydam kalıyordu —
+    // kullanıcının gördüğü, imleç üstüne gelince beliriveren bir bildirimdi.
+    if (::DestroyWindow(g_window) == FALSE) {
+        LogV(L"Bildirim kapatılamadı: pencere başka bir iş parçacığına ait");
+        return;   // g_window DURSUN: pencere hâlâ orada ve sahibi biz değiliz
+    }
+    g_window = nullptr;
 }
 
 }  // namespace crisp

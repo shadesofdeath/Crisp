@@ -15,6 +15,14 @@ inline constexpr UINT WM_CRISP_TRAY = WM_APP + 1;
 // nesnelerine başka bir iş parçacığından dokunmak olurdu.
 inline constexpr UINT WM_CRISP_UPLOAD_DONE = WM_APP + 2;
 
+// Aynı şey, ama yakalamadan sonra kendiliğinden başlayan yükleme için: hedef
+// düzenleyici penceresi değil, uygulamanın gizli ana penceresi.
+//
+// AYRI NUMARA, ÇÜNKÜ AYRI YÜK. İkisi de `lParam`da bir işaretçi taşıyor ve
+// yükler farklı türde; tek numarayı paylaşsalardı, bir gün yanlış pencereye
+// düşen bir mesaj yanlış türe dönüştürülürdü.
+inline constexpr UINT WM_CRISP_UPLOAD_TOAST = WM_APP + 3;
+
 // Gecikmeli yakalama sayacı.
 inline constexpr UINT_PTR TIMER_DELAY = 1;
 

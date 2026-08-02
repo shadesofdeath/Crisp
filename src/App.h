@@ -100,9 +100,16 @@ private:
     // kopyala, klasörde göster, metni tanı.
     void RunExtraTasks(const Image& image, const std::wstring& savedPath);
 
-    // Görüntüyü seçili servise ARKA PLANDA gönderir ve dönen bağlantıyı panoya
-    // koyar. Hemen döner; yükleme kendi iş parçacığında sürer.
+    // Görüntüyü seçili servise ARKA PLANDA gönderir. Hemen döner; yükleme kendi
+    // iş parçacığında sürer ve bittiğinde WM_CRISP_UPLOAD_TOAST gönderir.
     void UploadInBackground(const Image& image);
+
+    // O mesajın karşılığı: bağlantıyı panoya koyar ve bildirimi gösterir.
+    //
+    // AYRI ADIM, ÇÜNKÜ İKİSİ DE PENCERE İŞ PARÇACIĞINA AİT. Pano bir pencere
+    // tutamağı üzerinden açılır ve bildirim bir pencere oluşturur; ikisi de
+    // yükleme iş parçacığından yapıldığında sessizce yanlış çalışıyordu.
+    void FinishBackgroundUpload(LPARAM lParam);
 
     // Geçmiş penceresini açar; kullanıcı bir kayıt seçerse düzenleyiciye taşır.
     void ShowHistory();

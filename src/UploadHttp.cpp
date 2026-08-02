@@ -57,23 +57,24 @@ private:
     HINTERNET m_handle = nullptr;
 };
 
-// Sunucunun döndürdüğü durum koduna göre, kullanıcıya gösterilebilecek bir
-// cümle. Kod da yazılıyor: destek isteyen kullanıcının elinde bir tutamak olsun.
-[[nodiscard]] std::wstring StatusMessage(DWORD status) {
-    wchar_t buffer[160] = {};
+// Durum kodunu, arayüzün çevireceği bir sebebe indirger.
+//
+// Kodun kendisi `UploadResult::status` içinde ayrıca taşınıyor: cümle çevrilir,
+// sayı çevrilmez, ve destek isteyen kullanıcının elinde bir tutamak kalır.
+[[nodiscard]] UploadError ReasonFor(DWORD status) noexcept {
     if (status == 401 || status == 403) {
-        ::swprintf_s(buffer, L"Servis isteği reddetti (%lu). API anahtarı yanlış olabilir.",
-                     status);
-    } else if (status == 413) {
-        ::swprintf_s(buffer, L"Görüntü servisin sınırından büyük (%lu).", status);
-    } else if (status == 429) {
-        ::swprintf_s(buffer, L"Çok fazla istek gönderildi (%lu). Biraz bekleyin.", status);
-    } else if (status >= 500) {
-        ::swprintf_s(buffer, L"Servis şu an yanıt veremiyor (%lu).", status);
-    } else {
-        ::swprintf_s(buffer, L"Servis beklenmeyen bir yanıt verdi (%lu).", status);
+        return UploadError::Rejected;
     }
-    return buffer;
+    if (status == 413) {
+        return UploadError::TooLarge;
+    }
+    if (status == 429) {
+        return UploadError::TooMany;
+    }
+    if (status >= 500) {
+        return UploadError::Unavailable;
+    }
+    return UploadError::Unexpected;
 }
 
 }  // namespace
@@ -87,11 +88,11 @@ UploadResult UploadPng(UploadService service, const std::wstring& apiKey,
     if (!request.valid) {
         // BuildUploadRequest'in hataları çağıranın ayarıyla ilgili, ağla değil.
         if (request.error == L"missing key") {
-            result.error = L"Bu servis bir API anahtarı istiyor. Ayarlar › Yükleme.";
+            result.error = UploadError::MissingKey;
         } else if (request.error == L"empty image") {
-            result.error = L"Gönderilecek görüntü yok.";
+            result.error = UploadError::NoImage;
         } else {
-            result.error = L"Yükleme servisi seçilmemiş. Ayarlar › Yükleme.";
+            result.error = UploadError::NoService;
         }
         return result;
     }
@@ -99,7 +100,7 @@ UploadResult UploadPng(UploadService service, const std::wstring& apiKey,
     Handle session(::WinHttpOpen(kUserAgent, WINHTTP_ACCESS_TYPE_AUTOMATIC_PROXY,
                                  WINHTTP_NO_PROXY_NAME, WINHTTP_NO_PROXY_BYPASS, 0));
     if (!session) {
-        result.error = L"Ağ başlatılamadı.";
+        result.error = UploadError::Network;
         return result;
     }
 
@@ -112,7 +113,8 @@ UploadResult UploadPng(UploadService service, const std::wstring& apiKey,
     Handle connection(::WinHttpConnect(session.get(), request.host.c_str(),
                                        INTERNET_DEFAULT_HTTPS_PORT, 0));
     if (!connection) {
-        result.error = L"Servise bağlanılamadı: " + request.host;
+        result.error = UploadError::Network;
+        result.detail = request.host;
         return result;
     }
 
@@ -120,7 +122,7 @@ UploadResult UploadPng(UploadService service, const std::wstring& apiKey,
                                      nullptr, WINHTTP_NO_REFERER,
                                      WINHTTP_DEFAULT_ACCEPT_TYPES, WINHTTP_FLAG_SECURE));
     if (!http) {
-        result.error = L"İstek oluşturulamadı.";
+        result.error = UploadError::Network;
         return result;
     }
 
@@ -130,22 +132,21 @@ UploadResult UploadPng(UploadService service, const std::wstring& apiKey,
                              static_cast<DWORD>(request.body.size()),
                              static_cast<DWORD>(request.body.size()), 0) == FALSE) {
         const DWORD error = ::GetLastError();
+        // TLS ayrı tutuluyor: "bağlanamadım" ile "bağlandım ama sertifikaya
+        // güvenmedim" kullanıcı için aynı şey değil, ve ikincisi bir ağ
+        // arızasından çok bir uyarıdır.
         if (error == ERROR_WINHTTP_SECURE_FAILURE) {
-            result.error = L"Güvenli bağlantı doğrulanamadı.";
-        } else if (error == ERROR_WINHTTP_TIMEOUT) {
-            result.error = L"Bağlantı zaman aşımına uğradı.";
-        } else if (error == ERROR_WINHTTP_NAME_NOT_RESOLVED) {
-            result.error = L"Adres çözümlenemedi: " + request.host;
+            result.error = UploadError::Tls;
         } else {
-            wchar_t buffer[96] = {};
-            ::swprintf_s(buffer, L"Gönderilemedi (hata %lu).", error);
-            result.error = buffer;
+            result.error = UploadError::Network;
+            result.detail = request.host;
+            result.status = error;
         }
         return result;
     }
 
     if (::WinHttpReceiveResponse(http.get(), nullptr) == FALSE) {
-        result.error = L"Servisten yanıt alınamadı.";
+        result.error = UploadError::Network;
         return result;
     }
 
@@ -185,7 +186,8 @@ UploadResult UploadPng(UploadService service, const std::wstring& apiKey,
     // gövdede hata yazıyor, bazıları hata kodu dönüp gövdede sebebi veriyor;
     // ikisine de bakmadan doğru cümleyi kuramayız.
     if (status < 200 || status >= 300) {
-        result.error = StatusMessage(status);
+        result.error = ReasonFor(status);
+        result.status = status;
         return result;
     }
 
@@ -196,7 +198,7 @@ UploadResult UploadPng(UploadService service, const std::wstring& apiKey,
         // sorun bildiren kullanıcıdan istenebilsin.
         LogV(L"Yükleme: %s yanıtı ayrıştırılamadı: %.200hs",
              UploadServiceOf(service).displayName, body.c_str());
-        result.error = L"Servis yanıt verdi ama bağlantı okunamadı.";
+        result.error = UploadError::Unreadable;
         return result;
     }
 

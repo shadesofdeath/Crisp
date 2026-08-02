@@ -43,6 +43,21 @@ void UpdateHover(OverlayState& state, HWND overlay, POINT cursor) {
     }
 }
 
+// Bir monitör tuşu ne yapmalı: yerleşmiş bir seçim varken onu O monitöre
+// getirmek, yoksa doğrudan yakalamak.
+//
+// ESKİDEN HEP YAKALIYORDU ve bu, ayarlanabilir seçimle çelişiyor: kullanıcı
+// dikdörtgeni bırakmış, ayarlıyor, sonra "2" ye basıyor — beklediği şey seçimin
+// ikinci monitöre geçmesi, yakalamanın bitmesi değil. Enter hâlâ tek onay.
+void SetOrFinish(HWND window, OverlayState& state, const RECT& rect) {
+    if (state.settled) {
+        state.visual.selection = rect;
+        ::InvalidateRect(window, nullptr, FALSE);
+        return;
+    }
+    Finish(window, state, true, rect);
+}
+
 void Finish(HWND window, OverlayState& state, bool accepted, const RECT& selection) {
     if (state.decided) {
         return;
@@ -206,7 +221,7 @@ bool HandleOverlayShortcut(HWND window, OverlayState& state, WPARAM key) {
     // Boşluk: imlecin bulunduğu monitörün tamamını seçer ve bitirir.
     if (key == VK_SPACE) {
         const RECT monitor = MonitorRectAtCursor();
-        Finish(window, state, true, geom::ClampTo(monitor, state.visual.screen));
+        SetOrFinish(window, state, geom::ClampTo(monitor, state.visual.screen));
         return true;
     }
 
@@ -216,8 +231,7 @@ bool HandleOverlayShortcut(HWND window, OverlayState& state, WPARAM key) {
         const std::vector<RECT> monitors = MonitorRects();
         const size_t index = static_cast<size_t>(key - '1');
         if (index < monitors.size()) {
-            Finish(window, state, true,
-                   geom::ClampTo(monitors[index], state.visual.screen));
+            SetOrFinish(window, state, geom::ClampTo(monitors[index], state.visual.screen));
             return true;
         }
         return false;
@@ -225,7 +239,7 @@ bool HandleOverlayShortcut(HWND window, OverlayState& state, WPARAM key) {
 
     // 0: sanal masaüstünün tamamı.
     if (key == '0') {
-        Finish(window, state, true, state.visual.screen);
+        SetOrFinish(window, state, state.visual.screen);
         return true;
     }
     return false;
@@ -233,23 +247,4 @@ bool HandleOverlayShortcut(HWND window, OverlayState& state, WPARAM key) {
 
 // Sürükleme bittiğinde: yeterince büyük bir alan varsa onu, yoksa imlecin
 // altındaki pencereyi al. "Tıkla = pencere" davranışı bu daldan gelir.
-void CommitDrag(HWND window, OverlayState& state) {
-    state.dragging = false;
-    state.visual.dragging = false;
-    ::ReleaseCapture();
-
-    if (geom::IsUsableSelection(state.visual.selection, kMinimumSelectionSide)) {
-        Finish(window, state, true, state.visual.selection);
-        return;
-    }
-
-    if (!geom::IsEmpty(state.visual.hover)) {
-        Finish(window, state, true, state.visual.hover);
-        return;
-    }
-
-    // Ne alan ne pencere: seçimi temizle ve kullanıcıyı kaplamada bırak.
-    state.visual.selection = RECT{};
-    ::InvalidateRect(window, nullptr, FALSE);
-}
 }  // namespace crisp

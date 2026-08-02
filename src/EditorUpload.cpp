@@ -14,6 +14,8 @@
 #include "ImageCodec.h"
 #include "Localization.h"
 #include "Upload.h"
+#include "UploadLog.h"
+#include "UploadText.h"
 #include "Messages.h"
 #include "Util.h"
 #include "resource.h"
@@ -75,9 +77,21 @@ void BeginUpload(HWND window, State& state) {
     std::thread([window, service, key, png]() {
         const UploadResult result = UploadPng(service, key, *png, L"crisp.png");
 
+        // Defter BURADA yazılır, pencere mesajı beklenmeden: yükleme bitmişse
+        // kayıt da bitmiştir, ve pencere bu arada kapanmış olabilir.
+        if (result.ok) {
+            UploadRecord record;
+            record.link = result.link;
+            record.service = UploadServiceId(service);
+            (void)AppendUploadRecord(record);
+        }
+
         auto payload = std::make_unique<Payload>();
         payload->ok = result.ok;
-        payload->text = result.ok ? result.link : result.error;
+        // Çeviri BU İŞ PARÇACIĞINDA yapılır, pencereye ulaşmadan: Loc::Str
+        // salt okunur bir kaynak tablosuna bakıyor ve sonucu taşıyan yükün
+        // içinde hazır bir cümle olması, alan tarafını basit tutuyor.
+        payload->text = result.ok ? result.link : UploadErrorText(result);
 
         if (::PostMessageW(window, WM_CRISP_UPLOAD_DONE, 0,
                            reinterpret_cast<LPARAM>(payload.get())) != FALSE) {

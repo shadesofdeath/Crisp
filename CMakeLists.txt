@@ -1,27 +1,27 @@
-cmake_minimum_required(VERSION 3.25)
+﻿cmake_minimum_required(VERSION 3.25)
 
-# CMP0091: MSVC runtime library, CMAKE_MSVC_RUNTIME_LIBRARY üzerinden seçilir.
+# CMP0091: MSVC runtime library, CMAKE_MSVC_RUNTIME_LIBRARY Ã¼zerinden seÃ§ilir.
 cmake_policy(SET CMP0091 NEW)
 
 project(crisp
-        # CHANGELOG.md ile aynı numara olmalı. İkisi birbirinden kopmuştu:
-        # değişiklik günlüğü 0.4.0'a gelmişken burası hâlâ 0.1.0 diyordu, ve
-        # sürüm numarasını arşivin adına yazan CPack yanlış adlı bir paket
-        # üretiyordu.
-        VERSION 0.5.0
+        # CHANGELOG.md ile aynÄ± numara olmalÄ±. Ä°kisi birbirinden kopmuÅŸtu:
+        # deÄŸiÅŸiklik gÃ¼nlÃ¼ÄŸÃ¼ 0.4.0'a gelmiÅŸken burasÄ± hÃ¢lÃ¢ 0.1.0 diyordu, ve
+        # sÃ¼rÃ¼m numarasÄ±nÄ± arÅŸivin adÄ±na yazan CPack yanlÄ±ÅŸ adlÄ± bir paket
+        # Ã¼retiyordu.
+        VERSION 0.6.0
         DESCRIPTION "Screen capture tool for Windows"
         LANGUAGES CXX RC)
 
 if(NOT MSVC)
-    message(FATAL_ERROR "Crisp yalnızca MSVC ile derlenir.")
+    message(FATAL_ERROR "Crisp yalnÄ±zca MSVC ile derlenir.")
 endif()
 
-# --- Global derleme ayarları -------------------------------------------------
+# --- Global derleme ayarlarÄ± -------------------------------------------------
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Statik CRT — runtime kurulumu gerektirmeyen tek dosya .exe.
+# Statik CRT â€” runtime kurulumu gerektirmeyen tek dosya .exe.
 set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded")
 
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
@@ -29,23 +29,24 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 option(CRISP_PACKAGED "MSIX paketli derleme" OFF)
-option(CRISP_TESTS    "Test koşucusunu derle"  ON)
+option(CRISP_TESTS    "Test koÅŸucusunu derle"  ON)
 
-# Çekirdeği ve testleri, arayüz katmanı olmadan derleyebilmek için. Geliştirme
-# sırasında çekirdeği tek başına yeşile boyamayı, CI'da ise pencere açmayan bir
-# derleme yapmayı mümkün kılar.
+# Ã‡ekirdeÄŸi ve testleri, arayÃ¼z katmanÄ± olmadan derleyebilmek iÃ§in. GeliÅŸtirme
+# sÄ±rasÄ±nda Ã§ekirdeÄŸi tek baÅŸÄ±na yeÅŸile boyamayÄ±, CI'da ise pencere aÃ§mayan bir
+# derleme yapmayÄ± mÃ¼mkÃ¼n kÄ±lar.
 option(CRISP_APP      "Uygulama hedefini derle" ON)
 
 # ---------------------------------------------------------------------------
-# crisp_core — kullanıcı arayüzü OLMAYAN her şey
+# crisp_core â€” kullanÄ±cÄ± arayÃ¼zÃ¼ OLMAYAN her ÅŸey
 # ---------------------------------------------------------------------------
-# AYRIM NEDENİ: bu hedefteki hiçbir fonksiyon pencere oluşturmaz ve kullanıcı
-# etkileşimi beklemez, bu yüzden hepsi bir konsol test koşucusundan doğrudan
-# çağrılabilir. Yakalama, kodlama, pano ve geometri buradadır; yalnızca
-# etkileşimli katman (kaplama, tepsi, uygulama döngüsü) dışarıda kalır.
+# AYRIM NEDENÄ°: bu hedefteki hiÃ§bir fonksiyon pencere oluÅŸturmaz ve kullanÄ±cÄ±
+# etkileÅŸimi beklemez, bu yÃ¼zden hepsi bir konsol test koÅŸucusundan doÄŸrudan
+# Ã§aÄŸrÄ±labilir. Yakalama, kodlama, pano ve geometri buradadÄ±r; yalnÄ±zca
+# etkileÅŸimli katman (kaplama, tepsi, uygulama dÃ¶ngÃ¼sÃ¼) dÄ±ÅŸarÄ±da kalÄ±r.
 set(CRISP_CORE_SOURCES
     src/Util.cpp
     src/Geometry.cpp
+    src/GeometryGrab.cpp
     src/Capture.cpp
     src/WindowPick.cpp
     src/ImageCodec.cpp
@@ -66,6 +67,7 @@ set(CRISP_CORE_SOURCES
     src/Sound.cpp
     src/Upload.cpp
     src/UploadHttp.cpp
+    src/UploadLog.cpp
 )
 
 set(CRISP_CORE_HEADERS
@@ -89,6 +91,7 @@ set(CRISP_CORE_HEADERS
     src/Sound.h
     src/Upload.h
     src/UploadInternal.h
+    src/UploadLog.h
 )
 
 add_library(crisp_core STATIC ${CRISP_CORE_SOURCES} ${CRISP_CORE_HEADERS})
@@ -108,7 +111,7 @@ target_compile_definitions(crisp_core PUBLIC
 )
 
 target_compile_options(crisp_core PUBLIC
-    /W4             # uyarısız derlenmeli
+    /W4             # uyarÄ±sÄ±z derlenmeli
     /permissive-
     /utf-8
     /Zc:__cplusplus
@@ -127,12 +130,12 @@ target_link_libraries(crisp_core PUBLIC
     shell32
     advapi32
     shcore          # per-monitor DPI
-    dwmapi          # DwmGetWindowAttribute — pencerenin gerçek çerçeve sınırı
-    windowscodecs   # WIC — PNG kodlama/çözme
+    dwmapi          # DwmGetWindowAttribute â€” pencerenin gerÃ§ek Ã§erÃ§eve sÄ±nÄ±rÄ±
+    windowscodecs   # WIC â€” PNG kodlama/Ã§Ã¶zme
     ole32           # CoCreateInstance
     shlwapi
-    uxtheme         # SetWindowTheme — koyu kaydırma çubuğu
-    winhttp         # görsel yükleme; TEK ağ bağımlılığı
+    uxtheme         # SetWindowTheme â€” koyu kaydÄ±rma Ã§ubuÄŸu
+    winhttp         # gÃ¶rsel yÃ¼kleme; TEK aÄŸ baÄŸÄ±mlÄ±lÄ±ÄŸÄ±
 )
 
 # ---------------------------------------------------------------------------
@@ -151,6 +154,8 @@ set(CRISP_APP_SOURCES
     src/OverlayInput.cpp
     src/OverlaySession.cpp
     src/OverlayPaint.cpp
+    src/OverlayPanels.cpp
+    src/OverlayAdjust.cpp
     src/AlphaLayer.cpp
     src/Localization.cpp
     src/Theme.cpp
@@ -168,6 +173,7 @@ set(CRISP_APP_SOURCES
     src/EditorStatus.cpp
     src/EditorFile.cpp
     src/EditorUpload.cpp
+    src/UploadText.cpp
     src/EditorText.cpp
     src/EditorEffects.cpp
     src/EditorSelect.cpp
@@ -224,6 +230,7 @@ set(CRISP_APP_HEADERS
     src/TrayIcon.h
     src/Hotkeys.h
     src/Messages.h
+    src/UploadText.h
     res/resource.h
 )
 
@@ -237,15 +244,15 @@ source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}" FILES
     ${CRISP_CORE_SOURCES} ${CRISP_CORE_HEADERS}
     ${CRISP_APP_SOURCES}  ${CRISP_APP_HEADERS})
 
-# runtimeobject : WinRT etkinleştirme (Windows.Media.Ocr), ham ABI ile —
-#                 C++/WinRT bağımlılığı YOK, yalnızca RoGetActivationFactory.
-# comdlg32      : iğne penceresindeki "Farklı kaydet" iletişim kutusu.
+# runtimeobject : WinRT etkinleÅŸtirme (Windows.Media.Ocr), ham ABI ile â€”
+#                 C++/WinRT baÄŸÄ±mlÄ±lÄ±ÄŸÄ± YOK, yalnÄ±zca RoGetActivationFactory.
+# comdlg32      : iÄŸne penceresindeki "FarklÄ± kaydet" iletiÅŸim kutusu.
 # imm32        : metin aracinda IME aday penceresinin imlecin yanina tasinmasi.
 target_link_libraries(crisp PRIVATE crisp_core comctl32 runtimeobject comdlg32 msimg32 winmm imm32)
 
 target_link_options(crisp PRIVATE
-    # Manifest RC üzerinden gömülür (res/app.rc → RT_MANIFEST); linker'ın kendi
-    # manifestini üretmesi engellenir, yoksa çakışır.
+    # Manifest RC Ã¼zerinden gÃ¶mÃ¼lÃ¼r (res/app.rc â†’ RT_MANIFEST); linker'Ä±n kendi
+    # manifestini Ã¼retmesi engellenir, yoksa Ã§akÄ±ÅŸÄ±r.
     /MANIFEST:NO
     /SUBSYSTEM:WINDOWS
     $<$<CONFIG:Release,MinSizeRel,RelWithDebInfo>:/LTCG>
@@ -254,8 +261,8 @@ target_link_options(crisp PRIVATE
     $<$<CONFIG:Release,MinSizeRel>:/INCREMENTAL:NO>
 )
 
-# Sürüm numarası kaynak dosyaya elle yazılmaz; RC derleyicisine tanım olarak
-# geçer. Bkz. res/app.rc.
+# SÃ¼rÃ¼m numarasÄ± kaynak dosyaya elle yazÄ±lmaz; RC derleyicisine tanÄ±m olarak
+# geÃ§er. Bkz. res/app.rc.
 target_compile_definitions(crisp PRIVATE
     CRISP_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
     CRISP_VERSION_MINOR=${PROJECT_VERSION_MINOR}
@@ -267,9 +274,9 @@ set_target_properties(crisp PROPERTIES
     VS_DPI_AWARE "PerMonitor"
 )
 
-# app.rc simgeleri gömer ama CMake'in RC bağımlılık taraması onları görmez:
-# simge değişince ninja "no work to do" der ve ESKİ simge exe'de kalır. Hata
-# sessizdir — derleme başarılı görünür, yalnızca ürün yanlıştır.
+# app.rc simgeleri gÃ¶mer ama CMake'in RC baÄŸÄ±mlÄ±lÄ±k taramasÄ± onlarÄ± gÃ¶rmez:
+# simge deÄŸiÅŸince ninja "no work to do" der ve ESKÄ° simge exe'de kalÄ±r. Hata
+# sessizdir â€” derleme baÅŸarÄ±lÄ± gÃ¶rÃ¼nÃ¼r, yalnÄ±zca Ã¼rÃ¼n yanlÄ±ÅŸtÄ±r.
 set_property(SOURCE res/app.rc APPEND PROPERTY OBJECT_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/res/icons/app.ico"
     "${CMAKE_CURRENT_SOURCE_DIR}/res/icons/tray_dark.ico"
@@ -280,13 +287,14 @@ set_property(SOURCE res/app.rc APPEND PROPERTY OBJECT_DEPENDS
 endif()  # CRISP_APP
 
 # ---------------------------------------------------------------------------
-# crisp_tests.exe — konsol test koşucusu
+# crisp_tests.exe â€” konsol test koÅŸucusu
 # ---------------------------------------------------------------------------
 if(CRISP_TESTS)
     add_executable(crisp_tests
         tests/TestMain.cpp
         tests/TestFramework.h
         tests/TestGeometry.cpp
+        tests/TestGeometryGrab.cpp
         tests/TestCapture.cpp
         tests/TestCodec.cpp
         tests/TestClipboard.cpp
@@ -304,7 +312,7 @@ if(CRISP_TESTS)
         tests/TestHistory.cpp
         tests/TestSound.cpp
     )
-    # winmm: TestSound sesi gerçekten çalarak biçimi doğrular.
+    # winmm: TestSound sesi gerÃ§ekten Ã§alarak biÃ§imi doÄŸrular.
     target_link_libraries(crisp_tests PRIVATE crisp_core winmm)
     target_include_directories(crisp_tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/tests")
     set_target_properties(crisp_tests PROPERTIES OUTPUT_NAME "crisp_tests")
@@ -313,11 +321,11 @@ if(CRISP_TESTS)
     add_test(NAME crisp_core_tests COMMAND crisp_tests)
 endif()
 
-# --- Simge doğrulaması -------------------------------------------------------
-# Simgeler ÜRETİLMEZ, doğrulanır. Elle tasarlanmış varlıklardır ve depoda
-# tutulurlar; bir üretici burada çalışsaydı her yapılandırmada onların üzerine
-# yazardı. Doğrulayıcı eksik kare ya da yanlış boyutu yapılandırma sırasında
-# yakalar — alternatifi, bulanık bir tepsi simgesini çalışırken fark etmektir.
+# --- Simge doÄŸrulamasÄ± -------------------------------------------------------
+# Simgeler ÃœRETÄ°LMEZ, doÄŸrulanÄ±r. Elle tasarlanmÄ±ÅŸ varlÄ±klardÄ±r ve depoda
+# tutulurlar; bir Ã¼retici burada Ã§alÄ±ÅŸsaydÄ± her yapÄ±landÄ±rmada onlarÄ±n Ã¼zerine
+# yazardÄ±. DoÄŸrulayÄ±cÄ± eksik kare ya da yanlÄ±ÅŸ boyutu yapÄ±landÄ±rma sÄ±rasÄ±nda
+# yakalar â€” alternatifi, bulanÄ±k bir tepsi simgesini Ã§alÄ±ÅŸÄ±rken fark etmektir.
 if(CRISP_APP)
     execute_process(
         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
@@ -328,7 +336,7 @@ if(CRISP_APP)
         ERROR_VARIABLE CRISP_ICON_OUTPUT
     )
     if(NOT CRISP_ICON_RESULT EQUAL 0)
-        message(FATAL_ERROR "Simge doğrulaması başarısız:\n${CRISP_ICON_OUTPUT}")
+        message(FATAL_ERROR "Simge doÄŸrulamasÄ± baÅŸarÄ±sÄ±z:\n${CRISP_ICON_OUTPUT}")
     endif()
 endif()
 

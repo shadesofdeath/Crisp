@@ -27,6 +27,13 @@
 #define IDM_CAPTURE_LAST        215
 #define IDM_OPEN_CLIPBOARD      216
 
+// Son yüklenen bağlantılar. Alt menüdeki her satır bir komut kimliği alır ve
+// tıklandığında o bağlantıyı panoya kopyalar; blok hâlinde ayrılmalarının
+// sebebi, kaç kayıt gösterileceğinin çalışma zamanında belli olması.
+#define IDM_LINK_CLEAR          217
+#define IDM_LINK_FIRST          260
+#define IDM_LINK_LAST           (IDM_LINK_FIRST + 9)
+
 // --- Dizeler (1000+) ---------------------------------------------------------
 // TEK BLOK HÂLİNDE ARTAR: RT_STRING kaynakları 16'lık kümeler hâlinde saklanır,
 // bu yüzden kimlikler seyrek değil ARDIŞIK verilir; aradaki her boşluk
@@ -269,3 +276,26 @@
 #define IDS_UPLOAD_FAILED       1208
 #define IDS_ED_UPLOAD           1209
 #define IDS_SET_AFTER_UPLOAD    1210
+
+// Yükleme hataları. Çekirdek bir UploadError kodu döndürür (crisp_core Loc'a
+// bağımlı olamaz); çeviri burada, uygulama katmanında yapılır.
+#define IDS_UPERR_NO_SERVICE    1211
+#define IDS_UPERR_MISSING_KEY   1212
+#define IDS_UPERR_NO_IMAGE      1213
+#define IDS_UPERR_NETWORK       1214
+#define IDS_UPERR_TLS           1215
+#define IDS_UPERR_REJECTED      1216
+#define IDS_UPERR_TOO_LARGE     1217
+#define IDS_UPERR_TOO_MANY      1218
+#define IDS_UPERR_UNAVAILABLE   1219
+#define IDS_UPERR_UNEXPECTED    1220
+#define IDS_UPERR_UNREADABLE    1221
+
+// Son bağlantılar alt menüsü
+#define IDS_MENU_LINKS          1222
+#define IDS_MENU_LINKS_EMPTY    1223
+#define IDS_MENU_LINKS_CLEAR    1224
+#define IDS_LINK_COPIED         1225
+
+// Yerleşmiş seçimin ipucu: boyutlandırma, taşıma ve onaylama.
+#define IDS_HINT_REGION_SETTLED 1226

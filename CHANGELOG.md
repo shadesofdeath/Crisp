@@ -5,6 +5,88 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.6.0 — the selection you can actually adjust
+
+### Changed — the selection overlay
+
+- **Releasing the mouse no longer captures.** The rectangle settles and stays
+  there: drag a handle to resize it, drag inside it to move it, press **Enter**
+  or double-click inside to capture. The eight handles were already being drawn
+  and had never done anything — the interface was making a promise the code did
+  not keep, and a screenshot missed by three pixels meant starting the drag over.
+
+  Small selections shed their handles rather than letting them overlap: below
+  five handle-widths a side the edge handles go, below three the corners go too
+  and the whole rectangle becomes a move target. Handles are grabbed over a wider
+  area than they are drawn — a seven-pixel square is not a mouse target.
+
+- **Once settled, the monitor keys reshape the selection** instead of capturing
+  immediately. `Enter` stays the single commit.
+
+- Clicking a window still captures it, but only before a selection settles. With
+  one on screen a stray click outside it means "start again", not "grab whatever
+  window happens to be under the pointer".
+
+- The crosshair, the magnifier and the window highlight all switch off once a
+  rectangle exists; aiming is over. The crosshair and magnifier come back while a
+  handle is being dragged, which is aiming again.
+
+### Fixed
+
+- **The auto-upload notification did not appear, and the link never reached the
+  clipboard.** Both were done on the upload thread. A window created there gets
+  no message loop, so its fade-in timer never ran and it stayed fully
+  transparent; `DestroyWindow` on the capture notification failed silently
+  because that window belonged to another thread, leaving two notifications
+  sharing one piece of state. What the user saw was a notification that appeared
+  out of nowhere when the pointer crossed it. `OpenClipboard` was failing for the
+  same reason — it wants a window owned by the calling thread — so the "link
+  copied" message was, on the occasions it showed at all, not true.
+
+  The thread now waits on the network and nothing else, and posts its result to
+  the window. Closing a notification reports failure to the log instead of
+  swallowing it, and a notification that cannot replace the previous one is not
+  opened on top of it.
+
+- **Half the overlay's keys were undocumented.** `Space`, `1`–`9`, `0` and
+  `Ctrl+C` all worked and none of them appeared anywhere but the README — the
+  hint listed four mouse gestures and stopped. It is two lines now, mouse above
+  and keyboard below, in all sixteen languages, and it wraps rather than running
+  off a narrow screen. The settled selection gets its own second line, since
+  there the monitor keys reshape instead of capturing.
+
+- **Upload errors were Turkish in all sixteen languages.** The sentences were
+  written into `crisp_core`, which cannot call the localiser — the core must not
+  depend on the UI layer. The core reports a code now and the app layer
+  translates it, leaving the status number and the host name as the only
+  untranslated parts, which is correct: they read the same in every language.
+
+- Settings hints were a fixed three lines tall and the longer strings were
+  clipped against the window edge. They are measured now, so no translation can
+  overflow them.
+
+### Added
+
+- **Recent links.** Upload put a link on the clipboard and left it there; the
+  next copy erased it. The tray menu keeps the last ten now, and clicking one
+  copies it again. Stored as plain tab-separated text in
+  `%LOCALAPPDATA%\Crisp\uploads.txt` — a line you can delete by hand, not a
+  database. The image history stays what it was: a plain folder of PNGs with no
+  index to keep in step.
+
+- **Continuous integration.** 269 tests existed and nothing ran them. A Windows
+  workflow builds, tests and packages on every push. 284 now.
+
+### Known limitations
+
+- Alt+Tab away from the overlay still cancels a settled selection outright.
+  Suppressing that risks a full-screen topmost window that has lost keyboard
+  focus, so `Esc` can no longer reach it; preserving the rectangle across the
+  cancel needs state that outlives the overlay, which is its own change.
+- The size label can cover the top or bottom handles. They stay grabbable — the
+  hit test reads the selection, not the painter — so this costs a visual cue and
+  nothing else.
+
 ## 0.5.0 — the shortcut you actually wanted
 
 Three things a user reported: two fixed here, the third half-built and honest

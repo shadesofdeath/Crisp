@@ -22,10 +22,12 @@ magnifier reads real pixels.
 - A click too short to be a drag captures the window under the cursor instead.
 - The magnifier — 21×21 pixels at 7×, with coordinates, hex colour and a swatch —
   is on by default.
-- The selection cannot be moved or resized after the drag; the eight handles
-  around it are decorative.
+- **Releasing does not capture.** The rectangle settles and stays adjustable:
+  drag a handle to resize, drag inside it to move, **Enter** or a double-click
+  inside to capture. Small selections drop to corner handles only, and smaller
+  ones to none at all, so the handles never crowd out the room to move.
 
-Four keys the on-screen hint never mentions:
+Four more keys, all of them named in the on-screen hint:
 
 | Key | Does |
 | --- | --- |
@@ -33,6 +35,9 @@ Four keys the on-screen hint never mentions:
 | `1`–`9` | Nth monitor, ordered left to right rather than in driver order |
 | `0` | the entire virtual desktop |
 | `Ctrl+C` | copy the selection's position and size as text, taking no screenshot at all |
+
+Once a selection is settled the monitor keys reshape it instead of capturing;
+`Enter` remains the one commit.
 
 ## Other captures
 
@@ -127,7 +132,7 @@ on your machine.
 - The API key is stored in plain text in the registry or the ini file. It is
   masked on screen and nowhere else.
 - The seven-service list is closed — no custom or self-hosted endpoint.
-- Upload error messages are currently Turkish only.
+- Recent links live in the tray menu: the last ten, click one to copy it again.
 
 Nothing else here touches the network: no update check, no telemetry, no crash
 reporting.
@@ -190,12 +195,11 @@ nothing to install beside it. `-CoreOnly` builds the non-UI library and the test
 without the interface layer; `-Package` produces the portable ZIP. There is no
 installer and no MSIX manifest.
 
-269 tests run as a single CTest entry against `crisp_core`, the static library
+284 tests run as a single CTest entry against `crisp_core`, the static library
 holding everything that never creates a window — which is what makes the capture
-pipeline testable at all. Nothing runs them automatically; there is no CI
-configuration in the repository. No test asserts anything about what is on screen
-at the time: one that expected particular pixels would pass on one machine and
-fail on the next.
+pipeline testable at all. A GitHub Actions workflow builds, tests and packages on
+every push. No test asserts anything about what is on screen at the time: one
+that expected particular pixels would pass on one machine and fail on the next.
 
 ## Licence
 

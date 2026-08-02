@@ -1,0 +1,53 @@
+# Build Crisp and run its tests on every push and pull request.
+#
+# The repository had 269 tests and nothing that ran them. Passing locally is a
+# claim about one machine; this is the part that makes it a claim about the
+# branch.
+#
+# windows-latest ships MSVC and the Windows SDK, which is the whole toolchain —
+# there is no package manager step because the project has no external
+# dependencies.
+name: build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Puts cl.exe, rc.exe and the SDK on PATH for every later step. Without
+      # it CMake finds no compiler and fails at configure time.
+      - uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Configure
+        run: cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      # /W4 with warnings treated as noise is how a warning survives; the
+      # project builds clean today and this keeps the log readable enough to
+      # notice when it stops.
+      - name: Build
+        run: cmake --build build
+
+      # The runner has a desktop session, which these tests need: capture and
+      # clipboard tests talk to a real screen. They assert nothing about what is
+      # on it — see the note in tests/TestCapture.cpp.
+      - name: Test
+        run: ctest --test-dir build --output-on-failure
+
+      - name: Package
+        run: cpack --config build/CPackConfig.cmake -G ZIP -B build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Crisp-portable-x64
+          path: build/Crisp-*-portable-x64.zip
+          if-no-files-found: error

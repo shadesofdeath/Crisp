@@ -87,16 +87,41 @@ struct UploadServiceInfo {
 [[nodiscard]] const wchar_t* UploadServiceId(UploadService service) noexcept;
 [[nodiscard]] UploadService UploadServiceFromId(const std::wstring& id) noexcept;
 
-// Bir gönderimin sonucu.
+// Bir gönderimin neden olmadığı.
 //
-// `error` ZATEN OKUNABİLİR bir cümledir, hata kodu değil. Çağıran onu kullanıcıya
-// olduğu gibi gösterir: ağ hatasının hangi katmandan geldiğini kullanıcı
-// umursamıyor, "bağlanılamadı" ile "servis 403 döndü" arasındaki farkı
-// umursuyor.
+// KOD, CÜMLE DEĞİL — VE BU BİR KATMAN KURALI. Buradaki alan bir süre hazır
+// Türkçe cümle taşıyordu ve on altı dilin on beşinde kullanıcı, arayüzün geri
+// kalanı kendi dilindeyken Türkçe bir hata okuyordu. Düzeltmenin bariz yolu
+// `Loc::Str` çağırmaktı ve o yol kapalı: bu dosya `crisp_core` içinde, Loc ise
+// uygulama katmanında, ve çekirdeğin arayüze bağımlı olması yön kuralını bozar
+// (aynı gerekçe Settings.cpp'de dil doğrulaması için de yazılı).
+//
+// Yani çekirdek NE OLDUĞUNU söyler, arayüz onu kullanıcının diline çevirir.
+enum class UploadError : unsigned {
+    None = 0,
+    NoService,      // ayarlarda servis seçilmemiş
+    MissingKey,     // servis anahtar istiyor, anahtar yok
+    NoImage,        // gönderilecek bayt yok
+    Network,        // bağlanılamadı, ad çözülemedi, zaman aşımı
+    Tls,            // güvenli bağlantı doğrulanamadı
+    Rejected,       // 401 / 403 — anahtar yanlış olabilir
+    TooLarge,       // 413
+    TooMany,        // 429
+    Unavailable,    // 5xx
+    Unexpected,     // beklenmeyen durum kodu
+    Unreadable,     // 2xx geldi ama gövdeden bağlantı çıkmadı
+};
+
+// Bir gönderimin sonucu.
 struct UploadResult {
     bool ok = false;
     std::wstring link;    // başarıda: doğrudan görüntü adresi
-    std::wstring error;   // başarısızlıkta
+    UploadError error = UploadError::None;
+    // Cümleye eklenecek, ÇEVRİLMEYEN parça: sunucunun durum kodu ya da alan
+    // adı. Sayı ve alan adı her dilde aynı yazılır; çeviri dosyasına girmesi
+    // gereken tek şey onları saran cümle.
+    unsigned status = 0;         // HTTP durum kodu, varsa
+    std::wstring detail;         // alan adı, varsa
 };
 
 // PNG baytlarını gönderir ve dönen bağlantıyı verir.
