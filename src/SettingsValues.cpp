@@ -44,6 +44,7 @@ void FillUploadServices(HWND box, State& state) {
     size_t count = 0;
     const UploadServiceInfo* services = UploadServices(count);
 
+    std::wstring widest;
     for (size_t i = 0; i < count; ++i) {
         const UploadServiceInfo& info = services[i];
 
@@ -79,6 +80,39 @@ void FillUploadServices(HWND box, State& state) {
         ::SendMessageW(box, CB_ADDSTRING, 0,
                        reinterpret_cast<LPARAM>(label.c_str()));
         state.uploadServiceIds.emplace_back(info.id);
+        if (label.size() > widest.size()) {
+            widest = label;
+        }
+    }
+
+    // AÇILAN LİSTE KUTUDAN GENİŞ OLABİLİR. Varsayılanı kutunun genişliği ve
+    // satırlar oraya sığmıyordu: "bashupload.app · 1 gün · ücretsiz" ile
+    // "Freeimage.host · kalıcı · API key" kenarda kesiliyordu. Kutuyu
+    // genişletmek orta sütunu bozardı; genişleyen yalnızca açıldığında
+    // görünen liste.
+    //
+    // EN UZUN DİZE KARAKTERLE SEÇİLİYOR, ÖLÇÜYLE DEĞİL — ama ölçülen o dize.
+    // Karakter sayısı orantılı bir yazı tipinde genişliği vermez; burada
+    // yalnızca hangi satırın ölçüleceğini seçiyor, genişliği GetTextExtentPoint32
+    // söylüyor.
+    const HDC dc = ::GetDC(box);
+    if (dc != nullptr) {
+        const auto font = reinterpret_cast<HFONT>(::SendMessageW(box, WM_GETFONT, 0, 0));
+        const HGDIOBJ previous = font != nullptr ? ::SelectObject(dc, font) : nullptr;
+
+        SIZE extent{};
+        if (::GetTextExtentPoint32W(dc, widest.c_str(),
+                                    static_cast<int>(widest.size()), &extent) != FALSE) {
+            const int scrollBar = ::GetSystemMetrics(SM_CXVSCROLL);
+            const int padding = ::GetSystemMetrics(SM_CXBORDER) * 8;
+            ::SendMessageW(box, CB_SETDROPPEDWIDTH,
+                           static_cast<WPARAM>(extent.cx + scrollBar + padding), 0);
+        }
+
+        if (previous != nullptr) {
+            ::SelectObject(dc, previous);
+        }
+        ::ReleaseDC(box, dc);
     }
 }
 

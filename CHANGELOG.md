@@ -5,6 +5,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## 0.7.1 — read the whole row
+
+### Fixed
+
+- **The two longest rows in the service list were cut off at the edge.** A
+  combo box drops its list at the width of the box, and
+  `bashupload.app · 1 gün · ücretsiz` and `Freeimage.host · kalıcı · API key`
+  did not fit. Widening the box would have disturbed the column it sits in, so
+  only the list widens, to the measured width of its longest entry. The point of
+  putting the lifetime and the price on every row was that they could be read.
+
 ## 0.7.0 — thirteen places to put a screenshot, and a way to install it
 
 ### Added — six more upload services
