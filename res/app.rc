@@ -26,9 +26,19 @@ IDI_TRAY_LIGHT ICON "icons\\tray_light.ico"
 #include "strings.rc"
 
 // --- Sürüm bilgisi -----------------------------------------------------------
+//
+// NUMARA CMAKE'TEN GELİR, BURAYA YAZILMAZ. Üç yerde elle tutulan bir sürüm
+// numarası üç yerde birden bayatlar: bu blok 0.1.0 derken CMakeLists 0.5.0,
+// CHANGELOG ise 0.5.0 diyordu ve indirilen exe'nin özelliklerinde yanlış sürüm
+// görünüyordu. CMakeLists projenin sürümünü tanım olarak geçiriyor (bkz.
+// target_compile_definitions), buradaki tek iş onu biçimlendirmek.
+#define CRISP_STRINGIFY2(x) #x
+#define CRISP_STRINGIFY(x)  CRISP_STRINGIFY2(x)
+#define CRISP_VERSION_TEXT                                                        CRISP_STRINGIFY(CRISP_VERSION_MAJOR) "."                                      CRISP_STRINGIFY(CRISP_VERSION_MINOR) "."                                      CRISP_STRINGIFY(CRISP_VERSION_PATCH) ".0"
+
 VS_VERSION_INFO VERSIONINFO
-    FILEVERSION    0,1,0,0
-    PRODUCTVERSION 0,1,0,0
+    FILEVERSION    CRISP_VERSION_MAJOR,CRISP_VERSION_MINOR,CRISP_VERSION_PATCH,0
+    PRODUCTVERSION CRISP_VERSION_MAJOR,CRISP_VERSION_MINOR,CRISP_VERSION_PATCH,0
     FILEFLAGSMASK  VS_FFI_FILEFLAGSMASK
     FILEFLAGS      0
     FILEOS         VOS_NT_WINDOWS32
@@ -41,12 +51,12 @@ BEGIN
         BEGIN
             VALUE "CompanyName",      "ShadesOfDeath"
             VALUE "FileDescription",  "Crisp — screen capture"
-            VALUE "FileVersion",      "0.1.0.0"
+            VALUE "FileVersion",      CRISP_VERSION_TEXT
             VALUE "InternalName",     "Crisp"
             VALUE "LegalCopyright",   "© 2026 ShadesOfDeath. MIT licensed."
             VALUE "OriginalFilename", "Crisp.exe"
             VALUE "ProductName",      "Crisp"
-            VALUE "ProductVersion",   "0.1.0.0"
+            VALUE "ProductVersion",   CRISP_VERSION_TEXT
         END
     END
     BLOCK "VarFileInfo"

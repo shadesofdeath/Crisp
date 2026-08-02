@@ -254,6 +254,14 @@ target_link_options(crisp PRIVATE
     $<$<CONFIG:Release,MinSizeRel>:/INCREMENTAL:NO>
 )
 
+# Sürüm numarası kaynak dosyaya elle yazılmaz; RC derleyicisine tanım olarak
+# geçer. Bkz. res/app.rc.
+target_compile_definitions(crisp PRIVATE
+    CRISP_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
+    CRISP_VERSION_MINOR=${PROJECT_VERSION_MINOR}
+    CRISP_VERSION_PATCH=${PROJECT_VERSION_PATCH}
+)
+
 set_target_properties(crisp PROPERTIES
     OUTPUT_NAME "Crisp"
     VS_DPI_AWARE "PerMonitor"
