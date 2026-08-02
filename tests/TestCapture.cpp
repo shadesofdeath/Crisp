@@ -176,6 +176,51 @@ CRISP_TEST(Capture, MonitorRectAtCursor_sanal_ekranin_icinde) {
     CHECK(monitor.bottom <= screen.bottom);
 }
 
+CRISP_TEST(Capture, MonitorRectAtPoint_tek_bir_monitor_dondurur) {
+    // BU TESTİN VAR OLMA SEBEBİ BİR HATA. Seçim kaplamasının ipucu kutusu,
+    // değişken adı `monitor` olan ama aslında SANAL EKRANI tutan bir
+    // dikdörtgene ortalanıyordu. Tek monitörde ikisi aynı şeydir ve hata
+    // görünmez; iki monitörde sanal ekranın yatay ortası tam olarak iki ekranın
+    // birleştiği yerdir, kutu da ikiye bölünür.
+    //
+    // O yüzden asıl sınanan "boş değil" değil, ŞU: dönen dikdörtgen gerçek
+    // monitörlerden BİRİ olmalı, hiçbir zaman onların birleşimi. Tek monitörlü
+    // bir makinede bu sessizce geçer; iki monitörlü bir makinede eski
+    // davranışı yakalar.
+    const std::vector<RECT> monitors = MonitorRects();
+    CHECK(!monitors.empty());
+
+    for (const RECT& monitor : monitors) {
+        const POINT center{monitor.left + geom::Width(monitor) / 2,
+                           monitor.top + geom::Height(monitor) / 2};
+        const RECT found = MonitorRectAtPoint(center);
+        CHECK(found.left == monitor.left);
+        CHECK(found.top == monitor.top);
+        CHECK(found.right == monitor.right);
+        CHECK(found.bottom == monitor.bottom);
+    }
+
+    // Sanal ekranın çok dışındaki bir nokta da bir monitör almalı: en yakını.
+    // Boş dikdörtgen dönseydi, ona ortalanan her kutu sol üst köşeye yığılırdı.
+    //
+    // Değişken adı `far` DEĞİL: `far` 16-bit Windows'tan kalma bir makro ve
+    // <windows.h> onu hâlâ tanımlıyor. `POINT far{...}` sessizce `POINT {...}`
+    // olur, çağrı da bağımsız değişkensiz kalır.
+    const RECT screen = VirtualScreenRect();
+    const POINT outside{screen.right + 10000, screen.bottom + 10000};
+    const RECT nearest = MonitorRectAtPoint(outside);
+    CHECK(!geom::IsEmpty(nearest));
+
+    bool isARealMonitor = false;
+    for (const RECT& monitor : monitors) {
+        if (nearest.left == monitor.left && nearest.top == monitor.top &&
+            nearest.right == monitor.right && nearest.bottom == monitor.bottom) {
+            isARealMonitor = true;
+        }
+    }
+    CHECK(isARealMonitor);
+}
+
 CRISP_TEST(Capture, CaptureRect_istenen_boyutu_verir) {
     const RECT area{0, 0, 200, 120};
     Image image;

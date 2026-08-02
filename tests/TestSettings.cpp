@@ -156,40 +156,55 @@ CRISP_TEST(Settings, Clamp_tek_eylem_yeterliyse_dokunmaz) {
     CHECK(s.after.saveToFile);
 }
 
-CRISP_TEST(Settings, Clamp_degistiricisiz_kisayolu_iptal_eder) {
-    // Değiştiricisiz bir HARF, o harfi sistemdeki her metin kutusundan çalardı.
-    // Metin üretmeyen tuşların istisnası bir sonraki testte.
+CRISP_TEST(Settings, Clamp_degistiricisiz_kisayolu_artik_silmez) {
+    // BU TEST ESKİDEN TERSİNİ SÖYLÜYORDU. Clamp, değiştiricisi olmayan bir harfi
+    // siliyordu. Gerekçe gerçekti — tek başına bağlanan bir harf, o harfi
+    // sistemdeki her metin kutusundan alır — ama sonucu, kullanıcının ayarlar
+    // penceresinde seçip kaydettiği tuşun bir sonraki açılışta yok olmasıydı.
+    // Tek tuşla ekran görüntüsü almak yaygın bir alışkanlık ve bedeli olan bir
+    // seçim, bedeli anlatılıp kullanıcıya bırakılır.
     Settings s;
     s.hotkeys[0].key = Hotkey{0, 'S'};
     s.Clamp();
-    CHECK(!s.hotkeys[0].key.assigned());
+    CHECK(s.hotkeys[0].key.assigned());
 
     s.hotkeys[1].key = Hotkey{MOD_CONTROL | MOD_SHIFT, 'W'};
     s.Clamp();
     CHECK(s.hotkeys[1].key.assigned());
 }
 
-CRISP_TEST(Settings, Clamp_metin_uretmeyen_tuslari_tek_basina_birakir) {
-    // TKL (sayısal takımsız) bir klavyede kullanıcının elinde kalan yedek
-    // tuşlar bunlardır ve hiçbiri metin üretmez: kuralı onlara uygulamak,
-    // kısayol kutusunun kabul ettiği tuşu Tamam'da sessizce siliyordu.
+CRISP_TEST(Settings, HotkeyTypesCharacters_bedeli_olan_tuslari_ayirir) {
+    // Bu yordam artık hiçbir şeyi yasaklamıyor. Yalnızca ipucu satırının
+    // anlattığı ayrımı tutuyor: bu tuşu tek başına bağlarsam yazarken bir şey
+    // kaybeder miyim?
+    CHECK(HotkeyTypesCharacters('S'));
+    CHECK(HotkeyTypesCharacters('7'));
+    CHECK(HotkeyTypesCharacters(VK_SPACE));
+
+    // İşlev tuşları ve zaten bu iş için var olan tuşlar: bedelsiz.
+    CHECK(!HotkeyTypesCharacters(VK_F1));
+    CHECK(!HotkeyTypesCharacters(VK_F24));
+    CHECK(!HotkeyTypesCharacters(VK_SNAPSHOT));
+    CHECK(!HotkeyTypesCharacters(VK_PAUSE));
+    CHECK(!HotkeyTypesCharacters(VK_MEDIA_PLAY_PAUSE));
+
+    // TKL (sayısal takımsız) bir klavyede tek başına bağlamak için en uygun
+    // tuşlar bunlar ve hiçbiri karakter üretmiyor. Eskiden listede yoktular ve
+    // "değiştirici ister" sayılıyorlardı.
+    CHECK(!HotkeyTypesCharacters(VK_INSERT));
+    CHECK(!HotkeyTypesCharacters(VK_HOME));
+    CHECK(!HotkeyTypesCharacters(VK_END));
+    CHECK(!HotkeyTypesCharacters(VK_PRIOR));
+    CHECK(!HotkeyTypesCharacters(VK_NEXT));
+
+    // Ve döndürdüğü değer kısayolun kaderini belirlemiyor: ikisi de Clamp'ten
+    // sağ çıkar.
     Settings s;
-    s.hotkeys[0].key = Hotkey{0, VK_F9};
-    s.hotkeys[1].key = Hotkey{0, VK_SNAPSHOT};
-    s.hotkeys[2].key = Hotkey{0, VK_PAUSE};
-    s.hotkeys[3].key = Hotkey{0, VK_MEDIA_PLAY_PAUSE};
+    s.hotkeys[0].key = Hotkey{0, VK_INSERT};
+    s.hotkeys[1].key = Hotkey{0, 'K'};
     s.Clamp();
     CHECK(s.hotkeys[0].key.assigned());
     CHECK(s.hotkeys[1].key.assigned());
-    CHECK(s.hotkeys[2].key.assigned());
-    CHECK(s.hotkeys[3].key.assigned());
-
-    // Harfler ve rakamlar kuralın içinde kalır.
-    CHECK(HotkeyNeedsModifier('S'));
-    CHECK(HotkeyNeedsModifier('7'));
-    CHECK(HotkeyNeedsModifier(VK_SPACE));
-    CHECK(!HotkeyNeedsModifier(VK_F1));
-    CHECK(!HotkeyNeedsModifier(VK_F24));
 }
 
 CRISP_TEST(Settings, Clamp_eylemsiz_yuvanin_tusunu_silmez) {
@@ -204,12 +219,17 @@ CRISP_TEST(Settings, Clamp_eylemsiz_yuvanin_tusunu_silmez) {
     CHECK(s.hotkeys[4].action == HotkeyAction::None);
 }
 
-CRISP_TEST(Settings, Clamp_tek_basina_MOD_WIN_kabul_edilmez) {
-    // Windows, Win+harf kombinasyonlarının çoğunu kendisi ayırıyor.
+CRISP_TEST(Settings, Clamp_MOD_WIN_kararini_RegisterHotKey_e_birakir) {
+    // BU TEST DE TERSİNİ SÖYLÜYORDU. Win+harf bileşimlerinin çoğunu Windows
+    // kendisi ayırdığı için Clamp onları siliyordu — ama Win+harf'in TAMAMI
+    // ayrılmış değil ve hangilerinin boş olduğunu bilen tek merci
+    // RegisterHotKey. Ayrılmış olanlar zaten kayıtta reddediliyor ve kullanıcı
+    // "şu kısayollar kaydedilemedi" iletisini görüyor; sessizce silmek, aynı
+    // bilgiyi vermeden tuşu yok ediyordu.
     Settings s;
     s.hotkeys[3].key = Hotkey{MOD_WIN, 'D'};
     s.Clamp();
-    CHECK(!s.hotkeys[3].key.assigned());
+    CHECK(s.hotkeys[3].key.assigned());
 }
 
 CRISP_TEST(Settings, Hotkey_paketleme_gidis_donusu) {

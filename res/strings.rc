@@ -206,7 +206,7 @@ BEGIN
     IDS_SET_SHELL_MENU      "Add to the Explorer right-click menu"
     IDS_SHELL_VERB          "Edit with Crisp"
     IDS_SHELL_FAILED        "The right-click menu entry could not be changed. Windows refused to write to the registry."
-    IDS_SET_HOTKEY_HINT     "Needs Ctrl, Alt or Shift. F1–F12 and Print Screen also work on their own. Backspace clears."
+    IDS_SET_HOTKEY_HINT     "Any key works, with or without Ctrl/Alt/Shift. A letter or digit bound on its own is taken from typing everywhere. Backspace clears."
 END
 
 // ---------------------------------------------------------------------------
@@ -389,7 +389,7 @@ BEGIN
     IDS_SET_SHELL_MENU      "Explorer sağ tık menüsüne ekle"
     IDS_SHELL_VERB          "Crisp ile düzenle"
     IDS_SHELL_FAILED        "Sağ tık menüsü öğesi değiştirilemedi. Windows kayıt defterine yazmayı reddetti."
-    IDS_SET_HOTKEY_HINT     "Ctrl, Alt veya Shift gerekir. F1–F12 ve Print Screen tek başına da olur. Backspace temizler."
+    IDS_SET_HOTKEY_HINT     "Her tuş olur, Ctrl/Alt/Shift şart değil. Tek başına bağlanan harf ya da rakam, her yerde yazmaktan alınır. Backspace temizler."
 END
 
 // ---------------------------------------------------------------------------
@@ -572,7 +572,7 @@ BEGIN
     IDS_SET_SHELL_MENU      "Zum Explorer-Kontextmenü hinzufügen"
     IDS_SHELL_VERB          "Mit Crisp bearbeiten"
     IDS_SHELL_FAILED        "Der Kontextmenüeintrag konnte nicht geändert werden. Windows hat den Registrierungszugriff verweigert."
-    IDS_SET_HOTKEY_HINT     "Ctrl, Alt oder Shift nötig. F1–F12 und Druck gehen auch allein. Rücktaste löscht."
+    IDS_SET_HOTKEY_HINT     "Jede Taste geht, mit oder ohne Strg/Alt/Umschalt. Ein allein belegter Buchstabe fehlt dann überall beim Tippen. Rücktaste löscht."
 END
 
 // ---------------------------------------------------------------------------
@@ -755,7 +755,7 @@ BEGIN
     IDS_SET_SHELL_MENU      "Ajouter au menu contextuel de l'Explorateur"
     IDS_SHELL_VERB          "Modifier avec Crisp"
     IDS_SHELL_FAILED        "L'entrée du menu contextuel n'a pas pu être modifiée. Windows a refusé l'écriture dans le registre."
-    IDS_SET_HOTKEY_HINT     "Ctrl, Alt ou Maj requis. F1–F12 et Impr. écran marchent seules. Retour arrière efface."
+    IDS_SET_HOTKEY_HINT     "N’importe quelle touche, avec ou sans Ctrl/Alt/Maj. Une lettre seule est retirée de la saisie partout. Retour arrière efface."
 END
 
 // ---------------------------------------------------------------------------
@@ -938,7 +938,7 @@ BEGIN
     IDS_SET_SHELL_MENU      "Añadir al menú contextual del Explorador"
     IDS_SHELL_VERB          "Editar con Crisp"
     IDS_SHELL_FAILED        "No se pudo cambiar la entrada del menú contextual. Windows denegó la escritura en el registro."
-    IDS_SET_HOTKEY_HINT     "Requiere Ctrl, Alt o Mayús. F1–F12 e Impr Pant también funcionan solas. Retroceso borra."
+    IDS_SET_HOTKEY_HINT     "Cualquier tecla, con o sin Ctrl/Alt/Mayús. Una letra sola deja de escribirse en todas partes. Retroceso borra."
 END
 
 // ---------------------------------------------------------------------------
@@ -1121,7 +1121,7 @@ BEGIN
     IDS_SET_SHELL_MENU      "Aggiungi al menu contestuale di Esplora file"
     IDS_SHELL_VERB          "Modifica con Crisp"
     IDS_SHELL_FAILED        "Impossibile modificare la voce del menu contestuale. Windows ha rifiutato la scrittura nel registro."
-    IDS_SET_HOTKEY_HINT     "Servono Ctrl, Alt o Maiusc. F1–F12 e Stamp funzionano anche da sole. Backspace cancella."
+    IDS_SET_HOTKEY_HINT     "Qualsiasi tasto, con o senza Ctrl/Alt/Maiusc. Una lettera da sola viene tolta dalla digitazione ovunque. Backspace cancella."
 END
 
 // ---------------------------------------------------------------------------
@@ -1304,7 +1304,7 @@ BEGIN
     IDS_SET_SHELL_MENU      "Adicionar ao menu de contexto do Explorador"
     IDS_SHELL_VERB          "Editar com o Crisp"
     IDS_SHELL_FAILED        "Não foi possível alterar o item do menu de contexto. O Windows recusou a gravação no registro."
-    IDS_SET_HOTKEY_HINT     "Requer Ctrl, Alt ou Shift. F1–F12 e Print Screen também funcionam sozinhas. Backspace limpa."
+    IDS_SET_HOTKEY_HINT     "Qualquer tecla, com ou sem Ctrl/Alt/Shift. Uma letra sozinha deixa de ser digitada em todo lugar. Backspace limpa."
 END
 
 // ---------------------------------------------------------------------------
@@ -1487,7 +1487,7 @@ BEGIN
     IDS_SET_SHELL_MENU      "Добавить в контекстное меню Проводника"
     IDS_SHELL_VERB          "Изменить в Crisp"
     IDS_SHELL_FAILED        "Не удалось изменить пункт контекстного меню. Windows отказал в записи в реестр."
-    IDS_SET_HOTKEY_HINT     "Нужен Ctrl, Alt или Shift. F1–F12 и Print Screen работают и сами по себе. Backspace очищает."
+    IDS_SET_HOTKEY_HINT     "Любая клавиша, с Ctrl/Alt/Shift или без. Буква, назначенная одна, перестаёт печататься везде. Backspace очищает."
 END
 
 // ---------------------------------------------------------------------------
@@ -1670,7 +1670,7 @@ BEGIN
     IDS_SET_SHELL_MENU      "Dodaj do menu kontekstowego Eksploratora"
     IDS_SHELL_VERB          "Edytuj w programie Crisp"
     IDS_SHELL_FAILED        "Nie udało się zmienić pozycji menu kontekstowego. System Windows odmówił zapisu do rejestru."
-    IDS_SET_HOTKEY_HINT     "Wymagany Ctrl, Alt lub Shift. F1–F12 i Print Screen działają też same. Backspace czyści."
+    IDS_SET_HOTKEY_HINT     "Dowolny klawisz, z Ctrl/Alt/Shift lub bez. Litera przypisana sama przestaje się wpisywać wszędzie. Backspace czyści."
 END
 
 // ---------------------------------------------------------------------------
@@ -1853,7 +1853,7 @@ BEGIN
     IDS_SET_SHELL_MENU      "Toevoegen aan het rechtermuisknopmenu"
     IDS_SHELL_VERB          "Bewerken met Crisp"
     IDS_SHELL_FAILED        "Het menu-item kon niet worden gewijzigd. Windows weigerde naar het register te schrijven."
-    IDS_SET_HOTKEY_HINT     "Ctrl, Alt of Shift vereist. F1–F12 en Print Screen werken ook alleen. Backspace wist."
+    IDS_SET_HOTKEY_HINT     "Elke toets, met of zonder Ctrl/Alt/Shift. Een letter die alleen staat, typt nergens meer. Backspace wist."
 END
 
 // ---------------------------------------------------------------------------
@@ -2036,7 +2036,7 @@ BEGIN
     IDS_SET_SHELL_MENU      "Přidat do kontextové nabídky Průzkumníka"
     IDS_SHELL_VERB          "Upravit v aplikaci Crisp"
     IDS_SHELL_FAILED        "Položku kontextové nabídky se nepodařilo změnit. Windows odmítl zápis do registru."
-    IDS_SET_HOTKEY_HINT     "Vyžaduje Ctrl, Alt nebo Shift. F1–F12 a Print Screen fungují i samostatně. Backspace maže."
+    IDS_SET_HOTKEY_HINT     "Libovolná klávesa, s Ctrl/Alt/Shift i bez. Písmeno samotné se přestane psát všude. Backspace maže."
 END
 
 // ---------------------------------------------------------------------------
@@ -2219,7 +2219,7 @@ BEGIN
     IDS_SET_SHELL_MENU      "Lägg till i Utforskarens högerklicksmeny"
     IDS_SHELL_VERB          "Redigera med Crisp"
     IDS_SHELL_FAILED        "Menyalternativet kunde inte ändras. Windows nekade skrivning till registret."
-    IDS_SET_HOTKEY_HINT     "Kräver Ctrl, Alt eller Skift. F1–F12 och Print Screen fungerar även ensamma. Backsteg rensar."
+    IDS_SET_HOTKEY_HINT     "Valfri tangent, med eller utan Ctrl/Alt/Skift. En bokstav som binds ensam skrivs inte längre någonstans. Backsteg rensar."
 END
 
 // ---------------------------------------------------------------------------
@@ -2402,7 +2402,7 @@ BEGIN
     IDS_SET_SHELL_MENU      "Додати до контекстного меню Провідника"
     IDS_SHELL_VERB          "Змінити в Crisp"
     IDS_SHELL_FAILED        "Не вдалося змінити пункт контекстного меню. Windows відмовив у записі до реєстру."
-    IDS_SET_HOTKEY_HINT     "Потрібен Ctrl, Alt або Shift. F1–F12 і Print Screen працюють і самі. Backspace очищає."
+    IDS_SET_HOTKEY_HINT     "Будь-яка клавіша, з Ctrl/Alt/Shift чи без. Літера, призначена сама, перестає друкуватися всюди. Backspace очищає."
 END
 
 // ---------------------------------------------------------------------------
@@ -2585,7 +2585,7 @@ BEGIN
     IDS_SET_SHELL_MENU      "エクスプローラーの右クリックメニューに追加"
     IDS_SHELL_VERB          "Crisp で編集"
     IDS_SHELL_FAILED        "右クリックメニューの項目を変更できませんでした。Windows がレジストリへの書き込みを拒否しました。"
-    IDS_SET_HOTKEY_HINT     "Ctrl・Alt・Shift のいずれかが必要です。F1～F12 と Print Screen は単独でも使えます。Backspace で消去。"
+    IDS_SET_HOTKEY_HINT     "どのキーでも使えます（Ctrl・Alt・Shift は不要）。単独で割り当てた文字キーは、どこでも入力できなくなります。Backspace で消去。"
 END
 
 // ---------------------------------------------------------------------------
@@ -2768,7 +2768,7 @@ BEGIN
     IDS_SET_SHELL_MENU      "탐색기 오른쪽 클릭 메뉴에 추가"
     IDS_SHELL_VERB          "Crisp으로 편집"
     IDS_SHELL_FAILED        "오른쪽 클릭 메뉴 항목을 변경하지 못했습니다. Windows가 레지스트리 쓰기를 거부했습니다."
-    IDS_SET_HOTKEY_HINT     "Ctrl, Alt 또는 Shift가 필요합니다. F1~F12와 Print Screen은 단독으로도 됩니다. Backspace로 지웁니다."
+    IDS_SET_HOTKEY_HINT     "아무 키나 됩니다. Ctrl/Alt/Shift 없이도 가능합니다. 단독으로 지정한 문자 키는 어디서도 입력되지 않습니다. Backspace로 지웁니다."
 END
 
 // ---------------------------------------------------------------------------
@@ -2951,5 +2951,5 @@ BEGIN
     IDS_SET_SHELL_MENU      "添加到资源管理器右键菜单"
     IDS_SHELL_VERB          "用 Crisp 编辑"
     IDS_SHELL_FAILED        "无法更改右键菜单项。Windows 拒绝写入注册表。"
-    IDS_SET_HOTKEY_HINT     "需要 Ctrl、Alt 或 Shift。F1–F12 和 Print Screen 也可单独使用。Backspace 清除。"
+    IDS_SET_HOTKEY_HINT     "任意按键均可，Ctrl/Alt/Shift 非必需。单独绑定的字母或数字将无法在任何地方输入。Backspace 清除。"
 END

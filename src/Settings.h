@@ -87,17 +87,26 @@ struct Hotkey {
     }
 };
 
-// Bu tuş, kısayol olabilmek için Ctrl/Alt/Shift İSTER Mİ?
+// Bu tuş tek başına bağlandığında YAZI YAZMAKTAN ALINIR MI?
 //
-// HARFLER VE RAKAMLAR İSTER: değiştiricisiz bir harfi global kısayol yapmak, o
-// harfi sistemdeki her metin kutusundan çalmak demektir.
+// ESKİDEN BU BİR YASAKTI. Adı `HotkeyNeedsModifier` idi ve harflerle rakamlara
+// değiştiricisiz kısayol atamayı engelliyordu: kutu tuşu kabul etmiyor, sesli
+// uyarı veriyordu. Gerekçe doğruydu — değiştiricisiz bir harf, o harfi
+// sistemdeki her metin kutusundan alır — ama karar kullanıcınındı, bizim değil.
+// Tek tuşla ekran görüntüsü almak yaygın bir alışkanlık ve bu işi yapan başka
+// araçlar buna izin veriyor.
 //
-// F1–F24, PRINT SCREEN, PAUSE, SCROLL LOCK VE ORTAM TUŞLARI İSTEMEZ: hiçbiri
-// metin üretmez ve tam olarak bu iş için vardır. Kuralı onlara da uygulamak,
-// sayısal takımı olmayan (TKL) bir klavyede kullanıcının elinde kalan yedek
-// tuşları yasaklıyordu — üstelik kısayol kutusu bu tuşları kabul edip
-// gösterdiği, Clamp ise Tamam'da sessizce sildiği için alan boşalıyordu.
-[[nodiscard]] bool HotkeyNeedsModifier(unsigned key) noexcept;
+// ARTIK BİR UYARI. Kısayol her tuşla, değiştiricili ya da değiştiricisiz
+// kurulabiliyor. Bu yordam yalnızca bedelin nerede olduğunu söylüyor:
+//
+//   true  — tuş metin üretir (harfler, rakamlar, noktalama, boşluk). Tek başına
+//           bağlanırsa yazarken artık o karakteri üretmez.
+//   false — F1–F24, Print Screen, Pause, Scroll Lock ve ortam tuşları. Hiçbiri
+//           metin üretmez; tek başına bağlamanın görünür bir bedeli yoktur.
+//
+// Ayarlar penceresindeki ipucu satırı bu ayrımı anlatır. Kod hiçbir yerde buna
+// bakıp bir kısayolu reddetmez.
+[[nodiscard]] bool HotkeyTypesCharacters(unsigned key) noexcept;
 
 // Bir kısayolun ne yaptığı.
 //
@@ -133,6 +142,21 @@ inline constexpr int kHotkeySlots = 6;
 
 struct Settings {
     std::wstring saveFolder;          // boşsa Resimler\Crisp kullanılır
+    // Görüntünün gönderileceği servisin kimliği; bkz. `UploadServiceId`.
+    //
+    // VARSAYILAN "none" VE BU BİR SÖZ. Kullanıcı buradan bir servis seçene kadar
+    // Crisp hiçbir ağ bağlantısı kurmaz — yükleme kodu bile çağrılmaz. README'de
+    // yazan "no upload, no account" cümlesi bu varsayılan sayesinde doğru
+    // kalıyor: yükleme artık mümkün ama kendiliğinden olmuyor.
+    std::wstring uploadService = L"none";
+    // Seçili servisin API anahtarı. Anahtar istemeyen servislerde boş kalır.
+    //
+    // AYAR DOSYASINDA DÜZ METİN DURUYOR ve bu bilinçli: dosya zaten kullanıcının
+    // kendi profilinde ve elle düzenlenebilir olması Crisp'in ayar dosyası için
+    // verdiği bir söz. Şifrelemek, anahtarı okuyabilen birinin dosyanın
+    // tamamını da okuyabildiği gerçeğini değiştirmez, yalnızca kullanıcının
+    // kendi anahtarını görmesini zorlaştırırdı.
+    std::wstring uploadApiKey;
     // Arayüz dili: "auto" ya da Loc::Languages() tablosundaki bir kod.
     std::wstring language = L"auto";
     // Tema: "system" | "light" | "dark".

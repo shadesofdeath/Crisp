@@ -70,6 +70,18 @@ private:
 // İmlecin bulunduğu monitörün sınırları.
 [[nodiscard]] RECT MonitorRectAtCursor() noexcept;
 
+// Verilen ekran noktasını barındıran monitörün sınırları.
+//
+// MonitorRectAtCursor imleci ÇAĞRI ANINDA sorar. Kaplama boyarken imlecin
+// nerede olduğunu zaten biliyor — girdi olayıyla gelen konumu taşıyor — ve onu
+// yeniden sormak, fare olay ile boyama arasında kıpırdadığında bir kareyi
+// yanlış monitöre çizer. Nokta bu yüzden dışarıdan verilir.
+//
+// Nokta hiçbir monitörün içinde değilse (monitörler arasındaki boşluk, ya da
+// sanal ekranın dışı) en yakın monitör döner: hiçbir zaman boş dikdörtgen
+// dönmez, çünkü çağıranların hepsi bir şey ortalamaya çalışıyor.
+[[nodiscard]] RECT MonitorRectAtPoint(POINT point) noexcept;
+
 // Tüm monitörler, SOLDAN SAĞA sıralı. Sıra kararlı olmalı: kullanıcı
 // "2. monitör" dediğinde her seferinde aynı ekranı almalı ve EnumDisplayMonitors
 // sürücü sırasını verir, ekrandaki diziliş sırasını değil.

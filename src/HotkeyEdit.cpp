@@ -50,10 +50,10 @@ HWND g_hookTarget = nullptr;
 //
 // GetKeyNameText tarama koduna bakar ve bu tuşlarda yanılır: Print Screen için
 // "Sys Req", ortam tuşları için o tarama kodunda oturan HARFİ ("G", "B"),
-// Pause ve F13+ için hiçbir şey döndürür. Değiştiricisiz atanabilen tuşlar
-// tam olarak bunlar olduğu için (bkz. HotkeyNeedsModifier) adları da artık
-// göz önünde: "G" ya da "0xB3" yazan bir kutu, kullanıcıya hangi tuşa
-// bastığını söylemez.
+// Pause ve F13+ için hiçbir şey döndürür. Tam da bu tuşlar tek başına
+// bağlanmaya en uygun olanlar (bkz. HotkeyTypesCharacters), yani en çok
+// görülecek adlar bunlar: "G" ya da "0xB3" yazan bir kutu, kullanıcıya hangi
+// tuşa bastığını söylemez.
 //
 // BURADA TABLO DOĞRU: harflerin aksine bu tuşlar klavye düzeninden bağımsızdır
 // ve tuş kapağında da böyle yazar.
@@ -157,15 +157,14 @@ void Store(HWND control, const Hotkey& hotkey) {
         return true;
     }
 
-    // KABUL EDİLMEYECEK BİR BİLEŞİM KUTUYA HİÇ YAZILMAZ. Eskiden yazılırdı ve
-    // Settings::Clamp onu Tamam'da sessizce siliyordu: kullanıcı geçerli
-    // gördüğü tuşu atıyor, alan boşalıyordu. Uyarı sesi kuralı olay yerinde
-    // söyler; kutuda duran eski değer de bozulmadan kalır.
-    if (modifiers == 0 && HotkeyNeedsModifier(vk)) {
-        ::MessageBeep(MB_ICONWARNING);
-        return true;
-    }
-
+    // DEĞİŞTİRİCİSİZ HER TUŞ KABUL EDİLİR.
+    //
+    // Burada, metin üreten bir tuşa değiştiricisiz basıldığında uyarı sesi
+    // verilip kutuya hiçbir şey yazılmıyordu. Anlattığı bedel gerçekti — tek
+    // başına bağlanan bir harf, sistemdeki her metin kutusundan alınır — ama o
+    // bedeli kullanıcı adına ödemeyi reddediyordu, üstelik nedenini söylemeden.
+    // Bedeli anlatmak ipucu satırının işi; hangi tuşa basılacağına karar vermek
+    // kullanıcının.
     Hotkey chosen{};
     chosen.key = vk;
     chosen.modifiers = modifiers;

@@ -34,7 +34,7 @@ namespace {
 // Settings
 // ---------------------------------------------------------------------------
 
-bool HotkeyNeedsModifier(unsigned key) noexcept {
+bool HotkeyTypesCharacters(unsigned key) noexcept {
     // İşlev tuşları: F1'den F24'e kesintisiz bir aralık.
     if (key >= VK_F1 && key <= VK_F24) {
         return false;
@@ -49,6 +49,21 @@ bool HotkeyNeedsModifier(unsigned key) noexcept {
         case VK_SNAPSHOT:   // Print Screen — bu iş için var olan tuş
         case VK_PAUSE:
         case VK_SCROLL:
+        // Gezinme ve düzenleme takımı. Hiçbiri karakter üretmez, ama eskiden
+        // bu listede yoktular ve bu yüzden "değiştirici ister" sayılıyorlardı.
+        // Insert, Home, End ve Page Up/Down, TKL bir klavyede tek başına
+        // bağlamak için en uygun tuşlar; yazarken kaybedilen bir şey olmaz.
+        case VK_INSERT:
+        case VK_HOME:
+        case VK_END:
+        case VK_PRIOR:
+        case VK_NEXT:
+        case VK_LEFT:
+        case VK_RIGHT:
+        case VK_UP:
+        case VK_DOWN:
+        case VK_APPS:       // içerik menüsü tuşu
+        case VK_CANCEL:     // Ctrl+Break
             return false;
         default:
             return true;
@@ -95,16 +110,19 @@ void Settings::Clamp() {
         fileNameFormat = L"Crisp %y-%mo-%d %h-%mi-%s";
     }
 
-    // Değiştirici tuşu olmayan kısayol, tek tuşa basınca yakalama başlatırdı —
-    // ama yalnızca metin üreten tuşlarda: gerekçe ve istisnalar için bkz.
-    // HotkeyNeedsModifier. MOD_WIN tek başına yine sayılmaz; Windows Win+harf
-    // bileşimlerinin çoğunu kendi ayırıyor.
+    // DEĞİŞTİRİCİSİZ KISAYOL ARTIK SİLİNMİYOR.
+    //
+    // Burada, dosyadan okunan her kısayol için "Ctrl/Alt/Shift yoksa ve tuş
+    // metin üretiyorsa sil" kuralı işliyordu. Kural iyi niyetliydi ve yanlış
+    // yerdeydi: kullanıcı ayarlar penceresinde tuşu seçmiş, Tamam demiş, dosya
+    // yazılmış — ve bir sonraki açılışta alan boş bulunmuştu. Tek tuşla ekran
+    // görüntüsü almak isteyen biri, isteğinin sessizce geri alındığını
+    // görüyordu.
+    //
+    // Bedeli olan bir seçim, bedeli anlatılıp kullanıcıya bırakılır: ayarlar
+    // penceresindeki ipucu satırı hangi tuşların yazmaktan alınacağını söyler.
+    // Bkz. HotkeyTypesCharacters.
     for (HotkeyBinding& binding : hotkeys) {
-        if (binding.key.key != 0 &&
-            (binding.key.modifiers & (MOD_CONTROL | MOD_ALT | MOD_SHIFT)) == 0 &&
-            HotkeyNeedsModifier(binding.key.key)) {
-            binding.key.key = 0;
-        }
         if (static_cast<unsigned>(binding.action) >=
             static_cast<unsigned>(HotkeyAction::Count)) {
             binding.action = HotkeyAction::None;
@@ -118,6 +136,8 @@ void Settings::Clamp() {
 
 void Settings::Load(const SettingsStore& store) {
     store.ReadString(L"SaveFolder", saveFolder);
+    store.ReadString(L"UploadService", uploadService);
+    store.ReadString(L"UploadApiKey", uploadApiKey);
     store.ReadString(L"Language", language);
     store.ReadString(L"Theme", theme);
     store.ReadString(L"SaveFormat", saveFormat);
@@ -204,6 +224,8 @@ bool Settings::Save(const SettingsStore& store) const {
 
     bool ok = true;
     ok = store.WriteString(L"SaveFolder", saveFolder) && ok;
+    ok = store.WriteString(L"UploadService", uploadService) && ok;
+    ok = store.WriteString(L"UploadApiKey", uploadApiKey) && ok;
     ok = store.WriteString(L"Language", language) && ok;
     ok = store.WriteString(L"Theme", theme) && ok;
     ok = store.WriteString(L"SaveFormat", saveFormat) && ok;

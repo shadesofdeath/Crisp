@@ -219,6 +219,14 @@ RECT MonitorRectAtCursor() noexcept {
     return RectOfMonitor(::MonitorFromPoint(cursor, MONITOR_DEFAULTTOPRIMARY));
 }
 
+RECT MonitorRectAtPoint(POINT point) noexcept {
+    // NEAREST, PRIMARY değil. Bir nokta iki monitörün arasındaki boşluğa
+    // düşebilir — dizilişleri hizalı değilse — ve orada birincil ekrana
+    // atlamak, kullanıcının baktığından başka bir ekrana çizmek demektir. En
+    // yakın monitör, baktığı ekrandır.
+    return RectOfMonitor(::MonitorFromPoint(point, MONITOR_DEFAULTTONEAREST));
+}
+
 std::vector<RECT> MonitorRects() {
     std::vector<RECT> rects;
     ::EnumDisplayMonitors(

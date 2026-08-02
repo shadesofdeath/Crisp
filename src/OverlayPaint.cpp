@@ -133,8 +133,21 @@ void DrawMagnifier(HDC dc, const OverlayVisual& visual, HDC frozenDc,
     const LONG imageSide = Scale(kMagnifierImageSide, visual.dpi);
     const LONG textHeight = Scale(38, visual.dpi);
     const SIZE panelSize{imageSide, imageSide + textHeight};
+
+    // Yerleşim imlecin monitörüne sığdırılır, sanal ekrana değil — büyütecin
+    // kenara gelince imlecin öbür yanına GEÇMESİ bu sınırla karar veriliyor.
+    // Sanal ekran verilince, imleç birinci monitörün sağ kenarındayken panel
+    // sığacak yer bulmuş sayılıyor ve ikinci monitöre taşıyordu: kullanıcı
+    // baktığı ekranda büyüteci kaybediyor, yan ekranda buluyordu.
+    //
+    // Büyütecin BÜYÜTTÜĞÜ pikseller (yukarıdaki `MagnifierSource`) sanal ekrana
+    // göre kalır ve kalmalı: kaynak, masaüstünün tamamının dondurulmuş
+    // görüntüsüdür ve kenardaki bir imleç için örnek alanı komşu monitöre
+    // taşabilir. Kırpılan şey görüntünün nereden alındığı değil, panelin nereye
+    // konduğu.
     const POINT origin = geom::MagnifierPlacement(
-        visual.cursor, panelSize, Scale(22, visual.dpi), visual.screen);
+        visual.cursor, panelSize, Scale(22, visual.dpi),
+        MonitorRectAtPoint(visual.cursor));
 
     const POINT clientOrigin = ToClient(origin, visual.screen);
     const RECT panel{clientOrigin.x, clientOrigin.y, clientOrigin.x + panelSize.cx,
@@ -252,7 +265,18 @@ void DrawTextLayer(AlphaLayer& layer, const OverlayVisual& visual) {
 }
 
 void DrawHint(HDC dc, const OverlayVisual& visual, HFONT font) {
-    const RECT monitor = visual.screen;
+    // İMLECİN MONİTÖRÜ, SANAL EKRAN DEĞİL.
+    //
+    // Burada `visual.screen` yazıyordu. Değişkenin adı `monitor` olduğu için
+    // doğru görünüyordu, ama o dikdörtgen bütün masaüstünü kapsar — ve iki
+    // monitörlü bir masaüstünde sanal ekranın yatay ortası tam olarak iki
+    // ekranın birleştiği yerdir. İpucu kutusu bu yüzden ikiye bölünüyor,
+    // yarısı bir ekranda yarısı diğerinde kalıyordu.
+    //
+    // Kaplama sanal ekranın tamamını kaplamayı sürdürüyor; seçimi bir
+    // monitörden diğerine sürükleyebilmek gerekiyor. Değişen yalnızca üstüne
+    // çizilen kutunun nereye ortalandığı: kullanıcının baktığı ekrana.
+    const RECT monitor = MonitorRectAtPoint(visual.cursor);
     const std::wstring text = Loc::Str(
         visual.textSelect ? IDS_HINT_TEXT
                           : (visual.colorPick ? IDS_HINT_COLOR : IDS_HINT_REGION));
